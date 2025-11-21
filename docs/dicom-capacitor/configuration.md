@@ -143,6 +143,16 @@ will be deleted from the cache.
 
 The port that DICOM Capacitor will use to listen for Find SCP requests.
 
+#### holdIncomingStorageAssociations (default: `true`)
+
+Determines whether DICOM Capacitor should apply back-pressure to incoming storage associations when the cache is busy.
+When enabled, it throttles inbound C-STORE associations based on the number of files in the `New` cache. The hold grows by one second per 200 queued items.
+This helps prevent the system from being overwhelmed by a flood of incoming data.
+
+#### limitMaxCMoveResponseRemainingCount (default: `-1`)
+
+Limits the maximum number of remaining C-MOVE responses reported. When enabled (value >= 0), C-MOVE responses whose `Remaining` property is higher than this value won't be forwarded downstream to the C-MOVE client. A value of `-1` indicates no limit.
+
 #### logSuffix (default: `#{2,2}-#{8,50}-#{10,20}`)
 
 Attributes displayed inside log files.  The default value will display:
@@ -156,6 +166,12 @@ and should be set to `0` unless you have a specific reason to change it.
 #### maxDataBuffer (default: `1048576`)
 
 The maximum size of the data buffer that DICOM Capacitor will use for communication.
+
+#### maxEnumeratedFiles (default: `1000`)
+
+The maximum number of files that DICOM Capacitor will enumerate per pass when scanning the cache for ripe files.
+This acts as a "Cache Enumeration Guard" to prevent long-running ripeness checks on extremely large caches.
+Set to `0` to disable the cap (enumerate all files).
 
 #### maxEnumeratedItems (default: `0`)
 
@@ -187,6 +203,18 @@ Determines whether DICOM Capacitor should move rejected files to the `rejected` 
 
 The AE Title that DICOM Capacitor will use to identify itself when sending DICOM data and responding to DICOM queries.
 This value can be overridden by "impersonation" in the `nodes.yml` file.
+
+#### processDelay (default: `0`)
+
+The number of milliseconds to delay delivery of prepared studies. This is part of an "Adaptive Study Delivery Window" system.
+It controls when prepared studies are delivered. Late-arriving images within the window (`ProcessDelay` × `processDelayWindowMultiplier`) are sent immediately instead of waiting for the full `ProcessDelay`.
+This reduces latency for late-arriving images while maintaining study cohesion.
+
+#### processDelayWindowMultiplier (default: `1`)
+
+A multiplier applied to the `processDelay` to define the "Adaptive Study Delivery Window".
+Late-arriving images that arrive within `ProcessDelay` × `processDelayWindowMultiplier` milliseconds of the study being processed are sent immediately.
+Set to `0` to disable the adaptive window feature.
 
 #### processSchedule (default: ``)
 
@@ -230,10 +258,21 @@ The number of milliseconds that DICOM Capacitor will wait between storage operat
 The number of hours that DICOM Capacitor will use to determine whether a Storage Commitment receipt has expired.
 Expired receipts will be deleted from the `cache/receipts/` directory.
 
+#### storageAssociationHoldExpectedTtlSeconds (default: `30`)
+
+The safety limit (in seconds) for the `holdIncomingStorageAssociations` back-pressure mechanism.
+The calculated hold time will be capped at the lower of 30 seconds or this value.
+
 #### studyThreshold (default: `0`)
 
 The number of seconds that DICOM Capacitor will wait before arrival of the last image before processing
 the images contained in a single study.  This setting is important if you are using the `sort` filter.
+
+#### suppressLogAeTitles (default: `HEALTHCHECK`)
+
+A YAML array of Calling AE Titles for which diagnostic logging should be bypassed end-to-end.
+This is useful for reducing log noise from health check probes or frequent pollers.
+Associations from these AE Titles will not generate standard association logs.
 
 #### worklistDays (default: `1`)
 
@@ -242,7 +281,7 @@ queries.
 
 #### worklistFilterStored (default: `false`)
 
-TODO: Document this setting
+Determines whether DICOM Capacitor should filter out worklist items for studies that have already been stored. This feature relies on storage receipts, so `storageReceiptExpiryHours` must be greater than 0 for it to work effectively.
 
 #### worklistInterval (default: `30000`)
 
