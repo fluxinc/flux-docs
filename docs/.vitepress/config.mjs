@@ -47,10 +47,6 @@ export default defineConfig({
                     link: "/dicom-capacitor/filters",
                     items: [
                       {
-                        text: "Filter Conditions",
-                        link: "/dicom-capacitor/filters/conditions",
-                      },
-                      {
                         text: "Route",
                         link: "/dicom-capacitor/filters/route",
                       },
@@ -61,6 +57,10 @@ export default defineConfig({
                       {
                         text: "Sort",
                         link: "/dicom-capacitor/filters/sort",
+                      },
+                      {
+                        text: "Filter Conditions",
+                        link: "/dicom-capacitor/filters/conditions",
                       }
                     ],
                   },
