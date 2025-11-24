@@ -18,13 +18,13 @@ or, simply:
 filters: route
 ```
 
-Once enabled, the route filter will use the `routings.yml` file to determine which destinations to route incoming DICOM data to.  If this file is missing or invalid DICOM Capacitor will halt with an error.
+Once enabled, the route filter will use the `routings.yml` file to determine which destinations to route incoming DICOM data to. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the route filter will be disabled.
 
 ## Route Components
 
 Each route component is defined as follows:
 
-- `AeTitles`: (Optional) The AE destination AE title to which this route applies.
+- `AeTitles`: (Optional) A list of destination AE titles to which this route applies.
 - `Conditions`: (Optional) A list of conditions that must be met for this route to apply.
 - `Actions`: (Required) A list of actions to take when this route applies.
 
@@ -37,31 +37,28 @@ The `AeTitles` field is an optional list of AE titles that this route applies to
 
 ### Conditions
 
-The `Conditions` field is an optional list of conditions that must be met for this route to apply.   If this field is not provided, the route will apply to all incoming DICOM data (provided that the `AeTitles` field is either not present, or is present and matches the incoming DICOM data).
+The `Conditions` field is an optional list of conditions that must be met for this route to apply. If this field is not provided, the route will apply to all incoming DICOM data (provided that the `AeTitles` field is either not present, or is present and matches the incoming DICOM data).
 
 Conditions are a shared concept between the `route` and `mutate` filters, and are described in their own [Conditions](./conditions) page.
 
 ### Actions
 
-The actions field is required, and must be a list of one or more actions to take when this route applies.
+The `Actions` field is required and must be a list of one or more actions to take when this route applies.
 
-Each action component is defined as follows:
+Each action has the following fields:
 
-- `Description`:  A description of the action that will appear in the logs.
-- `Type`:  The type of action to take.  Possible values are:
-  - `add_destination`: Adds the incoming DICOM data to the specified destination AE title
-  - `save_file`: Saves the incoming DICOM data to disk
+- `Type`: (Optional) The type of action to perform. Defaults to `add_destination` if not specified.
+  - `add_destination`: Sends the incoming DICOM data to a specified DICOM destination.
+  - `save_file`: Saves the incoming DICOM data to a file on disk.
   - `drop`: Drops the incoming DICOM data.
-- `RemoveOriginal`: (Optional, used in the `save_file` action only)  
-  Determines whether the incoming DICOM data should be removed from the cache after the action is taken.  The default value is `false`.
-- `Target`: (Requred for the `add_destination` and `save_file` actions)  
-  The AE title to which the incoming DICOM data should be sent, or the path to which the dataset should be saved (see [Save File Parameters](#save-file-parameters)).
+- `Description`: (Optional) A human-readable description of the action.
+- `RemoveOriginal`: (Optional) Used in `add_destination` and `save_file` action types. If `true`, the original file is removed from the source. Defaults to `false`. *Note: `drop` actions always remove the original file regardless of this setting.*
+- `Log`: (Optional) Controls the logging level for this action.
+  - `info`: Logs at the INFO level.
+  - `debug`: Logs at the DEBUG level (default).
+- `Target`: (Required for the `add_destination` and `save_file` actions) The AE title to which the incoming DICOM data should be sent, or the path to which the dataset should be saved.
 
-#### Save File Parameters
-
-The `save_file` action type will save the incoming DICOM data to disk.  The `Target` field is required, and must be a valid path on the local filesystem.  Additinallly, the `Target` may contain placeholders that will be replaced with the incoming DICOM data.  Placeholders are specified as `#{tag}`, where `tag` is the DICOM tag to be replaced.
-
-For example the following action will save the incoming DICOM data to disk, replacing the `#{8,50}` placeholder with the incoming DICOM data's AccesionNumber (0008,0050) attribute:
+For example, the following action will save the incoming DICOM data to disk, replacing the `#{8,50}` placeholder with the incoming DICOM data's Accession Number (0008,0050) attribute:
 
 ```yaml
 - Description: Save incoming DICOM data to disk
@@ -70,16 +67,16 @@ For example the following action will save the incoming DICOM data to disk, repl
   RemoveOriginal: false
 ```
 
-Again, the RemoveOriginal field is optional, and defaults to `false` (we include it here for clarity). We frequently use this pattern to "stash" incoming DICOM data for additional testing or analysis.
+The `RemoveOriginal` field is optional and defaults to `false` (we include it here for clarity). We frequently use this pattern to "stash" incoming DICOM data for additional testing or analysis.
 
 ## Routing Examples
 
-An example `routings.yml` file is shown below:
+The following example shows a complete `routings.yml` file with various routing scenarios:
 
 ```yaml
 # routings.yml
 
-# Drops all Dose SR instances
+# Example 1: Drop all Dose SR instances
 - Conditions:
     - Tag: 0002,0002
       MatchExpression: ^1\.2\.840\.10008\.5\.1\.4\.1\.1\.88\.67$
@@ -87,7 +84,7 @@ An example `routings.yml` file is shown below:
     - Description: Drop dose SR
       Type: drop
 
-# Stash all SC instances to disk in the `C:/dicom` directory
+# Example 2: Stash all SC instances to disk
 - Conditions:
     - Tag: 8,60
       MatchExpression: ^SC$
@@ -96,8 +93,7 @@ An example `routings.yml` file is shown below:
       Type: save_file
       Target: "C:/dicom/#{8,50}/#{8,18}.dcm"
 
-# Route all instances with a comment that contains 
-# the word "URGENT" to PACS_2
+# Example 3: Route URGENT instances from PACS_1 to MRPACS
 - AeTitles:
     - PACS_1
   Conditions:
@@ -105,33 +101,20 @@ An example `routings.yml` file is shown below:
       MatchExpression: ^.*URGENT.*$
   Actions:
     - Description: Send to PACS_2
+      Type: add_destination
       Target: MRPACS
       RemoveOriginal: true
-```
 
-### Example 1: Stash incoming DICOM data to disk
-
-The following route saves files to a directory structure that is based on the incoming DICOM data:
-
-```yaml
+# Example 4: Save incoming data using complex directory structure
+# This creates paths like: c:/dicom/PAT123456/20240501_Contrast_CT_ACC9401202/1_First_Series/CT_1.dcm
 - Actions:
     - Description: Save to disk
       Type: save_file
       Target: "C:/dicom/#{10,20}/#{8,20}_#{8,1030}_#{8,50}/#{20,11}_#{8,103e}/#{8,60}_#{20,13}.dcm"
-      RemoveOriginal: true
-```
 
-The final path in this example might look like this:
-
-```text
-c:/dicom/PAT123456/20240501_Contrast_CT_ACC9401202/1_First_Series/CT_1.dcm
-```
-
-### Example 2: Match multiple conditions and send to multiple destinations
-
-The following route matches incoming DICOM data with multiple conditions and sends it to multiple destinations:
-
-```yaml
+# Example 5: Match multiple conditions and send to multiple destinations
+# Setting RemoveOriginal to true on any action will remove the original file
+# after ALL actions complete. Both destinations are added before removal occurs.
 - AeTitles:
     - PACS
   Conditions:
@@ -141,11 +124,21 @@ The following route matches incoming DICOM data with multiple conditions and sen
       MatchExpression: ^CT$
   Actions:
     - Description: Send to PACS_1
+      Type: add_destination
       Target: PACS_1
       RemoveOriginal: false
     - Description: Send to PACS_2
+      Type: add_destination
       Target: PACS_2
       RemoveOriginal: true
-```
 
-> Note that the `RemoveOriginal` field is set to `false` for the first action, and `true` for the second action.  This is because we want to keep the incoming DICOM data in the cache after it has been sent to the PACS_1 destination, but we want to remove it from the cache after it has been sent to PACS_2.
+# Example 6: Debug logging for troubleshooting
+# Use Log: info to enable verbose logging for specific routes
+- Conditions:
+    - Tag: 0008,0060
+      MatchExpression: ^OT$
+  Actions:
+    - Description: Drop OT instances with logging
+      Type: drop
+      Log: info
+```
