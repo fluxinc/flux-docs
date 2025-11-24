@@ -87,6 +87,66 @@ Each action has the following fields:
   - `retry`: Retry operation
   - `fail`: Fail processing
 
+## How Mutations Work
+
+The mutate filter applies transformations to DICOM datasets based on configurable rules. Understanding mutation behavior is essential for building effective data processing pipelines:
+
+### Mutation Evaluation
+
+- Mutations are evaluated against incoming data based on AeTitles and Conditions
+- Only mutations that match will execute
+- Mutations are applied in the order they appear in `mutations.yml`
+- Each mutation that matches will execute all of its actions sequentially
+
+### Action Execution
+
+When a mutation matches, actions execute sequentially:
+
+1. **Sequential processing** - Actions run in the order they appear in the Actions list
+2. **OnError handling** - If an action encounters an error, the OnError setting determines what happens next:
+   - `skip_action`: Skip this action and continue to the next action
+   - `end_mutation`: Stop processing this mutation's remaining actions, but continue to the next mutation
+   - `retry`: Retry the entire file processing later
+   - `fail`: Fail the entire conversion
+
+### Action Types
+
+- **add_or_update**: Modifies or adds DICOM tags. Supports pattern matching with Source/Destination fields and special replacement values.
+- **anonymize**: Anonymizes patient information using a mapping file to maintain consistent anonymous IDs.
+- **exclude_result**: Excludes the current dataset from query/retrieve or worklist results (only valid with Affects field).
+- **query**: Queries a worklist or other DICOM service and merges results into the current dataset.
+- **remove**: Removes specified DICOM tags from the dataset.
+- **stamp**: Adds visual stamps or overlays to image data.
+
+### Pattern Matching
+
+The `add_or_update` action supports regex pattern matching for sophisticated transformations:
+
+- **Source.Expression**: Regular expression to match against the source tag value. Defaults to `^(.+)$`.
+- **Destination.Value**: Replacement pattern using capture groups from Source.Expression (e.g., `$1`, `$2`).
+
+Example: To suffix a value, use `Source.Expression: ^(.*)$` and `Destination.Value: $1_SUFFIX`
+
+### Special Values
+
+The `Destination.Value` field supports special replacement values:
+
+- **:uid:**: Generates a new DICOM UID
+- **:timestamp:**: Inserts the current Unix timestamp in milliseconds
+- **:hash(tag,length):**: Generates a hash of the specified tag (e.g., `:hash(0010,0020,5):` for 5-character hash of Patient ID)
+
+### Affects Context
+
+The `Affects` field controls which DICOM operations the mutation applies to:
+
+- **storage** (default): Applies to stored DICOM files
+- **worklist_query**: Modifies outgoing worklist query requests
+- **worklist_result**: Modifies incoming worklist query results
+- **qr_find_query**: Modifies outgoing C-FIND query requests
+- **qr_find_result**: Modifies incoming C-FIND query results
+
+Note: Mutations affecting query contexts (worklist_query, qr_find_query, etc.) cannot use the `query` action type.
+
 ## Mutations Examples
 
 The following example shows a complete `mutations.yml` file with various mutation scenarios:

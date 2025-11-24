@@ -69,6 +69,42 @@ For example, the following action will save the incoming DICOM data to disk, rep
 
 The `RemoveOriginal` field is optional and defaults to `false` (we include it here for clarity). We frequently use this pattern to "stash" incoming DICOM data for additional testing or analysis.
 
+## How Routing Works
+
+The route filter evaluates incoming DICOM data and executes matching routes based on AeTitles and Conditions. Understanding routing behavior is important for configuring effective workflows:
+
+### Route Evaluation
+
+- All routes that match the incoming data (based on AeTitles and Conditions) will execute
+- Routes are evaluated in the order they appear in `routings.yml`
+- Multiple routes can match and execute for the same file
+
+### Action Execution
+
+When a route matches, all actions in that route execute:
+
+1. **All actions complete first** - Every action in the Actions list runs to completion
+2. **Removal happens last** - If any action has `RemoveOriginal: true`, the original file is removed only after ALL actions complete
+3. **OR behavior** - Setting `RemoveOriginal: true` on ANY action will cause removal (values are OR'd together)
+
+For example, if you have two actions where the first sets `RemoveOriginal: false` and the second sets `RemoveOriginal: true`, the original file WILL be removed after both actions complete.
+
+### Action Types
+
+- **add_destination**: Creates a new destination file for the specified AE title. The file is added to the processing queue for that destination.
+- **save_file**: Saves a copy of the DICOM data to disk at the specified path. Supports placeholders for dynamic path construction.
+- **drop**: Removes the original file from the processing queue. This action always sets `RemoveOriginal: true` internally.
+
+### Save File Placeholders
+
+The `save_file` action supports dynamic path construction using DICOM tag placeholders with the format `#{group,element}`:
+
+- `#{8,50}` - Accession Number (0008,0050)
+- `#{10,20}` - Patient ID (0010,0020)
+- `#{20,d}` - Study Instance UID (0020,000D)
+
+If a tag is not present in the dataset, the tag name is used instead. Paths can combine multiple placeholders to create organized directory structures.
+
 ## Routing Examples
 
 The following example shows a complete `routings.yml` file with various routing scenarios:
