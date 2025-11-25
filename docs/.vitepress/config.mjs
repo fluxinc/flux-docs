@@ -5,6 +5,9 @@ export default defineConfig({
   title: "Flux Docs",
   description: "Documentation for our Products",
   base: "/",
+  head: [
+    ['link', { rel: 'icon', href: '/logo.svg' }]
+  ],
   themeConfig: {
     logo: "/logo.svg",
     // https://vitepress.dev/reference/default-theme-config
