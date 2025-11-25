@@ -1,20 +1,14 @@
 # Sort Filter
 
-The sort filter lets you control DICOM instance ordering within series based on configurable sort criteria. Sorts are defined in a `sortings.yml` file and are applied to incoming DICOM data before it is sent to destinations.
+The sort filter lets you control DICOM instance ordering within series based on configurable sort criteria. Sorts are defined in a `sortings.yml` file and are applied to incoming DICOM data before it is sent to destinations. 
 
 In order to enable the sort filter, you must add the `sort` filter to the `filters` section of your `config.yml` file.
 
 ```yaml
 # config.yml
-filters:
-  - sort
-```
-or, simply:
-
-```yaml
-# config.yml
 filters: sort
 ```
+
 ## Sort Components
 
 Each sort component is defined as follows:

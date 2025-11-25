@@ -1,24 +1,13 @@
 # Route Filter
 
-The route filter lets you route incoming DICOM data to different destinations (or disk) based on configurable criteria.
+The route filter lets you route incoming DICOM data to different destinations (or disk) based on configurable criteria. Routings are defined in a `routings.yml` file and  determine which destinations to route incoming DICOM data to. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the route filter will be disabled.
 
 In order to enable the route filter, you must add the `route` filter to the `filters` section of your `config.yml` file.
 
 ```yaml
 # config.yml
-
-filters:
-  - route
-```
-
-or, simply:
-
-```yaml
-# config.yml
 filters: route
 ```
-
-Once enabled, the route filter will use the `routings.yml` file to determine which destinations to route incoming DICOM data to. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the route filter will be disabled.
 
 ## Route Components
 
