@@ -35,11 +35,11 @@ export default defineConfig({
                 link: "/dicom-capacitor/configuration",
                 items: [
                   {
-                    text: "config.yml",
+                    text: "Settings",
                     link: "/dicom-capacitor/config",
                   },
                   {
-                    text: "nodes.yml",
+                    text: "Nodes",
                     link: "/dicom-capacitor/nodes",
                   },
                   {
@@ -90,10 +90,6 @@ export default defineConfig({
           { text: "DICOM Printer 2", link: "/dicom-printer-2" },
         ],
       },
-    ],
-
-    socialLinks: [
-      { icon: "github", link: "https://github.com/vuejs/vitepress" },
     ],
   },
 });
