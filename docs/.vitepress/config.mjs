@@ -26,7 +26,7 @@ export default defineConfig({
             text: "DICOM Capacitor",
             link: "/dicom-capacitor",
             items: [
-              { text: "Overview", link: "/dicom-capacitor/overview" },
+              { text: "Overview", link: "/dicom-capacitor/index.md" },
               { text: "Installation", link: "/dicom-capacitor/installation" },
               { text: "Docker", link: "/dicom-capacitor/docker" },
               { text: "Command Line Options", link: "/dicom-capacitor/command-line" },
