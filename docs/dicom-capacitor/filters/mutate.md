@@ -1,6 +1,6 @@
 # Mutate Filter
 
-The mutate filter lets you apply mutations to incoming DICOM data. Mutations are defined in a `mutations.yml` file, and are applied to incoming DICOM data before it is sent to destinations. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the route filter will be disabled.
+The mutate filter lets you apply mutations to incoming DICOM data. Mutations are defined in a `mutations.yml` file, and are applied to incoming DICOM data before it is sent to destinations. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the mutate filter will be disabled.
 
 In order to enable the mutate filter, you must add the `mutate` filter to the `filters` section of your `config.yml` file.
 ```yaml

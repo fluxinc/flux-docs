@@ -1,6 +1,6 @@
 # Sort Filter
 
-The sort filter lets you control DICOM instance ordering within series based on configurable sort criteria. Sorts are defined in a `sortings.yml` file and are applied to incoming DICOM data before it is sent to destinations. 
+The sort filter lets you control DICOM instance ordering within series based on configurable sort criteria. Sorts are defined in a `sortings.yml` file and are applied to incoming DICOM data before it is sent to destinations. If this file is invalid, DICOM Capacitor will halt with an error. If this file is missing, the sort filter will be disabled.
 
 In order to enable the sort filter, you must add the `sort` filter to the `filters` section of your `config.yml` file.
 
