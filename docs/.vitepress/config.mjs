@@ -36,11 +36,11 @@ export default defineConfig({
                 items: [
                   {
                     text: "config.yml",
-                    link: "/dicom-capacitor/configuration#config-yml",
+                    link: "/dicom-capacitor/config",
                   },
                   {
                     text: "nodes.yml",
-                    link: "/dicom-capacitor/configuration#nodes-yml",
+                    link: "/dicom-capacitor/nodes",
                   },
                   {
                     text: "Filters",
