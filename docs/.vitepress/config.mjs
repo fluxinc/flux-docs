@@ -85,7 +85,6 @@ export default defineConfig({
               { text: "Upgrading", link: "/dicom-capacitor/upgrading" },
               { text: "Support", link: "/dicom-capacitor/support" },
               { text: "License", link: "/dicom-capacitor/license" },
-              { text: "Examples", link: "/dicom-capacitor/examples" },
             ],
           },
           { text: "DICOM Printer 2", link: "/dicom-printer-2" },
