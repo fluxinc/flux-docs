@@ -170,7 +170,7 @@ Filter values include:
 - Type: `number`
 - Default: `1041`
 
-The port that DICOM Capacitor will use to listen for Find SCP requests.
+The port that DICOM Capacitor will use to listen for Find SCP requests. Set to `0` to disable the Worklist SCP service.
 
 ## holdIncomingStorageAssociations
 
@@ -289,7 +289,7 @@ A YAML array of time ranges that DICOM Capacitor will use to determine when to p
 - Type: `number`
 - Default: `2763`
 
-The port that DICOM Capacitor will use to listen for Query/Retrieve SCP requests.
+The port that DICOM Capacitor will use to listen for Query/Retrieve SCP requests. Set to `0` to disable the Query/Retrieve SCP service.
 
 ## rejectAbstractSyntaxes
 
@@ -310,7 +310,7 @@ Determines whether DICOM Capacitor should remove orphaned incoming files from th
 - Type: `number`
 - Default: `1040`
 
-The port that DICOM Capacitor will listen on for Store SCP requests.
+The port that DICOM Capacitor will listen on for Store SCP requests. Set to `0` to disable the Store SCP service.
 
 ## storageAssociationHoldExpectedTtlSeconds
 
@@ -338,7 +338,7 @@ The number of seconds that DICOM Capacitor will use to determine whether a Stora
 - Type: `number`
 - Default: `1042`
 
-The port that DICOM Capacitor will use to listen for Storage Commitment SCP requests.
+The port that DICOM Capacitor will use to listen for Storage Commitment SCP requests. Set to `0` to disable the Storage Commitment SCP service.
 
 ## storageCommitSendTimeout
 
