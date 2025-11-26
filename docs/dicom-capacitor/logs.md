@@ -1,3 +1,13 @@
+# Interrogating the Logs
+
+DICOM Capacitor logs are stored in the `%ProgramData%\Flux Inc\DICOM Capacitor\log` directory.  The main log file is
+`capacitor_service.log`.  This file contains a detailed log of all operations performed by DICOM Capacitor.
+
+We recommend using a log viewer such as [TailBlazer](https://github.com/RolandPheasant/TailBlazer) or [BareTail](https://baremetalsoft.com/baretail/) to view the logs in real-time.
+
+Optionally, Capacitor can also maintain [per-file logs](#per-file-logging) for each DICOM instance that passes through the system, and [storage receipts](#storage-receipts) for each instance that has been successfully stored.
+
+## Service Log Rotation
 
 The main service log file (`capacitor_service.log`) automatically rotates when it reaches 100MB in size. The service maintains up to 5 backup files using sequential numbering.
 
@@ -8,6 +18,23 @@ When the active log reaches 100MB, it is renamed to `.log.1`, and all existing b
 - **`suppressLogAeTitles`** (default: `['HEALTHCHECK']`) - Suppresses diagnostic logging for specific AE titles to prevent log flooding from health check probes and monitoring systems. Associations whose `CallingAE` matches an entry in this list will have their informational, warning, and error messages muted in the service log.
 
   ```yaml
+  suppressLogAeTitles:
+    - HEALTHCHECK
+    - K8S_PROBE
+    - DOCKER_HC
+  ```
+
+  This keeps recurring health probes from flooding the logs while preserving insights for real traffic.
+
+## Audit Log Rotation
+
+The audit log file (`capacitor_service_audit.log`) automatically rotates when it reaches 100MB in size. When rotation occurs:
+
+1. **Rotation**: The current audit log is renamed with a sequential number (e.g., `capacitor_service_audit.log.1`, `capacitor_service_audit.log.2`, etc.)
+2. **Compression**: A background service automatically compresses rotated audit log files every hour
+3. **Archival**: Compressed files are moved to the `audit_archive` subdirectory within the log directory as `capacitor_service_audit.log.N.gz`
+
+This automatic compression helps conserve disk space while maintaining a complete audit trail. The compression service:
 
 - Only compresses backup files (never the current active log)
 - Runs hourly to process any new rotated logs
