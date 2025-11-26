@@ -40,7 +40,9 @@ The number of DICOM images to process in a single batch. A value of `0` indicate
 ## cachePath
 
 - Type: `string`
-- Default: `%ProgramData%\Flux Inc\DICOM Capacitor\cache`
+- Default:
+  - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\cache`
+  - **macOS/Linux**: `/var/lib/dicom-capacitor/data/cache`
 
 The path to the cache directory that DICOM Capacitor will use to store DICOM data. We recommend that you add this folder to your antivirus exclusion list.
 

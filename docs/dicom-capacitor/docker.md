@@ -1,6 +1,4 @@
-# Docker Operation
-
-Capacitor can be run as a Docker container. 
+# Running DICOM Capacitor in Docker
 
 ## Docker Compose
 

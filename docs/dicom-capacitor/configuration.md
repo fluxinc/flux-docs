@@ -10,4 +10,8 @@ The following configuration files are required for using [filters](filters.md):
 - **`mutations.yml`**
 - **`routings.yml`**
 
-All configuration files should be placed in the DICOM Capacitor directory (by default `%ProgramData%\Flux Inc\DICOM Capacitor\`)
+All configuration files should be placed in the DICOM Capacitor directory. By default this is at:
+- **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`
+- **macOS/Linux**: `/var/lib/dicom-capacitor/data/`
+
+The directory path can be specified using the `--path` [command line option](command-line.md) or setting `cachePath` in the `config.yml` [settings file](config.md).

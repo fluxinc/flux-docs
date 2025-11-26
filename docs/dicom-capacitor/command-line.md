@@ -8,7 +8,9 @@ DICOMCapacitorService.exe [options]
 ## Service Options
 - `--uninstall`, `-u`: Remove Windows service
 - `--restart-service [PID]`, `-rs [PID]`: Restart service using process ID
-- `--path`: Sets the path to the configuration files (default: `%ProgramData%\Flux Inc\DICOM Capacitor\`)
+- `--path`: Sets the path to the configuration files. Default:
+  - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`
+  - **macOS/Linux**: `/var/lib/dicom-capacitor/data/`
 
 ## Configuration Options
 - `--activation-code [CODE]`, `-a [CODE]`: Set product activation code

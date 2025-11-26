@@ -1,6 +1,6 @@
 # Interrogating the Logs
 
-DICOM Capacitor logs are stored in the `%ProgramData%\Flux Inc\DICOM Capacitor\log` directory.  The main log file is
+DICOM Capacitor logs are stored in the `\log` directory.  The main log file is
 `capacitor_service.log`.  This file contains a detailed log of all operations performed by DICOM Capacitor.
 
 We recommend using a log viewer such as [TailBlazer](https://github.com/RolandPheasant/TailBlazer) or [BareTail](https://baremetalsoft.com/baretail/) to view the logs in real-time.
