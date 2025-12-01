@@ -17,7 +17,7 @@ export default defineConfig({
         text: "DICOM Capacitor",
         link: "/dicom-capacitor",
       },
-      { text: "DICOM Printer", link: "/dicom-printer-2" },
+      // { text: "DICOM Printer", link: "/dicom-printer-2" },
       { text: "Buy", link: "https://store.fluxinc.ca" },
     ],
 
@@ -90,7 +90,7 @@ export default defineConfig({
               { text: "License", link: "/dicom-capacitor/license" },
             ],
           },
-          { text: "DICOM Printer 2", link: "/dicom-printer-2" },
+          // { text: "DICOM Printer 2", link: "/dicom-printer-2" },
         ],
       },
     ],
