@@ -67,3 +67,12 @@ Monitor service health through:
 ## Docker Installation
 
 Refer to the [Docker Operations](/dicom-capacitor/docker) page for instructions on how to run DICOM Capacitor in a Docker container.
+
+## Next Steps
+
+Now that you have installed DICOM Capacitor, you should:
+
+1. **Configure the Service**: Edit `config.yml` to set your AE Title, ports, and other [settings](config.md).
+2. **Define Nodes**: Edit `nodes.yml` to configure the DICOM [nodes](nodes.md) you want to communicate with.
+3. **Start the Service**: Learn how to [start and stop](starting-and-stopping.md) the service.
+4. **Verify Operation**: Check the [logs](logs.md) to ensure the service is running correctly.
