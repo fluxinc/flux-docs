@@ -1,4 +1,4 @@
-# Installation
+# Installing DICOM Capacitor
 
 ## Prerequisites
 
@@ -13,7 +13,11 @@
 1. Download the latest version of DICOM Capacitor from the [Flux Website](https://store.fluxinc.ca/files)
 2. Run the installer
 3. Open your Services MMC and start and stop the DICOM Capacitor service
-4. Open the `%ProgramData%\Flux Inc\DICOM Capacitor\` folder, which contains the following files
+4. Open the DICOM Capacitor directory. By default this is at:
+   - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`
+   - **macOS/Linux**: `/var/lib/dicom-capacitor/data/`
+   
+   This folder contains the following files:
     - `cache/` - Contains the cache of DICOM data
     - `log/` - Contains the logs for DICOM Capacitor
         - `capacitor_service.log` - Contains the main log for DICOM Capacitor

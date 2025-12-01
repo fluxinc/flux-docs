@@ -1,1 +1,0 @@
-# Example Configuration 1

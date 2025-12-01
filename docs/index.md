@@ -17,9 +17,12 @@ hero:
 features:
   - title: DICOM Capacitor
     details: |
-      Our multi-plaform programmable DICOM store-forward router<br>
+      Multi-platform programmable DICOM store-forward router
       <br>
-      - This is is a feature
+      <br>- Route, compress, and anonymize DICOM images
+      <br>- Storage commitment and worklist support
+      <br>- Fault-tolerant with automatic recovery
+      <br>- Flexible filtering and mutation engine
   
   - title: DICOM Printer 2
     details: Tried and trusted print, image, and PDF DICOM processor.

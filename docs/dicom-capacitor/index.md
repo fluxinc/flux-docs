@@ -1,13 +1,9 @@
 # DICOM Capacitor by Flux Inc
 
-## Copyright
+## Overview
 
-DICOM Capacitor is a product of Flux Inc.  All rights reserved.
-
-## Introduction
-
-Capacitor is a DICOM store-forward router that can be used to route DICOM images from a source to a destination.  It
-is designed to be used in a clinical setting where a DICOM modality (e.g. a CT scanner) needs to send images to a
+DICOM Capacitor is a DICOM store-forward router that can be used to route DICOM images from a source to a destination.
+It is designed to be used in a clinical setting where a DICOM modality (e.g. a CT scanner) needs to send images to a
 PACS (Picture Archiving and Communication System) but the network is not reliable, compression is required, or the user
 wishes to make changes to either inbound or outbound images and data.
 
@@ -42,3 +38,6 @@ Capacitor is designed to be:
 - **Fault-tolerant**: Recovers from errors and network outages.
 - **Secure**: Uses encryption both at rest and in transit.
 
+## Copyright
+
+DICOM Capacitor is a product of Flux Inc.  All rights reserved.

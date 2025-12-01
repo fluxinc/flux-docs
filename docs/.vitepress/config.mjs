@@ -5,6 +5,9 @@ export default defineConfig({
   title: "Flux Docs",
   description: "Documentation for our Products",
   base: "/",
+  head: [
+    ['link', { rel: 'icon', href: '/logo.svg' }]
+  ],
   themeConfig: {
     logo: "/logo.svg",
     // https://vitepress.dev/reference/default-theme-config
@@ -26,7 +29,7 @@ export default defineConfig({
             text: "DICOM Capacitor",
             link: "/dicom-capacitor",
             items: [
-              { text: "Overview", link: "/dicom-capacitor/overview" },
+              { text: "Overview", link: "/dicom-capacitor/index.md" },
               { text: "Installation", link: "/dicom-capacitor/installation" },
               { text: "Docker", link: "/dicom-capacitor/docker" },
               { text: "Command Line Options", link: "/dicom-capacitor/command-line" },
@@ -35,21 +38,17 @@ export default defineConfig({
                 link: "/dicom-capacitor/configuration",
                 items: [
                   {
-                    text: "config.yml",
-                    link: "/dicom-capacitor/configuration#config-yml",
+                    text: "Settings",
+                    link: "/dicom-capacitor/config",
                   },
                   {
-                    text: "nodes.yml",
-                    link: "/dicom-capacitor/configuration#nodes-yml",
+                    text: "Nodes",
+                    link: "/dicom-capacitor/nodes",
                   },
                   {
                     text: "Filters",
                     link: "/dicom-capacitor/filters",
                     items: [
-                      {
-                        text: "Filter Conditions",
-                        link: "/dicom-capacitor/filters/conditions",
-                      },
                       {
                         text: "Route",
                         link: "/dicom-capacitor/filters/route",
@@ -61,6 +60,10 @@ export default defineConfig({
                       {
                         text: "Sort",
                         link: "/dicom-capacitor/filters/sort",
+                      },
+                      {
+                        text: "Filter Conditions",
+                        link: "/dicom-capacitor/filters/conditions",
                       }
                     ],
                   },
@@ -85,16 +88,11 @@ export default defineConfig({
               { text: "Upgrading", link: "/dicom-capacitor/upgrading" },
               { text: "Support", link: "/dicom-capacitor/support" },
               { text: "License", link: "/dicom-capacitor/license" },
-              { text: "Examples", link: "/dicom-capacitor/examples" },
             ],
           },
           { text: "DICOM Printer 2", link: "/dicom-printer-2" },
         ],
       },
-    ],
-
-    socialLinks: [
-      { icon: "github", link: "https://github.com/vuejs/vitepress" },
     ],
   },
 });
