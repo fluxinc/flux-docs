@@ -1,4 +1,4 @@
-# CapacitorFilters
+# Filters
 
 Capacitor Filters are used to modify incoming DICOM data before it is sent to any destinations.  The following filters are available:
 

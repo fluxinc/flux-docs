@@ -5,7 +5,7 @@ The following configuration files are required:
 - **`config.yml`** - Main service configuration settings
 - **`nodes.yml`** - Network node definitions for DICOM endpoints
 
-The following configuration files are required for using [filters](filters.md):
+The following configuration files are required for using [filters](filters/index.md):
 - **`sortings.yml`**
 - **`mutations.yml`**
 - **`routings.yml`**
