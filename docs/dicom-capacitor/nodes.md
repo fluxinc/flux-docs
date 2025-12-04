@@ -57,6 +57,29 @@ The number of DICOM images to process in a single batch. Any value other than bl
 
 The IP address or hostname of the node.
 
+## Impersonate
+
+- Type: `boolean`
+- Default: `false`
+- Optional
+
+When enabled, DICOM Capacitor will assume the AE Title of the original calling client when making outbound requests to this node, instead of using the `myAeTitle` from `config.yml`.
+
+This is useful when the destination node needs to know the original source of the data. For example:
+- A PACS that uses the calling AE Title for routing or access control
+- A worklist server that filters results based on the requesting modality
+- Systems that log or track data by the originating AE Title
+
+**Example**:
+```yaml
+- AeTitle: PACS
+  HostName: 192.168.1.100
+  Port: 104
+  Impersonate: true  # PACS will see the original modality's AE Title
+```
+
+When `Impersonate` is `false` (default), all outbound requests use the AE Title defined in `config.yml/myAeTitle`.
+
 ## MinimumLineSpeed
 
 - Type: `number`
