@@ -111,6 +111,37 @@ Specific roles may require and allow additional configuration in `config.yml`, `
 
 The port that the node is listening on.
 
+## Priority
+
+- Type: `number`
+- Default: `0`
+- Optional
+
+The DICOM priority level for operations with this node. This affects the priority field in DICOM messages.
+
+Accepted values:
+- `0` - Medium priority (default)
+- `1` - High priority
+- `2` - Low priority
+
+## ProcessDelay
+
+- Type: `number`
+- Default: `""` (inherits from config.yml)
+- Optional
+
+The number of milliseconds to delay delivery of prepared studies for this specific node. This overrides the global `config.yml/processDelay` setting.
+
+This is part of the "Adaptive Study Delivery Window" system. See [config.yml/processDelay](config.md#processdelay) for more details.
+
+**Example**:
+```yaml
+- AeTitle: PACS
+  HostName: 192.168.1.100
+  Port: 104
+  ProcessDelay: 30000  # Wait 30 seconds before delivery to this node
+```
+
 ## ProcessNetworks
 
 - Type: `string[]`
