@@ -12,12 +12,53 @@ This guide covers all available options and their proper configuration.
 2. **StudyQuery** - Performs queries at the study root level for study-centric operations
 3. **PatientQuery** - Executes queries at the patient root level for patient-centric workflows
 
-### Attribute Processing Hierarchy
-The system processes query attributes in the following priority order:
 
-1. Active job dataset values (highest priority)
-2. Explicit values from configuration files
-3. System default values (lowest priority)
+### Attribute Processing Lifecycle
+
+Understanding how attributes are handled throughout the lifecycle of a query is crucial for building reliable workflows. The system evaluates tags differently before sending the query and after receiving the results.
+
+#### 1. Before the Query (Request Building)
+
+When the query is formulated, the system determines the value for each `<DcmTag>` to send to the remote SCP in the following priority order:
+
+1. **Explicit values from configuration:** If the `<DcmTag>` contains a static value or a placeholder, it is evaluated and used.
+2. **Active job dataset values:** If the `<DcmTag>` is empty (e.g., `<DcmTag tag="(0010,0020)" />`), the system looks for the tag in the current print job's dataset. If it exists, that value is used as the matching key.
+3. **Empty (Universal Match):** If the tag is empty in the configuration and does not exist in the job dataset, it is sent as an empty tag (Universal Match), requesting the SCP to return its value.
+
+**Example: Before the Query**
+```xml
+<Query type="Worklist" name="FindPatient">
+    <!-- Uses the explicit Patient ID from the configuration placeholder -->
+    <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag> 
+    
+    <!-- Empty tag: Will use the value from the job dataset if it exists, otherwise requests it -->
+    <DcmTag tag="(0008,0050)" /> 
+    
+    <!-- Explicit static filter: Only request CT modalities -->
+    <DcmTag tag="(0008,0060)">CT</DcmTag> 
+</Query>
+```
+
+#### 2. When the Query Returns a Value (Match Found)
+
+If the remote SCP returns a match (and the query is allowed to assign data, see `force-assignment`):
+
+- All tags specified in the `<Query>` element (except exclusion filters starting with `!`) are extracted from the SCP's response.
+- The values in the **active job dataset** are updated with the authoritative values returned by the SCP.
+- Any subsequent actions (like `<Store>` or `<PrintText>`) will use these verified dataset values.
+
+**Example: Successful Return**
+If the query above matches a Worklist entry where `(0008,0050)` Accession Number is `ACC12345`:
+- The job dataset's Accession Number is updated to `ACC12345`.
+- Subsequent `#{0008,0050}` placeholders will resolve to `ACC12345`.
+
+#### 3. When the Query Doesn't Return a Value (Or Empty Match)
+
+If the query returns no matches, or if a specific tag was requested but the SCP returned it empty:
+
+- The job dataset is **not** overwritten with empty or null values from the query response.
+- Existing values in the job dataset (from the original print job or earlier actions) are preserved.
+- The `QUERY_FOUND` workflow condition evaluates to false, and the `<Perform>` node's `onError` logic will be triggered.
 
 ## Configuration Reference
 
