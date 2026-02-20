@@ -84,37 +84,6 @@ Logs:
 [Attach relevant log excerpts]
 ```
 
-## Common Support Topics
-
-### Technical Issues
-
-- Service won't start
-- DICOM connection failures
-- Workflow errors
-- Configuration problems
-- Performance issues
-
-### Licensing and Activation
-
-- Activation code issues
-- License expiration
-- Hardware changes requiring reactivation
-- License renewals
-
-### Configuration Assistance
-
-- Workflow design help
-- Action configuration
-- Query optimization
-- Integration with PACS/RIS
-
-### Installation and Upgrades
-
-- Installation problems
-- Upgrade assistance
-- Migration support
-- Compatibility questions
-
 ## Self-Service Resources
 
 ### Documentation
@@ -176,7 +145,7 @@ For integration with third-party systems:
 - Describe integration goals
 - Request technical assistance
 
-See [DICOM Conformance](conformance-statement.md) for detailed technical specifications.
+See [DICOM Conformance](conformance.md) for detailed technical specifications.
 
 ## Bug Reports
 
@@ -229,4 +198,4 @@ Enterprise customers may have dedicated support channels and SLAs.
 - [Logging](logs.md)
 - [Configuration](configuration.md)
 - [Licensing and Activation](licensing.md)
-- [DICOM Conformance](conformance-statement.md)
+- [DICOM Conformance](conformance.md)
