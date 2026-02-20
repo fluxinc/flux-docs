@@ -95,22 +95,25 @@ export default defineConfig({
             link: "/dicom-printer-2",
             items: [
               { text: "Overview", link: "/dicom-printer-2/index.md" },
+              { text: "Architecture & Design", link: "/dicom-printer-2/architecture" },
               { text: "Installation", link: "/dicom-printer-2/installation" },
               { text: "Command Line Options", link: "/dicom-printer-2/command-line" },
               {
                 text: "Configuration",
                 link: "/dicom-printer-2/configuration",
                 items: [
-                  { text: "Settings", link: "/dicom-printer-2/config" },
+                  { text: "Configuration Reference", link: "/dicom-printer-2/config" },
                   {
                     text: "Actions",
                     link: "/dicom-printer-2/actions",
                     items: [
                       { text: "Query", link: "/dicom-printer-2/actions/query" },
+                      { text: "Query Attributes", link: "/dicom-printer-2/actions/query-attributes" },
                       { text: "Store", link: "/dicom-printer-2/actions/store" },
                       { text: "Print", link: "/dicom-printer-2/actions/print" },
                       { text: "Parse", link: "/dicom-printer-2/actions/parse" },
                       { text: "SetTag", link: "/dicom-printer-2/actions/settag" },
+                      { text: "SetSequence", link: "/dicom-printer-2/actions/setsequence" },
                       { text: "Save", link: "/dicom-printer-2/actions/save" },
                       { text: "Image Manipulation", link: "/dicom-printer-2/actions/image-manipulation" },
                       { text: "Run (Plugins)", link: "/dicom-printer-2/actions/run" },
@@ -137,7 +140,8 @@ export default defineConfig({
               { text: "Uninstallation", link: "/dicom-printer-2/uninstallation" },
               { text: "Upgrading", link: "/dicom-printer-2/upgrading" },
               { text: "Support", link: "/dicom-printer-2/support" },
-              { text: "License", link: "/dicom-printer-2/license" }
+              { text: "License", link: "/dicom-printer-2/license" },
+              { text: "DICOM Conformance Statement", link: "/dicom-printer-2/conformance" }
             ]
           },
         ],

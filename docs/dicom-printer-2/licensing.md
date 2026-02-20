@@ -133,30 +133,11 @@ XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
 
 ## License Validity
 
-### Validity Period
-
-Licenses are typically valid for:
-- 1 year (standard)
-- 3 years (extended)
-- Perpetual (special arrangements)
-
-Check validity period in:
-- Control Application licensing tab
-- Configuration file `<ValidityPeriod>` setting
-- Service logs during startup
-
 ### Checking Expiration
 
 **Control Application:**
 ```
 Licensing Tab → Days Remaining
-```
-
-**Configuration File:**
-```xml
-<General>
-  <ValidityPeriod>365</ValidityPeriod>
-</General>
 ```
 
 **Service Logs:**
@@ -187,7 +168,7 @@ Request codes are generated from:
 
 ## Configuration File
 
-Activation status is stored in `config.xml`:
+The activation key is stored in `config.xml` under `<RegistrationKey>`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -195,7 +176,6 @@ Activation status is stored in `config.xml`:
 <DicomPrinter>
   <General>
     <RegistrationKey>XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX</RegistrationKey>
-    <ValidityPeriod>365</ValidityPeriod>
   </General>
 </DicomPrinter>
 ```

@@ -1,75 +1,55 @@
 # Tag Placeholders
 
-DICOM Printer 2 supports placeholder syntax that allows you to dynamically reference DICOM tag values, dates, and other contextual information throughout the configuration.
+DICOM Printer 2 supports placeholder syntax that allows you to dynamically substitute DICOM tag values and dates into configuration values.
 
 ## Placeholder Syntax
 
-Placeholders use the format `#{...}` and can be used in:
-- Action attributes (filenames, directory paths, tag values)
-- Workflow conditional values
-- Any string configuration value
+Placeholders use the format `#{...}`.
+
+> **Important:** Tag placeholders (`#{TagName}`, `#{GGGG,EEEE}`) are substituted only when the placeholder is the **entire** config value — they do not work when surrounded by static text. Date placeholders (`#{Date}`) are the exception: they work anywhere within a string, including when mixed with other text.
 
 ## Tag Value Placeholders
 
-### By Group and Element Number
-
-Reference a DICOM tag by its group and element numbers:
-
-```
-#{GGGG,EEEE}
-```
-
-**Note:** Whitespace is allowed within the placeholder syntax. For example, `#{ 0010 , 0020 }` is equivalent to `#{0010,0020}`.
-
-**Source:** `src/DicomPrinter/Action.cpp:45` (regex pattern allows `\s*`)
-
-**Example:**
-```xml
-<!-- Reference Patient Name (0010,0010) -->
-<SetTag tag="0008,0080" value="#{0010,0010}"/>
-
-<!-- Use Patient ID in filename -->
-<Save filename="patient_#{0010,0020}.dcm"/>
-```
-
 ### By Tag Name
-
-Reference a DICOM tag by its standard tag name:
 
 ```
 #{TagName}
 ```
 
-**Note:** Tag name placeholders reference existing values in the DICOM dataset. They do not generate new values. If a tag doesn't exist in the current dataset, the placeholder resolves to an empty string.
+Reads a tag from the current job dataset by its DCMTK dictionary name. If the tag is not present, the placeholder is left unchanged.
 
 **Example:**
 ```xml
-<!-- Reference tags by name -->
-<SetTag tag="0008,0080" value="#{PatientName}"/>
-
-<!-- Use tag names in directory paths -->
-<Save directory="#{PatientID}/#{StudyDate}"/>
-
-<!-- Combine multiple tag placeholders -->
-<Save filename="#{PatientID}_#{StudyDate}_#{SeriesNumber}.dcm"/>
+<SetTag name="CopyPatientName" tag="(0008,1030)">#{PatientName}</SetTag>
+<SetTag name="CopyAccession" tag="(0008,0051)">#{AccessionNumber}</SetTag>
 ```
 
-**Common Tag Names:**
-- `#{PatientID}` - Patient ID (0010,0020)
-- `#{PatientName}` - Patient's Name (0010,0010)
-- `#{StudyDate}` - Study Date (0008,0020)
-- `#{StudyTime}` - Study Time (0008,0030)
-- `#{StudyInstanceUID}` - Study Instance UID (0020,000D)
-- `#{SeriesNumber}` - Series Number (0020,0011)
-- `#{InstanceNumber}` - Instance Number (0020,0013)
-- `#{Modality}` - Modality (0008,0060)
-- `#{AccessionNumber}` - Accession Number (0008,0050)
+**Common tag names:**
+- `#{PatientID}` — Patient ID (0010,0020)
+- `#{PatientName}` — Patient's Name (0010,0010)
+- `#{StudyDate}` — Study Date (0008,0020)
+- `#{StudyInstanceUID}` — Study Instance UID (0020,000D)
+- `#{SeriesNumber}` — Series Number (0020,0011)
+- `#{InstanceNumber}` — Instance Number (0020,0013)
+- `#{Modality}` — Modality (0008,0060)
+- `#{AccessionNumber}` — Accession Number (0008,0050)
+
+### By Group and Element Number
+
+```
+#{GGGG,EEEE}
+```
+
+Reads a tag by its hex group and element numbers. Whitespace around the comma is allowed.
+
+**Example:**
+```xml
+<SetTag name="CopyPatientID" tag="(0008,1030)">#{0010,0020}</SetTag>
+```
 
 ## Date Placeholders
 
-Date placeholders dynamically generate date values at the time of processing.
-
-**Note:** `#{Date}` is currently the only dynamically generated placeholder. All other placeholders (like `#{Time}`, `#{PatientID}`, etc.) reference existing values from the DICOM dataset.
+Date placeholders are resolved at processing time and **work anywhere within a string**, including when mixed with other text.
 
 ### Current Date
 
@@ -77,162 +57,113 @@ Date placeholders dynamically generate date values at the time of processing.
 #{Date}
 ```
 
-Returns the current date in YYYYMMDD format.
+Returns the current date in `YYYYMMDD` format.
 
-**Example:**
 ```xml
-<SetTag tag="0008,0020" value="#{Date}"/>
+<SetTag name="SetStudyDate" tag="(0008,0020)">#{Date}</SetTag>
 ```
 
 ### Date with Offset
 
 ```
-#{Date,offset}
+#{Date,N}
 ```
 
-Returns a date offset by the specified number of days. Negative values go backward in time.
+Returns the current date offset by `N` days. Negative values go backward.
 
-**Example:**
 ```xml
-<!-- Yesterday's date -->
-<SetTag tag="0008,0020" value="#{Date,-1}"/>
-
-<!-- Tomorrow's date -->
-<SetTag tag="0008,0020" value="#{Date,1}"/>
-
-<!-- Date 7 days from now -->
-<SetTag tag="0008,0020" value="#{Date,7}"/>
-
-<!-- Date 30 days ago -->
-<SetTag tag="0008,0020" value="#{Date,-30}"/>
+<SetTag name="SetYesterday" tag="(0008,0021)">#{Date,-1}</SetTag>
+<SetTag name="SetNextWeek"  tag="(0008,0023)">#{Date,7}</SetTag>
 ```
 
-### Date with Offset and Range
+### Date Range
 
 ```
 #{Date,offset,range}
 ```
 
-Returns two dates separated by a hyphen, representing a date range. The range extends both backwards and forwards from the base date (current date + offset).
-
-- First date = (current date + offset) - range
-- Second date = (current date + offset) + range
-
-**Example:**
-```xml
-<!-- Query for studies from last 7 days -->
-<!-- If today is 20240315:
-     baseDate = 20240315 + (-7) = 20240308
-     startDate = 20240308 - 7 = 20240301
-     endDate = 20240308 + 7 = 20240315
-     Result: 20240301-20240315 -->
-<Query name="RecentStudies">
-  <DcmTag tag="0008,0020">#{Date,-7,7}</DcmTag>
-</Query>
-
-<Query name="FindStudies" type="Study" calledAE="PACS" callingAE="PRINTER"
-       host="192.168.1.100" port="104">
-  <!-- Query for today's studies -->
-  <DcmTag tag="0008,0020">#{Date}</DcmTag>
-
-  <!-- Query by patient ID -->
-  <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
-
-  <!-- Query studies from last 7 days -->
-  <DcmTag tag="0008,0020">#{Date,-7,7}</DcmTag>
-</Query>
-```
-
-### In SetTag Actions
+Returns two dates separated by a hyphen: `(today + offset - range)-(today + offset + range)`.
+Useful for DICOM date range queries. Only applies when `range > 1`.
 
 ```xml
-<SetTag name="SetStudyDate">
-  <!-- Set to current date -->
-  <DcmTag tag="0008,0020">#{Date}</DcmTag>
-
-  <!-- Copy value from another tag -->
-  <DcmTag tag="0008,0080" value="#{InstitutionName}"/>
-
-  <!-- Combine static text with placeholder -->
-  <DcmTag tag="0008,0070" value="Manufacturer: #{Manufacturer}"/>
-</SetTag>
+<!-- Query for studies within ±7 days of a week ago -->
+<DcmTag tag="(0008,0020)">#{Date,-7,7}</DcmTag>
 ```
 
-### In Save Actions
+## Where Placeholders Work
+
+| Context | Tag placeholders | Date placeholders |
+|---|---|---|
+| `<SetTag>` value | Yes (entire value only) | Yes (anywhere) |
+| `<SetSequence>` `<DcmTag>` value | Yes (entire value only) | Yes (anywhere) |
+| `<Query>` `<DcmTag>` value | Yes (entire value only) | Yes (anywhere) |
+| `<Save>` directory / filename | Yes (entire value only) | Yes (anywhere) |
+| `<PrintText>` text content | Yes (anywhere) | Yes (anywhere) |
+| `<If>` / `<Switch>` condition values | No | No |
+
+**"Entire value only"** means the config value must be nothing but the placeholder. For example:
 
 ```xml
-<Save name="SaveToArchive">
-  <!-- Directory structure using patient and study info -->
-  <Directory>C:\Archive\#{PatientID}\#{StudyDate}</Directory>
+<!-- Works: entire value is the placeholder -->
+<SetTag name="CopyInstitution" tag="(0008,0080)">#{InstitutionName}</SetTag>
 
-  <!-- Filename with multiple placeholders -->
-  <Filename>#{PatientID}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
-</Save>
+<!-- Does NOT work: placeholder mixed with static text -->
+<SetTag name="SetLabel" tag="(0008,1030)">Study for #{PatientName}</SetTag>
+
+<!-- Works: Date placeholder works even in mixed strings -->
+<SetTag name="SetLabel" tag="(0008,1030)">Archived on #{Date}</SetTag>
 ```
-
-### In Conditional Logic
-
-```xml
-<If field="TAG_VALUE" tag="0010,0010" value="#{ExpectedPatientName}">
-  <Perform action="ProcessPatient"/>
-</If>
-```
-
-## Placeholder Resolution
-
-Placeholders are resolved when:
-1. Actions are executed
-2. Workflow conditions are evaluated
-3. File paths are constructed
-
-If a placeholder references a tag that doesn't exist in the current DICOM object:
-- The placeholder is replaced with an empty string
-- No error is generated
-- The action continues processing
-
-## Special Characters in Tag Values
-
-When tag values contain special characters (e.g., patient names with commas, backslashes in PN VR), the placeholder value includes those characters exactly as they appear in the tag.
-
-For file paths, you may need to sanitize tag values that could contain invalid filename characters.
 
 ## Examples
 
-### Create Organized Archive Structure
+### Copy a tag value to another tag
 
 ```xml
-<Save name="OrganizedArchive">
-  <Directory>E:\DICOM\#{Modality}\#{PatientID}\#{StudyDate}</Directory>
-  <Filename>#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
+<SetTag name="CopyPatientToDescription" tag="(0008,1030)">#{PatientName}</SetTag>
+```
+
+### Set study date to today
+
+```xml
+<SetTag name="SetStudyDate" tag="(0008,0020)">#{Date}</SetTag>
+```
+
+### Save with patient-based directory
+
+```xml
+<Save name="ArchiveByPatient">
+  <Directory>E:\DICOM\#{PatientID}</Directory>
+  <Filename>#{Date}</Filename>
 </Save>
 ```
 
-### Query Worklist for Today's Patients
+Each path segment must be a pure placeholder or static text. The directory `E:\DICOM\#{PatientID}` will not expand — instead, use `#{PatientID}` as the full `<Directory>` value and configure the base path elsewhere, or use date-based organization:
 
 ```xml
-<Query name="TodayWorklist" type="Worklist" calledAE="RIS" callingAE="PRINTER"
-       host="192.168.1.200" port="104">
-  <DcmTag tag="0040,0100">
-    <DcmSequence>
-      <DcmTag tag="0040,0002">#{Date}</DcmTag>
-    </DcmSequence>
-  </DcmTag>
-</Query>
+<Save name="ArchiveByDate">
+  <Directory>E:\DICOM\#{PatientID}</Directory>
+  <Filename>#{Date}</Filename>
+</Save>
 ```
 
-### Set Multiple Tags with Dynamic Values
+### Worklist query using today's date
 
 ```xml
-<SetTag name="SetMetadata">
-  <DcmTag tag="0008,0020">#{Date}</DcmTag>
-  <DcmTag tag="0008,0080" value="Medical Center - #{Department}"/>
-  <DcmTag tag="0008,1030" value="Study for #{PatientName}"/>
-</SetTag>
+<Query name="TodayWorklist" type="Worklist">
+  <ConnectionParameters>
+    <PeerAETitle>RIS</PeerAETitle>
+    <MyAETitle>PRINTER</MyAETitle>
+    <Host>192.168.1.200</Host>
+    <Port>104</Port>
+  </ConnectionParameters>
+  <DcmTag tag="(0040,0002)">#{Date}</DcmTag>
+  <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
+</Query>
 ```
 
 ## Related Topics
 
 - [SetTag Actions](actions/settag.md)
+- [SetSequence Actions](actions/setsequence.md)
 - [Query Actions](actions/query.md)
 - [Save Actions](actions/save.md)
-- [Workflow Conditional Nodes](workflow/conditional-nodes.md)

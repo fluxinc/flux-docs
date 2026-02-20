@@ -75,28 +75,25 @@ Specifies the action to take when the performed action fails.
 **Error Handling Modes:**
 
 #### `Hold`
-- The job is held in a suspended state
-- The job will be retried after `SuspensionTime` minutes (configured in General section)
-- The job remains in the queue until it succeeds or is manually discarded
-- Use for temporary failures (network outages, PACS downtime)
+- The job file remains on disk and workflow processing stops immediately
+- The job is **not** automatically retried. It will only be re-processed if the service is restarted or if the file is manually "touched" (to update its creation time)
+- Use for failures that require manual intervention or environment fixes before retrying
 
 ```xml
 <Perform action="SendToPACS" onError="Hold"/>
 ```
 
 #### `Suspend`
-- The job is suspended indefinitely
-- The job will not be automatically retried
-- Manual intervention is required to resume the job
-- Use for failures requiring human review
+- The job is kept in memory and workflow processing stops at the failing action
+- The job is automatically retried after `SuspensionTime` minutes (configured in the General section), resuming exactly from the action that failed
+- Use for transient failures (e.g., temporary network glitches) where an automatic retry is appropriate
 
 ```xml
 <Perform action="FindPatient" onError="Suspend"/>
 ```
 
 #### `Ignore`
-- The failure is logged but ignored
-- Processing continues to the next workflow step
+- The failure is logged but processing continues to the next workflow step
 - Use for non-critical optional operations
 
 ```xml
@@ -104,10 +101,8 @@ Specifies the action to take when the performed action fails.
 ```
 
 #### `Discard`
-- The job is immediately discarded
-- No retry is attempted
-- The job is removed from the queue
-- Use when failures are unrecoverable
+- The job is immediately removed from the queue with no retry
+- Use when a failure is unrecoverable
 
 ```xml
 <Perform action="ExtractData" onError="Discard"/>
@@ -167,33 +162,36 @@ Complete example showing multiple actions:
 <DicomPrinter>
   <Actions>
     <!-- Query worklist for patient data -->
-    <Query name="FindPatient" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER" host="192.168.1.200" port="104">
-      <DcmTag tag="0040,0100">
-        <DcmSequence>
-          <DcmTag tag="0040,0002">#{Date}</DcmTag>
-          <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
-        </DcmSequence>
-      </DcmTag>
+    <Query name="FindPatient" type="Worklist">
+      <ConnectionParameters>
+        <PeerAETitle>RIS</PeerAETitle>
+        <MyAETitle>PRINTER</MyAETitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+      <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
     </Query>
 
-    <!-- Add metadata tags -->
-    <SetTag name="AddMetadata">
-      <DcmTag tag="0008,0020">#{Date}</DcmTag>
-      <DcmTag tag="0008,0080" value="Medical Center"/>
-    </SetTag>
+    <!-- Set metadata tags -->
+    <SetTag name="SetStudyDate" tag="(0008,0020)">#{Date}</SetTag>
+    <SetTag name="SetInstitution" tag="(0008,0080)">Medical Center</SetTag>
 
     <!-- Send to PACS -->
-    <Store name="SendToPACS"
-           calledAE="PACS" callingAE="PRINTER" host="192.168.1.100" port="104"
-           compression="JPEG_Lossless"/>
+    <Store name="SendToPACS">
+      <ConnectionParameters>
+        <PeerAETitle>PACS</PeerAETitle>
+        <MyAETitle>PRINTER</MyAETitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
   </Actions>
 
   <Workflow>
-    <!-- Configure error handling at workflow level -->
     <Perform action="FindPatient" onError="Hold"/>
     <If field="QUERY_FOUND" value="true">
-      <Perform action="AddMetadata"/>
+      <Perform action="SetStudyDate"/>
+      <Perform action="SetInstitution"/>
       <Perform action="SendToPACS" onError="Hold"/>
     </If>
   </Workflow>
