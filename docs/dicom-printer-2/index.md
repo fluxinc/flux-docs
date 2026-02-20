@@ -1,35 +1,38 @@
-# DICOM Printer 2 by Flux Inc
+# DICOM Printer 2
 
-## Overview
+DICOM Printer 2 (DP2) is a Windows-based document and image processing engine that converts PDFs and images into DICOM format and delivers them to PACS systems or DICOM film printers. It runs as a Windows service and processes jobs through a customizable XML-configured workflow.
 
-DICOM Printer 2 is a virtual DICOM printer that converts Windows print jobs into DICOM format for integration with PACS systems or DICOM film printers. It enables any Windows application to send documents, reports, PDFs, and images directly to PACS storage or DICOM-compliant film printers without requiring DICOM-specific software.
+Jobs arrive from two sources: a **Windows printer driver** (print from any application) or a **Drop Monitor service** that watches folders for incoming PDF and image files.
 
-DICOM Printer 2 appears as a standard Windows printer but processes print jobs through a customizable workflow that converts documents into DICOM Secondary Capture or Encapsulated PDF format. The system can automatically link patient data through DICOM worklist queries, apply image transformations, and route output to multiple DICOM destinations.
+## What it does
 
-## General Features
+- **DICOM conversion** — Converts PDFs and images into Encapsulated PDF Storage or Secondary Capture SOP classes
+- **Worklist integration** — Queries a DICOM worklist (MWL) to automatically populate patient and study metadata
+- **PACS delivery** — Sends completed DICOM objects to one or more PACS via C-STORE
+- **Film printing** — Sends to DICOM film printers using the Basic Grayscale or Color Print Management service
+- **Tag manipulation** — Sets, copies, or derives DICOM tag values using placeholders and conditional logic
+- **Image processing** — Trim, rotate, and resize images before encoding
+- **Workflow automation** — XML-configured action sequences with `If`/`Switch` conditional branching, suspend/resume, and plugin support
 
-- **Universal Printing**: Print from any Windows application directly to PACS or DICOM film printers
-- **Document Conversion**: Converts PDFs and images into DICOM format (Encapsulated PDF Storage, Secondary Capture)
-- **Automatic Patient Matching**: Links patient data through DICOM worklist queries
-- **Flexible Output**: Send to PACS storage, DICOM film printers, or create DICOM CDs
-- **True-Size Film Printing**: Accurate sizing on DICOM-compliant film printers
-- **Drop Monitor Integration**: Process files from watched directories with PDF and image conversion
+## Architecture
 
-DICOM Printer 2 is designed to be:
+DP2 is made up of three components:
 
-- **Integrated**: Works seamlessly with existing Windows applications and DICOM infrastructure
-- **Flexible**: Customizable workflow automation with conditional logic and data transformation
-- **Reliable**: Windows service architecture with automatic error recovery and job queuing
+| Component | Role |
+|---|---|
+| **DicomPrinter.exe** | Main processing service — runs the workflow engine |
+| **Drop Monitor** | Watches configured folders; converts and injects PDFs and images as jobs |
+| **Control Application** | GUI tool for configuration, licensing, and monitoring |
 
-## Technical Features
+See [Architecture & Design](architecture.md) for a detailed walkthrough of the job lifecycle, application modes, and DICOM service interactions.
 
-- **Workflow-based**: XML-configured processing rules with conditional logic
-- **Multi-component**: Main service, Control application, and Drop Monitor service
-- **Patient Data Integration**: DICOM worklist query support for automatic patient matching
-- **Image Processing**: Built-in image manipulation (trim, rotate, resize)
-- **Plugin Architecture**: Extensible through custom console and GUI plugins
-- **Comprehensive Logging**: Detailed event logging with configurable verbosity
+## Getting started
 
-## Copyright
+- [Installation](installation.md)
+- [Command-Line Options](command-line.md)
+- [Configuration Reference](config.md)
+- [Placeholders](placeholders.md)
 
-DICOM Printer 2 is a product of Flux Inc. All rights reserved.
+## DICOM compliance
+
+DP2 implements DICOM 3.0 as a Service Class User (SCU) for C-FIND, C-STORE, and Print. See the [DICOM Conformance Statement](conformance.md) for supported SOP classes, transfer syntaxes, and AE specifications.

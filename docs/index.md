@@ -25,6 +25,12 @@ features:
       <br>- Flexible filtering and mutation engine
   
   - title: DICOM Printer 2
-    details: Tried and trusted print, image, and PDF DICOM processor.
+    details: |
+      Windows-based DICOM document and image processing engine
+      <br>
+      <br>- Convert PDFs and images to DICOM Secondary Capture or Encapsulated PDF
+      <br>- Workflow automation with conditional logic and tag manipulation
+      <br>- Automatic patient matching via DICOM worklist queries
+      <br>- Print to DICOM film printers with true-size output
 ---
 
