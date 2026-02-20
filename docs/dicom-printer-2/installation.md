@@ -1,102 +1,73 @@
-# Installation
+# Installation and Deployment
 
-## Prerequisites
 
-Before installing DICOM Printer 2, ensure your system meets the following requirements:
+### 8.1. Directory Structure
 
-- **Operating System**: Windows 7 or later (32-bit or 64-bit)
-- **.NET Framework**: .NET Framework 4.5 or later
-- **Disk Space**: Minimum 100 MB for installation, additional space for queued jobs and logs
-- **Permissions**: Administrator privileges for installation and service management
-- **Network**: TCP/IP network connectivity for DICOM communication
-
-## Installation
-
-DICOM Printer 2 is distributed as an Inno Setup installer package.
-
-1. **Run the Installer**: Double-click the `DICOM_Printer_2_Setup.exe` file
-2. **Accept License Agreement**: Review and accept the software license terms
-3. **Select Installation Directory**: Choose the installation location (default: `C:\Program Files (x86)\Flux Inc\DICOM Printer 2\`)
-4. **Select Components**: Choose which components to install:
-   - Main Service (required)
-   - Control Application (recommended)
-   - Drop Monitor Service (optional)
-5. **Complete Installation**: Click Install to begin the installation process
-6. **Printer Installation**: The virtual printer driver will be installed automatically
-
-The installer will:
-- Install the DICOM Printer 2 service
-- Create the Windows printer device
-- Set up the default directory structure
-- Install the Control Application (if selected)
-- Configure the Windows service to start automatically
-
-## Directory Structure
-
-DICOM Printer 2 uses the following default directory structure under `%ProgramData%\Flux Inc\DICOM Printer 2\`:
+DP2 expects the following directory layout under its root path. By default the root path is `%ProgramData%\Flux Inc\DICOM Printer 2` on Windows (resolved via `SHGetKnownFolderPath` / `FOLDERID_ProgramData`). The root can be overridden with the `--path` command-line argument.
 
 ```
-%ProgramData%\Flux Inc\DICOM Printer 2\
-├── config/           # Configuration files
-│   └── config.xml    # Main configuration file
-├── drop/             # Drop monitor watch directories
-├── log/              # Service log files
-│   └── dicom_printer_service.log
-├── queue/            # Queued print jobs
-├── staging/          # Temporary processing area
-├── store/            # Local DICOM storage
-└── temp/             # Temporary files
+<root>/
+  config/
+    config.xml          — Main XML configuration file
+    config.dtd          — DTD schema for config.xml validation
+    .activation         — Cached activation code (created automatically)
+  log/                  — Log files (created automatically)
+  queue/                — Spooler directory, monitored for incoming job files
+  temp/                 — Temporary processing directory (cleaned on startup)
+  device/               — Virtual printer driver files
 ```
 
-## Configuration
+All of these subdirectories are resolved relative to the root path. DP2 will create `temp/` on startup if it does not exist, and will clean any residual files from it. The `queue/` directory must exist before the application starts; if it cannot be set as the spooler directory, the application will exit with an error.
 
-The main configuration file is located at `%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml`.
+### 8.2. Required Files
 
-A default configuration is created during installation. You must customize this file to:
-- Configure DICOM connection parameters
-- Define workflow actions
-- Set up patient matching queries
-- Configure output destinations
+- **config.xml** — The main configuration file that defines general settings, the actions library, and the workflow. DP2 will not start without a valid configuration file. See the [Configuration File Tags Specification](/dicom-printer-2/config) for the full tag reference.
+- **config.dtd** — The DTD schema referenced by `config.xml`. Bundled with the application and included in the project as a build artifact.
 
-See [Configuration](configuration.md) for detailed configuration instructions.
+### 8.3. Runtime Dependencies
 
-## Service Management
+DP2 requires the following runtime components:
 
-The DICOM Printer 2 service is installed as a Windows service named "DICOM Printer 2 Service".
+- **Qt runtime libraries** — The application is built against the Qt framework (QtCore, QtGui, QtXml, QtNetwork, and related modules). The required Qt DLLs must be accessible on the system PATH or co-located with the executable.
+- **OpenSSL runtime DLLs** — `libssl-1_1.dll` and `libcrypto-1_1.dll` are required for TLS communication (e.g., license activation checks against the remote API). These are bundled by the installer.
+- **DCMTK libraries** — The DICOM toolkit libraries used for DICOM dataset handling, network associations, and print SCU operations.
+- **Virtual printer driver** — The `device/` directory contains the virtual printer driver and its configuration tool (`zvprtcfg.exe`), installed under `%ProgramW6432%\Flux Inc\DICOM Printer 2\device\`.
 
-### Service Configuration
+### 8.4. Windows Service Installation
 
-- **Service Name**: `DicomPrinter2Service`
-- **Display Name**: DICOM Printer 2 Service
-- **Startup Type**: Automatic
-- **Log On As**: Local System account
+DP2 can be installed as a Windows service for unattended, continuous operation. The service name used internally is `DICOMPrinterService`.
 
-### Managing the Service
+**Using the included Service Controller tool:**
 
-You can manage the service using:
+The `controller.exe` utility (built as the `ServiceController` project) provides service lifecycle management:
 
-- **Control Application**: The graphical Control Application provides start/stop controls
-- **Windows Services**: Use `services.msc` to manage the service
-- **Command Line**: Use `sc` or `net` commands
+```
+controller.exe -i "C:\Path\To\DicomPrinter.exe"    — Install the service
+controller.exe DICOMPrinterService -s                — Start the service
+controller.exe DICOMPrinterService -t                — Stop the service
+controller.exe DICOMPrinterService -u                — Uninstall the service
+controller.exe DICOMPrinterService -v                — Show service status
+controller.exe DICOMPrinterService --restart         — Restart the service
+```
 
-See [Starting and Stopping the Service](starting-and-stopping.md) for detailed instructions.
+The install command (`-i`) accepts optional account and password arguments for specifying the service logon account. Use the `-w` / `--wait` flag to wait for a keypress before closing the console window.
 
-## Logging
+**Using the Windows `sc` command:**
 
-The service writes detailed logs to `%ProgramData%\Flux Inc\DICOM Printer 2\log\dicom_printer_service.log`.
+Alternatively, the service can be registered manually:
 
-Default logging configuration:
-- **Verbosity**: STANDARD (logs normal operations and errors)
-- **Maximum File Size**: 10 MB
-- **Maximum File Count**: 10 (older logs are rotated)
+```
+sc create DICOMPrinterService binPath= "C:\Path\To\DicomPrinter.exe"
+sc start DICOMPrinterService
+```
 
-See [Interrogating the Logs](logs.md) for more information about log management.
+When running as a service, the application operates in Session 0 and has no console output. All activity is recorded in the log files under the `log/` directory.
 
-## Next Steps
+### 8.5. First-Run Checklist
 
-After installation:
-
-1. [Configure the system](configuration.md) for your DICOM environment
-2. [Set up licensing and activation](licensing.md) to enable full functionality
-3. [Configure the Drop Monitor](drop-monitor.md) if processing files from directories
-4. [Test the configuration](troubleshooting.md) by printing a test document
+1. **Verify directory structure.** Ensure the root directory and its subdirectories (`config/`, `log/`, `queue/`, `temp/`) exist. Create any missing directories manually or allow the installer to set them up.
+2. **Place the configuration file.** Copy a valid `config.xml` and `config.dtd` into the `config/` directory. Review and customize the `<General>`, `<ActionsList>`, and `<Workflow>` sections as needed.
+3. **Activate the license.** Run `DicomPrinter.exe --activate` from an interactive console to complete the activation wizard. This requires outbound HTTPS connectivity to the licensing server (`store.fluxinc.ca`). The activation state is cached locally in `config/.activation`.
+4. **Verify network connectivity.** Ensure the host can reach any configured remote DICOM systems (printers, PACS, worklist servers) on the specified IP addresses and ports. If DP2 will perform license checks at runtime, confirm that outbound HTTPS access to `store.fluxinc.ca` is permitted.
+5. **Test in console mode.** Before installing as a service, run `DicomPrinter.exe --console` to verify that the application starts without errors, parses the configuration file successfully, and begins monitoring the queue directory.
+6. **Install as a service.** Once console-mode testing is complete, install and start the Windows service as described in section 8.4.
