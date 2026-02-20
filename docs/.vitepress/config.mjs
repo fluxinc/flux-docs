@@ -113,6 +113,7 @@ export default defineConfig({
                       { text: "Print", link: "/dicom-printer-2/actions/print" },
                       { text: "Parse", link: "/dicom-printer-2/actions/parse" },
                       { text: "SetTag", link: "/dicom-printer-2/actions/settag" },
+                      { text: "SetSequence", link: "/dicom-printer-2/actions/setsequence" },
                       { text: "Save", link: "/dicom-printer-2/actions/save" },
                       { text: "Image Manipulation", link: "/dicom-printer-2/actions/image-manipulation" },
                       { text: "Run (Plugins)", link: "/dicom-printer-2/actions/run" },

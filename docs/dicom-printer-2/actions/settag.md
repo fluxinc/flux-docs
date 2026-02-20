@@ -5,26 +5,20 @@ SetTag actions set DICOM tag values in the current DICOM object. Each SetTag act
 ## Basic Syntax
 
 ```xml
-<SetTag tag="GGGG,EEEE" name="ActionName" type="Global|Unique" vr="VR">
+<SetTag name="ActionName" tag="(GGGG,EEEE)">
   TagValue
 </SetTag>
 ```
 
-**Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition. See [Actions Overview](index.md#error-handling-workflow-level) for details.
+## Attributes
 
-## Required Attributes
-
-### `tag`
-The DICOM tag to set in format `GGGG,EEEE`.
-
-```xml
-<SetTag tag="0010,0010" name="SetPatientName">
-  Doe^John
-</SetTag>
-```
-
-### `name`
-Unique identifier for this action.
+| Attribute | Required | Description |
+|---|---|---|
+| `name` | Yes | Unique identifier for this action. |
+| `tag` | Yes | The DICOM tag in `(GGGG,EEEE)` format. |
+| `vr` | No | Value Representation (e.g., `LO`, `PN`, `DT`). Usually inferred from the DICOM dictionary. Required for private tags. |
+| `tagName` | No | Name for private tags (odd group number). |
+| `type` | No | `"Global"` (default) applies the value to all instances; `"Unique"` generates a distinct value per image instance. |
 
 ## Optional Attributes
 

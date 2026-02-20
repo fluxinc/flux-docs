@@ -768,6 +768,32 @@ See section: Connection Parameters.
 - **Content**: The character string value to be assigned to the DICOM tag. This can include DICOM tag placeholders (e.g., `#{ 0010,0020 }`) which will be replaced with actual values from the job dataset.
 - **Default Value**: Not applicable.
 
+### Subsection: `<SetSequence>`
+
+- **Description**: Inserts or replaces a DICOM sequence (with nested items and tags) in the job dataset. Supports full tag and date placeholder substitution within item tag values.
+- **Occurrence**: Zero or more.
+- **Attributes**:
+  - `name` : a unique identifier by which this action can be referred to by other entities.
+  - `tag` : DICOM tag group and element written in standard notation, e.g: `(0032,1064)`.
+  - `tagName` (Optional): A name for the sequence tag. Required when defining private tags (odd group number).
+  - `vr` (Optional): Value Representation (VR). Usually inferred from the DICOM dictionary. Required for private tags.
+  - `replace` (Optional): `"true"` to replace an existing sequence with the same tag; `"false"` to append. Defaults to `"false"`.
+  - `unique` (Optional): `"true"` to write a separate sequence per image instance; `"false"` for a single sequence applied to all instances. Defaults to `"false"`.
+- **Content**: One or more `<DcmItem>` child elements. Each `<DcmItem>` may contain `<DcmTag>` elements (with `tag` attribute and text value) and nested `<DcmSequence>` elements for deeply nested structures.
+- **Default Value**: Not applicable.
+
+**Example:**
+```xml
+<SetSequence name="SetProcedureCode" tag="(0032,1064)" replace="true">
+  <DcmItem>
+    <DcmTag tag="(0008,0100)">#{ProcedureCodeValue}</DcmTag>
+    <DcmTag tag="(0008,0104)">#{ProcedureDescription}</DcmTag>
+  </DcmItem>
+</SetSequence>
+```
+
+See [SetSequence Action](/dicom-printer-2/actions/setsequence) for full usage details.
+
 ### Subsection: `<Trim>`
 
 - **Description**: Trims (crops) each image in the job by a specified amount from its left, right, top, and/or bottom sides. It supports both fixed pixel values and an "auto" mode to automatically detect and trim empty borders.
