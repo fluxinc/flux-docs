@@ -296,7 +296,7 @@ Workflow with retry:
 <Perform action="SendWithRetry" onError="Hold"/>
 ```
 
-With `onError="Hold"`, failed stores are retried after the `SuspensionTime` interval.
+With `onError="Suspend"`, failed stores are retried after the `SuspensionTime` interval.
 
 ### Discard on Permanent Failures
 

@@ -76,8 +76,8 @@ Specifies the action to take when the performed action fails.
 
 #### `Hold`
 - The job file remains on disk and workflow processing stops immediately
-- The job is re-picked up automatically on the next `CheckingInterval` scan and the full workflow runs again from the beginning
-- Use for transient failures where a full retry makes sense (network outages, PACS downtime)
+- The job is **not** automatically retried. It will only be re-processed if the service is restarted or if the file is manually "touched" (to update its creation time)
+- Use for failures that require manual intervention or environment fixes before retrying
 
 ```xml
 <Perform action="SendToPACS" onError="Hold"/>
@@ -85,8 +85,8 @@ Specifies the action to take when the performed action fails.
 
 #### `Suspend`
 - The job is kept in memory and workflow processing stops at the failing action
-- The job is automatically retried after `SuspensionTime` minutes, resuming from the action that failed
-- Use when retrying from mid-workflow is preferable, or when the delay before retry matters
+- The job is automatically retried after `SuspensionTime` minutes (configured in the General section), resuming exactly from the action that failed
+- Use for transient failures (e.g., temporary network glitches) where an automatic retry is appropriate
 
 ```xml
 <Perform action="FindPatient" onError="Suspend"/>
