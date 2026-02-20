@@ -91,35 +91,35 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 
 ### Subsection: `<CheckingInterval>`
 
-- **Description**: The number of seconds that DICOM Printer waits between successive checks of spool directory contents.
-- **Occurrence**: One.
+- **Description**: The number of seconds that DICOM Printer waits between successive checks of the spool directory for new jobs.
+- **Occurrence**: Zero or one (optional).
 - **Attributes**: None
-- **Content**: Positive integer value.
-- **Default Value**: None
+- **Content**: Positive integer value (seconds).
+- **Default Value**: `1`
 
 ### Subsection: `<SuspensionTime>`
 
-- **Description**: The amount of time (in minutes) that a job remains suspended before resuming operation.
-- **Occurrence**: One.
+- **Description**: The amount of time (in minutes) that a job remains suspended before the application automatically retries it.
+- **Occurrence**: Zero or one (optional).
 - **Attributes**: None
-- **Content**: Positive integer value.
-- **Default Value**: None
+- **Content**: Positive integer value (minutes).
+- **Default Value**: `15`
 
 ### Subsection: `<ValidityPeriod>`
 
-- **Description**: The amount of time (in days) after which a job expires and is deleted from the spooler.
-- **Occurrence**: One.
+- **Description**: The number of days after which an unprocessed job is considered expired and discarded from the queue. This has no relation to license validity.
+- **Occurrence**: Zero or one (optional).
 - **Attributes**: None
-- **Content**: Positive integer value.
-- **Default Value**: None
+- **Content**: Positive integer value (days).
+- **Default Value**: `5`
 
 ### Subsection: `<Verbosity>`
 
-- **Description**: The level of detail included in log files. A value of 20 corresponds to full verbosity, but a value of 2 is recommended for regular operation.
-- **Occurrence**: One.
+- **Description**: Controls the level of detail written to log files. Higher values produce more output. The value is a nesting depth — 35 captures most useful diagnostic information without excessive noise.
+- **Occurrence**: Zero or one (optional).
 - **Attributes**: None
 - **Content**: Positive integer value.
-- **Default Value**: None
+- **Default Value**: `35`
 
 ### Subsection: `<RegistrationKey>`
 
