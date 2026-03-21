@@ -2,77 +2,104 @@
 
 ## Prerequisites
 
-- Windows 10 or later, Windows Server 2016 or later, Linux or MacOS (x64 or arm64)
-- .NET 10.0 (LTS) or later
+- Windows 10 or later, Windows Server 2016 or later, Linux, or macOS (x64 or arm64)
 - 2 GB of RAM
 - 1 GB of free disk space
-- 2 GHz or faster, x64 or arm64, processor
+- 2 GHz or faster processor
 
-## Installation
+DICOM Capacitor is distributed as a self-contained binary — no separate .NET runtime installation is required.
 
-1. Download the latest version of DICOM Capacitor from the [Flux Website](https://store.fluxinc.ca/files)
-2. Run the installer
-3. Open your Services MMC and start and stop the DICOM Capacitor service
-4. Open the DICOM Capacitor directory. By default this is at:
-   - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`
-   - **macOS/Linux**: `/var/lib/dicom-capacitor/data/`
-   
-   This folder contains the following files:
-    - `cache/` - Contains the cache of DICOM data
-    - `log/` - Contains the logs for DICOM Capacitor
-        - `capacitor_service.log` - Contains the main log for DICOM Capacitor
-    - `nodes.yml` - Specifies the nodes that DICOM Capacitor will use to send and receive DICOM data
-    - `config.yml` - Specifies the settings for DICOM Capacitor
+## Windows
 
-You can override the default location using the path option:
+1. Download the latest installer from the [Flux Website](https://store.fluxinc.ca/files)
+2. Run the installer (`DICOMCapacitorSetup-x64-*.exe`)
+3. The installer registers `DICOMCapacitorService` as a Windows service
+
+Default directories:
+
+| Purpose | Path |
+|---------|------|
+| Configuration & logs | `%ProgramData%\Flux Inc\DICOM Capacitor\` |
+| Binary | `%ProgramFiles%\Flux Inc\DICOM Capacitor\` |
+
+## macOS
+
+DICOM Capacitor runs as a LaunchDaemon on macOS. Installation is typically performed via the deploy script, which:
+
+1. Creates a dedicated service user (`_dicomcapacitor`)
+2. Copies binaries to `/opt/dicom-capacitor/bin/`
+3. Creates the data directory at `/var/lib/dicom-capacitor/data/`
+4. Installs a LaunchDaemon plist at `/Library/LaunchDaemons/co.fluxinc.dicom-capacitor.plist`
+5. Installs `brotli` via Homebrew (required for compression)
+
+Default directories:
+
+| Purpose | Path |
+|---------|------|
+| Binary | `/opt/dicom-capacitor/bin/` |
+| Configuration & logs | `/var/lib/dicom-capacitor/data/` |
+| Cache | `/var/lib/dicom-capacitor/data/cache/` |
+| Logs | `/var/lib/dicom-capacitor/data/log/` |
+
+A desktop shortcut to the data directory is created at `~/Desktop/DICOM Capacitor Data`.
+
+## Linux
+
+DICOM Capacitor runs as a systemd service on Linux. Installation is typically performed via the deploy script, which:
+
+1. Creates a dedicated service user (`dicom-capacitor`)
+2. Copies binaries to `/opt/dicom-capacitor/bin/`
+3. Creates the data directory at `/var/lib/dicom-capacitor/data/`
+4. Installs a systemd unit at `/etc/systemd/system/dicom-capacitor.service`
+
+Default directories:
+
+| Purpose | Path |
+|---------|------|
+| Binary | `/opt/dicom-capacitor/bin/` |
+| Configuration & logs | `/var/lib/dicom-capacitor/data/` |
+| Cache | `/var/lib/dicom-capacitor/data/cache/` |
+| Logs | `/var/lib/dicom-capacitor/data/log/` |
+
+The systemd unit includes security hardening: `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome=true`, and `PrivateTmp=true`.
+
+## Docker
+
+See the dedicated [Docker Operations](/dicom-capacitor/docker) page.
+
+## Data Directory Layout
+
+On first run, Capacitor creates default configuration files in the data directory:
+
+```
+<data-dir>/
+  config.yml        # Service settings
+  nodes.yml         # Destination PACS/servers
+  cache/            # DICOM file cache
+  log/              # Log files
+    capacitor_service.log        # Main service log
+    capacitor_service_audit.log  # Audit log
+```
+
+You can override the data directory path on any platform:
+
 ```bash
 DICOMCapacitorService --path /custom/path
 ```
 
-## Configuration
-The service configuration is stored in the `config.yml` file.
+## First Run & Activation
 
-## Service Management
+On first startup, Capacitor generates an activation URL in the logs. Visit this URL to register your instance at [store.fluxinc.ca](https://store.fluxinc.ca). Without activation, Capacitor runs in trial mode.
 
-### Service Components
-During startup, the service initializes:
-- Storage SCP (DICOM storage provider)
-- Worklist SCP (DICOM worklist provider)
-- Query/Retrieve SCP
-- Storage Commitment SCP
+You can also activate via the command line:
 
-### Service Configuration
-Configure core service behavior from the command line:
 ```bash
-# Disable Storage SCU
-DICOMCapacitorService.exe --no-storage-scu
-
-# Disable Worklist SCU
-DICOMCapacitorService.exe --no-worklist-scu
-
-# Disable file preparation
-DICOMCapacitorService.exe --no-prepare
+DICOMCapacitorService --activation-code "XXXX-XXXX-XXXX" --save-config --quit
 ```
-
-## Logging
-- Service logs: `[LogPath]/capacitor_service.log`
-- Audit logs: `[LogPath]/capacitor_service_audit.log`
-
-## Service Status Monitoring
-Monitor service health through:
-- Windows Event Viewer
-- Service status in Windows Services
-- Log files in configured log directory
-
-## Docker Installation
-
-Refer to the [Docker Operations](/dicom-capacitor/docker) page for instructions on how to run DICOM Capacitor in a Docker container.
 
 ## Next Steps
 
-Now that you have installed DICOM Capacitor, you should:
-
 1. **Configure the Service**: Edit `config.yml` to set your AE Title, ports, and other [settings](config.md).
 2. **Define Nodes**: Edit `nodes.yml` to configure the DICOM [nodes](nodes.md) you want to communicate with.
-3. **Start the Service**: Learn how to [start and stop](starting-and-stopping.md) the service.
-4. **Verify Operation**: Check the [logs](logs.md) to ensure the service is running correctly.
+3. **Start the Service**: Learn how to [start and stop](starting-and-stopping) the service.
+4. **Verify Operation**: Check the [logs](logs) to ensure the service is running correctly.

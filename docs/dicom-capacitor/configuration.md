@@ -5,10 +5,11 @@ The following configuration files are required:
 - **`config.yml`** - Main service configuration settings
 - **`nodes.yml`** - Network node definitions for DICOM endpoints
 
-The following configuration files are required for using [filters](filters/index.md):
-- **`sortings.yml`**
-- **`mutations.yml`**
-- **`routings.yml`**
+The following configuration files are used by [filters](filters/index.md) (create only the ones you need):
+- **`routings.yml`** - Required by the [route](filters/route) filter
+- **`mutations.yml`** - Required by the [mutate](filters/mutate) filter
+- **`sortings.yml`** - Required by the [sort](filters/sort) filter
+- **`lua.yml`** - Required by the [Lua](filters/lua) filter
 
 All configuration files should be placed in the DICOM Capacitor directory. By default this is at:
 - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`

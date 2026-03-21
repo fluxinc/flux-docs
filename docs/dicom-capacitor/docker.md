@@ -1,8 +1,29 @@
 # Running DICOM Capacitor in Docker
 
+DICOM Capacitor is available as a Docker image at `fluxinc/dicom-capacitor`. The image supports both `amd64` and `arm64` architectures.
+
+## Quick Start
+
+```bash
+mkdir -p data cache
+docker run -d \
+  --name capacitor \
+  -p 1040:1040 \
+  -v ./data:/data \
+  -v ./cache:/cache \
+  -e DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+  fluxinc/dicom-capacitor:latest
+```
+
+Check the logs for the activation URL on first run:
+
+```bash
+docker logs capacitor
+```
+
 ## Docker Compose
 
-A basic Docker Compose file appears below:
+A basic Docker Compose file:
 
 ```yaml
 # compose.yaml
@@ -19,65 +40,123 @@ services:
     volumes:
       - ./data:/data
       - ./cache:/cache
-    user: "1000:1000"           # Optional: run as specific user/group
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "echoscu", "-aec", "FLUX_CAPACITOR", "localhost", "1040"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 ```
-
-### Configuration
-
-Capacitor accepts overrides via environment variables. Most `config.yml` settings can be overridden via environment variables by prefixing the setting name with `CAPACITOR_` and converting the property name from camelCase to UPPER_SNAKE_CASE.
-
-#### Environment Variable Naming Convention
-
-Property names are converted by inserting underscores before capital letters and converting to uppercase:
-
-- `myAeTitle` → `CAPACITOR_MY_AE_TITLE`
-- `filters` → `CAPACITOR_FILTERS`
-- `processDelayWindowMultiplier` → `CAPACITOR_PROCESS_DELAY_WINDOW_MULTIPLIER`
-
-#### Required: Globalization Support
 
 > [!IMPORTANT]
 > The `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: false` setting is **required** for proper DICOM handling.
 
-**Example with environment overrides:**
+## Volumes
+
+The container uses two mount points:
+
+| Volume | Purpose |
+|--------|---------|
+| `/data` | Configuration files (`config.yml`, `nodes.yml`, `lua.yml`), licensing, logs |
+| `/cache` | DICOM file processing cache (incoming, prepared, failed, etc.) |
+
+Create the directories before starting and ensure the container user has read/write access:
+
+```bash
+mkdir -p ./data ./cache
+chown -R 1000:1000 ./data ./cache   # Match the container user
+```
+
+You can optionally set the `user:` directive in your compose file to run as a specific UID/GID:
+
+```yaml
+user: "1000:1000"
+```
+
+## Port Mappings
+
+Expose only the services you need:
+
+| Port | Service | Required? |
+|------|---------|-----------|
+| 1040 | Store SCP (receive DICOM images) | Yes |
+| 1041 | Worklist/Find SCP | Optional |
+| 2763 | Query/Retrieve SCP (C-FIND/C-MOVE) | Optional |
+| 1042 | Storage Commitment SCP | Optional |
+
+Disable any SCP by setting its port to `0` in `config.yml` or via environment variable (e.g., `CAPACITOR_FIND_SCP_PORT=0`).
+
+## Configuration via Environment Variables
+
+Most `config.yml` settings can be overridden via environment variables using the `CAPACITOR_` prefix. Property names are converted from camelCase to UPPER_SNAKE_CASE:
+
+| config.yml | Environment Variable |
+|------------|---------------------|
+| `myAeTitle` | `CAPACITOR_MY_AE_TITLE` |
+| `scpPort` | `CAPACITOR_SCP_PORT` |
+| `filters` | `CAPACITOR_FILTERS` |
+| `processDelay` | `CAPACITOR_PROCESS_DELAY` |
+| `processDelayWindowMultiplier` | `CAPACITOR_PROCESS_DELAY_WINDOW_MULTIPLIER` |
 
 ```yaml
 environment:
   DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: false
-  CAPACITOR_MY_AE_TITLE: "MY_CUSTOM_AE"
+  CAPACITOR_MY_AE_TITLE: "MY_ROUTER"
   CAPACITOR_SCP_PORT: "11112"
-  CAPACITOR_FILTERS: "route,mutate,sort"
-  CAPACITOR_PROCESS_DELAY: "5"
+  CAPACITOR_FILTERS: "lua"
 ```
 
-This allows for flexible configuration in containerized environments without needing to mount a modified `config.yml` file.
+Environment variables override `config.yml` settings. Command-line overrides (`--config.*`) take highest priority.
 
-### Volume Permissions
+## Health Checks
 
-The container requires read/write access to the mounted volumes:
+The recommended health check uses `echoscu` (included in the container) to send a DICOM C-ECHO:
 
-- `/data` - Configuration files, licensing data, and working storage
-- `/cache` - Temporary processing cache for DICOM files
+```yaml
+healthcheck:
+  test: ["CMD", "echoscu", "-aec", "FLUX_CAPACITOR", "localhost", "1040"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
 
-**Permission Considerations:**
+Replace `FLUX_CAPACITOR` with your configured `myAeTitle`. You can check the health status with:
 
-1. The container creates these directories with `755` permissions if they don't exist
-2. For host-mounted volumes, ensure the user running the container has appropriate permissions:
-   ```bash
-   # Create directories with correct ownership
-   mkdir -p ./data ./cache
-   chown -R 1000:1000 ./data ./cache
-   ```
-3. Use the `user:` directive in compose.yaml to run as a specific UID/GID (see example above)
-4. If you encounter permission errors, verify the host directory ownership matches the container user
+```bash
+docker inspect --format='{{.State.Health.Status}}' capacitor
+```
 
-### Port Mappings
+## Viewing Logs
 
-The example above exposes all DICOM service ports. You can selectively expose only the services you need:
+```bash
+# Follow logs in real-time
+docker compose logs -f capacitor
 
-- **Port 1040** (Store SCP): Required for receiving DICOM images
-- **Port 1041** (Worklist/Find SCP): Optional, for worklist queries
-- **Port 2763** (Query/Retrieve SCP): Optional, for C-FIND/C-MOVE operations
-- **Port 1042** (Storage Commit SCP): Optional, for storage commitment
+# View last 100 lines
+docker compose logs --tail=100 capacitor
+```
 
-These ports can be individually enabled/disabled via their corresponding `*ScpPort` configuration settings (set to `0` to disable).
+The service log is also written to the `/data/log/` volume, so you can access `capacitor_service.log` directly from the host:
+
+```bash
+tail -f ./data/log/capacitor_service.log
+```
+
+## Upgrading
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Configuration files in `./data/` are preserved across upgrades. Only the container image is replaced.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| No DICOM response on expected port | Verify port mapping matches `scpPort` (default 1040 inside container) |
+| Permission denied on volumes | Ensure host directory ownership matches container user (`chown 1000:1000`) |
+| Activation required | Check logs for activation URL: `docker compose logs capacitor` |
+| Container keeps restarting | Check logs for startup errors: `docker compose logs --tail=50 capacitor` |
+| Images stuck in cache | Verify destination is reachable from inside the container: `docker exec capacitor echoscu -aec DEST_AE host port` |
