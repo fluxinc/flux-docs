@@ -10,7 +10,7 @@ services:
   capacitor:
     image: fluxinc/dicom-capacitor:latest
     ports:
-      - "104:1040"              # Store SCP (main DICOM storage)
+      - "1040:1040"             # Store SCP (main DICOM storage)
       - "1041:1041"             # Worklist/Find SCP (optional)
       - "2763:2763"             # Query/Retrieve SCP (optional)
       - "1042:1042"             # Storage Commit SCP (optional)

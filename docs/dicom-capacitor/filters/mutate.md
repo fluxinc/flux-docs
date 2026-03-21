@@ -75,7 +75,7 @@ Each action has the following fields:
         Tag: 0008,1030
   ```
 
-- `OnError`: (Optional - `add_or_update` and `query` actions only) Error handling behavior:
+- `OnError`: (Optional - `add_or_update` and `query` actions only. Setting this on `remove`, `stamp`, `exclude_result`, or `anonymize` actions will cause a validation error.) Error handling behavior:
   - `skip_action`: Skip current action
   - `end_mutation`: Stop mutation chain
   - `retry`: Retry operation
@@ -127,7 +127,9 @@ The `Destination.Value` field supports special replacement values:
 
 - **:uid:**: Generates a new DICOM UID
 - **:timestamp:**: Inserts the current Unix timestamp in milliseconds
-- **:hash(tag,length):**: Generates a hash of the specified tag (e.g., `:hash(0010,0020,5):` for 5-character hash of Patient ID)
+- **:today:**: Inserts the current date in `YYYYMMDD` format
+- **:value:**: References the current value of the destination tag being modified
+- **:hash(tag,length):**: Generates a hash of the specified tag (e.g., `:hash(0010,0020,5):` for 5-character hash of Patient ID). The tag must use lowercase hex digits (e.g., `0010,0020` not `0010,0020`).
 
 ### Affects Context
 

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Windows 10 or later, Windows Server 2016 or later, Linux or MacOS (x64 or arm64)
-- .NET Core 8 or later
+- .NET 10.0 (LTS) or later
 - 2 GB of RAM
 - 1 GB of free disk space
 - 2 GHz or faster, x64 or arm64, processor

@@ -71,16 +71,18 @@ DICOM Capacitor can maintain individual log files for each DICOM instance that p
 When enabled, individual log files are organized in a hierarchical directory structure:
 
 ```
-cache\logs\
-  └── YYYY-MM-DD\              # Date the file was received
-      └── DESTINATION_AE\       # Destination AE title
-          └── SOURCE_AE\        # Source AE title
-              └── SOPUID.log    # Individual instance log
+cache/logs/
+  └── YYYY-MM-DD/              # Date the file was received
+      └── DESTINATION_AE/       # Destination AE title
+          └── SOURCE_AE/        # Source AE title
+              └── IDENTIFIER.log # Individual instance log
 ```
+
+The log filename is derived from the SOP Instance UID and may include a timestamp suffix for uniqueness.
 
 **Example**:
 ```
-cache\logs\2025-11-25\PACS\MODALITY\1.2.840.113619.2.55.3.12345.log
+cache/logs/2025-11-25/PACS/MODALITY/1.2.840.113619.2.55.3.12345.log
 ```
 
 ### Log File Contents

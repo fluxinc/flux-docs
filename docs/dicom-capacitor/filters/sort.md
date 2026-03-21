@@ -44,19 +44,16 @@ Each action has the following fields:
 
 ## How Sorting Works
 
-The sort filter operates on batches of DICOM instances that belong to the same series. When multiple sort actions are defined:
+The sort filter operates on batches of DICOM instances that belong to the same series. When multiple sort actions are defined, each action is applied **sequentially** to the entire list. The last action determines the final sort order.
 
-1. The **first action** is the primary sort key
-2. The **second action** (if present) acts as a tie-breaker when the first sort values are equal
-3. **Additional actions** continue this pattern, refining the sort order
-
-For example, sorting first by Acquisition Number (0020,0012) and then by Instance Number (0020,0013) will group instances by acquisition, then order them by instance number within each acquisition.
+For example, if you define two actions — sort by Acquisition Number, then sort by Instance Number — the final order will be sorted by Instance Number (the last action applied).
 
 **Important notes:**
 - Sorting only applies when the filter matches the incoming data (based on AeTitles and Conditions)
-- If a DICOM tag specified in SortTag is missing from an instance, that instance will be placed according to the sort implementation's handling of null values
+- If a DICOM tag specified in SortTag is missing from an instance, that instance is placed **at the end** of the sorted list, regardless of sort direction
 - String sorting is case-sensitive and uses lexicographic ordering
-- Integer sorting parses the tag value as a number
+- Integer sorting parses the tag value as a number. If parsing fails (e.g., a non-numeric value), the value is treated as `0`
+- `SortType` and `SortDirection` values must be lowercase (`integer`, `string`, `asc`, `desc`)
 
 ## Sorting Examples
 
@@ -93,17 +90,18 @@ The following example shows a complete `sortings.yml` file with various sorting 
       SortType: string
       SortDirection: asc
 
-# Example 4: Multi-level sorting (primary + tie-breaker)
-# Sort by Acquisition Number first, then by Instance Number within each acquisition
+# Example 4: Sequential sorting
+# Each action re-sorts the entire list. The last action determines the final order.
+# Here the final order is by Instance Number ascending.
 - AeTitles:
     - MR_SCANNER
   Actions:
-    - Description: Primary sort by acquisition
+    - Description: Sort by acquisition (applied first, then overridden)
       Type: sort
       SortTag: 0020,0012
       SortType: integer
       SortDirection: asc
-    - Description: Secondary sort by instance
+    - Description: Final sort by instance number
       Type: sort
       SortTag: 0020,0013
       SortType: integer
@@ -134,19 +132,11 @@ The following example shows a complete `sortings.yml` file with various sorting 
       SortType: integer
       SortDirection: asc
 
-# Example 7: Three-level sort for complex 4D datasets
+# Example 7: Single sort for 4D datasets
+# Since each action re-sorts the entire list, use the most important sort key.
+# For 4D datasets, Instance Number typically provides the correct ordering.
 - Actions:
-    - Description: Sort by series
-      Type: sort
-      SortTag: 0020,0011
-      SortType: integer
-      SortDirection: asc
-    - Description: Then by temporal position
-      Type: sort
-      SortTag: 0020,0100
-      SortType: integer
-      SortDirection: asc
-    - Description: Finally by instance number
+    - Description: Sort by instance number
       Type: sort
       SortTag: 0020,0013
       SortType: integer

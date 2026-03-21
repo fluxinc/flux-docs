@@ -42,9 +42,10 @@ Each action has the following fields:
   - `drop`: Drops the incoming DICOM data.
 - `Description`: (Optional) A human-readable description of the action.
 - `RemoveOriginal`: (Optional) Used in `add_destination` and `save_file` action types. If `true`, the original file is removed from the source. Defaults to `false`. *Note: `drop` actions always remove the original file regardless of this setting.*
-- `Log`: (Optional) Controls the logging level for this action.
+- `Log`: (Optional) Controls the logging level for `add_destination` and `save_file` actions.
   - `info`: Logs at the INFO level.
   - `debug`: Logs at the DEBUG level (default).
+  - *Note: `drop` actions always log at INFO level regardless of this setting.*
 - `Target`: (Required for the `add_destination` and `save_file` actions) The AE title to which the incoming DICOM data should be sent, or the path to which the dataset should be saved.
 
 For example, the following action will save the incoming DICOM data to disk, replacing the `#{8,50}` placeholder with the incoming DICOM data's Accession Number (0008,0050) attribute:
@@ -93,6 +94,19 @@ The `save_file` action supports dynamic path construction using DICOM tag placeh
 - `#{20,d}` - Study Instance UID (0020,000D)
 
 If a tag is not present in the dataset, the tag name is used instead. Paths can combine multiple placeholders to create organized directory structures.
+
+#### Format Masks
+
+Placeholders optionally support a format mask with the syntax `#{group,element:mask}`. The mask uses picture-clause formatting to control the output:
+
+- `A` - Uppercase letter
+- `a` - Lowercase letter
+- `?` - Any character (passed through as-is)
+- `0` - Digit
+- `!` - Skip one input character
+- `` ` `` - Escape the next mask character (treat it as literal)
+
+For example, `#{10,20:0000-00}` would format a 6-digit Patient ID as `1234-56`.
 
 ## Routing Examples
 

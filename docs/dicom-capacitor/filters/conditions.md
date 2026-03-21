@@ -1,6 +1,6 @@
 # Conditions
 
-Conditions are used to determine whether a filter should apply to incoming DICOM data.  Conditions are a shared concept between the [Route](./route), [Mutate](./mutate), and [Sort](./sort) filters.
+Conditions are used to determine whether a filter should apply to incoming DICOM data.  Conditions are a shared concept between the [Route](./route), [Mutate](./mutate), [Sort](./sort), and [Lua](./lua) filters.
 
 They will typically appear in the `Conditions` list of a filter definition, and will look like this:
 
@@ -25,9 +25,9 @@ The `MatchExpression` field is the DICOM match expression to match.  Expressions
 
 ## Log
 
-The `Log` field is optional and controls the logging level when a condition is evaluated.
-- `info`: Logs at the INFO level.
-- `debug`: Logs at the DEBUG level (default).
+The `Log` field is optional and controls the logging level when a condition is validated at startup.
+- `debug`: Logs at the DEBUG level.
+- `info`: Logs at the INFO level (default when the field is omitted or set to any value other than `debug`).
 
 ## Search
 
@@ -66,7 +66,7 @@ The first matching rule determines how the pattern is interpreted:
 - Patterns containing regex special characters (`[](){}|+\`) are treated as regular expressions
 - Examples:
   - `^CHEST.*PA$` matches strings starting with "CHEST" and ending with "PA"
-  - `[ABC]CHEST` matches "ACHEST", "BCHEST", "CHEST"
+  - `[ABC]CHEST` matches "ACHEST", "BCHEST", "CCHEST"
 
 ## Advanced Features
 

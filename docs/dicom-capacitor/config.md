@@ -162,10 +162,17 @@ A comma-separated list of filters that DICOM Capacitor will apply to incoming DI
 
 Filter values include:
 - `route` - Routes incoming images to different nodes, discards, or saves to disk. Requires `routings.yml` to be present in the same directory as `config.yml`.
+- `lua` - Programmable scripting for routing, tag mutations, and cross-image state using Lua. Requires `lua.yml` to be present in the same directory as `config.yml`.
 - `mutate` - Mutates incoming images based on a set of mutations. Requires `mutations.yml` to be present in the same directory as `config.yml`
 - `sort` - Re-orders DICOM images based on configurable criteria. Requires `sortings.yml` to be present.
 - `siemens_cto_converter` - Converts all Siemens CT images to DICOM BTO format
 - `hologic_sco_converter` - Converts all Hologic SCO images to DICOM BTO format
+- `siemens_breast_density` - Extracts Siemens TOMO breast density data and generates SR documents
+- `siemens_bonsai` - Removes Siemens Bonsai SR apostrophe artifacts
+- `siemens_scorecard` - Adds scorecard with grading data to Siemens images
+- `siemens_histogram` - Adjusts contrast/brightness on Siemens tomography images
+- `siemens_positioner_angle` - Adjusts positioner angle values for Siemens Revolution
+- `siemens_distance_source_to_patient` - Derives DistanceSourceToPatient from other DICOM fields
 
 ## findScpPort
 
