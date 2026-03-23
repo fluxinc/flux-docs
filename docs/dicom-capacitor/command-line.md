@@ -28,12 +28,8 @@ DICOMCapacitorService.exe [options]
 - `--status`: Display the activation/license status and exit
 
 ## API Options
-- `--api`: Enable the queue stats HTTP API (provides queue health and statistics endpoints)
-- `--api-prefix [URL]`: Set the HTTP listener prefix for the API (default: `http://127.0.0.1:8787/`)
 
-When enabled, the API exposes:
-- `GET /api/queue/stats` - Returns queue statistics including file counts by state and destination
-- `GET /api/queue/health` - Simple health check endpoint
+The HTTP management API is configured via the `api:` section in `config.yml`, not via command-line flags. See [Settings → api](./config#api) and the [HTTP API reference](./api).
 
 ## Development Options
 - `--mutate`: Applies the mutations defined in `mutations.yml`. This option requires a list of

@@ -16,6 +16,26 @@ The activation code that DICOM Capacitor will use to activate the software. If a
 
 Associations have the flexibility to utilize either the node's actual AE title or the prefixed AE title. For instance, both `STORE_SCP` and `DCP_STORE_SCP` would point toward the same node. This may be required when the sending device does not allow for duplicate AE title entries.
 
+## api
+
+- Type: `object`
+- Default: disabled
+
+Configures the built-in HTTP management API. See [HTTP API](./api) for the full endpoint reference.
+
+```yaml
+api:
+  enabled: true
+  port: 1080       # binds to localhost only; auto-increments if busy
+  token: "secret"  # required for write endpoints
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable the API server |
+| `port` | number | `1080` | Starting port. If busy, the service tries the next port (up to 10 attempts) |
+| `token` | string | — | Bearer token required for write endpoints. Omit to make writes return 403 |
+
 ## autoAdjustLineSpeed
 
 - Type: `boolean`

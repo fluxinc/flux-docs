@@ -78,6 +78,10 @@ export default defineConfig({
                 link: "/dicom-capacitor/starting-and-stopping",
               },
               {
+                text: "HTTP API",
+                link: "/dicom-capacitor/api",
+              },
+              {
                 text: "Manipulating the Cache",
                 link: "/dicom-capacitor/cache",
               },
