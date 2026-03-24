@@ -78,6 +78,10 @@ export default defineConfig({
                 link: "/dicom-capacitor/starting-and-stopping",
               },
               {
+                text: "Web Dashboard",
+                link: "/dicom-capacitor/web-ui",
+              },
+              {
                 text: "HTTP API",
                 link: "/dicom-capacitor/api",
               },
