@@ -11,8 +11,8 @@ The following configuration files are used by [filters](filters/index.md) (creat
 - **`sortings.yml`** - Required by the [sort](filters/sort) filter
 - **`lua.yml`** - Required by the [Lua](filters/lua) filter
 
-The following optional non-YAML configuration files can further customize queue behavior:
-- **`sop-class-priorities.txt`** - Optional SOP Class UID priority list. The first non-comment line has the highest priority, the last has the lowest priority, and the special `default` line sets the priority for any SOP class not explicitly listed. If the file contains only `default`, queue processing remains FIFO with no SOP-based prioritization.
+Queue prioritization is configured inside `nodes.yml`, not in a separate file:
+- **`SopClassPriorities`** - Optional ordered SOP Class UID list on `NodeRole: Storage` nodes. Earlier entries have higher queue priority, `default` marks where unlisted SOP classes should fall, and omitting the property keeps FIFO behavior for that destination. See [nodes.yml / SopClassPriorities](nodes.md#sopclasspriorities).
 
 All configuration files should be placed in the DICOM Capacitor directory. By default this is at:
 - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`

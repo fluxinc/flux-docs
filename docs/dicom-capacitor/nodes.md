@@ -124,6 +124,30 @@ Accepted values:
 - `1` - High priority
 - `2` - Low priority
 
+## SopClassPriorities
+
+- Type: `string[]`
+- Default: `[]`
+- Optional
+
+An ordered list of SOP Class UIDs used to prioritize the delivery queue for this storage destination. Earlier entries have higher queue priority. Items with the same resolved priority are still processed FIFO by creation time.
+
+Use the special `default` entry to set where unlisted SOP classes should fall in the order. If `default` is omitted, unlisted SOP classes receive the lowest priority below every listed SOP class. If `SopClassPriorities` is omitted entirely, the node keeps normal FIFO delivery.
+
+This setting applies only to `NodeRole: Storage`.
+
+**Example**:
+```yaml
+- AeTitle: PACS
+  HostName: 192.168.1.100
+  Port: 104
+  NodeRole: Storage
+  SopClassPriorities:
+    - 1.2.840.10008.5.1.4.1.1.1      # Computed Radiography Image Storage
+    - 1.2.840.10008.5.1.4.1.1.1.1    # Digital X-Ray Image Storage - For Presentation
+    - default
+```
+
 ## ProcessDelay
 
 - Type: `number`
