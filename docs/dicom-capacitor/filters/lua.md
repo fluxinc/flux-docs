@@ -79,7 +79,8 @@ Scripts have access to the following globals:
 | `study` | table | Key-value state shared across images in the same study (24h TTL) |
 | `study.queue` | object | Read-only queue queries scoped to the current study |
 | `series` | table | Key-value state shared across images in the same series (24h TTL) |
-| `print(...)` | function | Log output (appears in per-file logs) |
+| `log` | object | Write to the common application log |
+| `print(...)` | function | Log output (appears in per-file item log only) |
 | `uid()` | function | Generate a new DICOM UID |
 | `include(path)` | function | Load a shared Lua library file |
 
@@ -251,9 +252,26 @@ study.image_count = (study.image_count or 0) + 1
 series.last_instance = dataset:Get('SOPInstanceUID')
 ```
 
+### log
+
+The `log` object writes to the common application log (the main service log visible on the Logs page). Use this for operational messages that should be visible to all operators, not just when inspecting a specific queue item.
+
+- `log:info(...)` — Informational message.
+- `log:warn(...)` — Warning.
+- `log:error(...)` — Error.
+- `log:debug(...)` — Debug (only visible at debug log level).
+
+Arguments are converted to strings and separated by tabs. All messages are prefixed with `[lua]` in the log output.
+
+```lua
+log:info('Processing started for', dataset:Get('PatientID'))
+log:warn('Destination backlog detected:', backlog, 'items')
+log:error('Required tag missing — failing file')
+```
+
 ### print
 
-The `print(...)` function logs output to the per-file item log. Arguments are converted to strings and separated by tabs.
+The `print(...)` function logs output to the per-file item log only. Use this for per-image debug output that operators see when inspecting a specific queue item. Arguments are converted to strings and separated by tabs.
 
 ```lua
 print('Processing', dataset:Get('PatientName'))
@@ -524,4 +542,139 @@ The following examples show a complete `lua.yml` file with common scenarios:
         dataset:Set('ImageComments',
             'PARTIAL_STUDY: ' .. failed .. ' of ' .. total .. ' failed')
     end
+```
+
+## Multi-File Project Examples
+
+The examples above use inline scripts for brevity. In practice, you'll want to split logic into external `.lua` files and shared libraries. Below are complete multi-file setups.
+
+### Queue-Aware Routing with Shared Libraries
+
+This setup uses a shared PHI stripping library, a station label library, and an external routing script that checks queue health before routing.
+
+**File layout:**
+
+```
+config-dir/
+├── config.yml          # filters: lua
+├── nodes.yml
+├── lua.yml
+├── libs/
+│   ├── phi.lua
+│   └── station-labels.lua
+└── scripts/
+    └── route-smart.lua
+```
+
+```yaml
+# lua.yml
+
+# Anonymize images going to the test viewer
+- Description: Anonymize for viewer
+  Script: |
+    include('libs/phi.lua')
+    strip_phi(dataset)
+    dataset:Set('PatientID', uid())
+  AeTitles:
+    - VIEWER_TEST
+
+# Smart routing for CT — checks queue health, labels stations
+- Description: Smart CT routing
+  Script: scripts/route-smart.lua
+  Conditions:
+    - Tag: 0008,0060
+      MatchExpression: CT
+```
+
+```lua
+-- libs/phi.lua — Reusable PHI stripping
+function strip_phi(ds)
+    ds:Set('PatientName', 'ANONYMOUS')
+    ds:Set('PatientID', '00000')
+    ds:Remove('PatientBirthDate')
+    ds:Remove('PatientAddress')
+    ds:Remove('ReferringPhysicianName')
+    ds:Remove('InstitutionName')
+    ds:Remove('InstitutionAddress')
+end
+```
+
+```lua
+-- libs/station-labels.lua — Map AE titles to human-readable names
+STATION_LABELS = {
+    CT_SCANNER_1  = 'CT Room 1 - Main Building',
+    CT_SCANNER_2  = 'CT Room 2 - Emergency',
+    MR_SCANNER    = 'MRI Suite A',
+    US_SCANNER    = 'Ultrasound Bay 3',
+}
+
+function label_station(ds)
+    local label = STATION_LABELS[file.sourceAeTitle]
+    if label then
+        ds:Set('StationName', label)
+    end
+end
+```
+
+```lua
+-- scripts/route-smart.lua — Queue-aware routing with health checks
+include('libs/station-labels.lua')
+label_station(dataset)
+
+-- Check destination health before routing
+local failed = queue:countByDestination('ARCHIVE', 'Failed')
+local backlog = queue:countByDestination('ARCHIVE', 'New')
+
+if failed > 50 then
+    log:warn('ARCHIVE has', failed, 'failures — holding')
+    error('retry: destination has too many failures')
+elseif backlog > 200 then
+    log:warn('ARCHIVE backlog at', backlog, '— routing with warning')
+    dataset:Set('ImageComments', 'ROUTED_UNDER_BACKLOG:' .. backlog)
+end
+
+route:Add('ARCHIVE')
+
+-- Tag partial studies for operator attention
+local total = study.queue:totalCount()
+local studyFailed = study.queue:countByState('Failed')
+if studyFailed > 0 then
+    log:warn('Study has', studyFailed, 'of', total, 'items failed')
+    dataset:Set('ImageComments',
+        'PARTIAL_STUDY: ' .. studyFailed .. '/' .. total .. ' failed')
+end
+```
+
+### Fan-Out with De-Identification
+
+Route mammography to three destinations: the clinical PACS unmodified, a research archive with basic anonymization, and a cloud AI vendor with full de-identification and new UIDs.
+
+```yaml
+# lua.yml
+- Description: Distribute mammography
+  Script: |
+    include('libs/phi.lua')
+
+    -- Research gets anonymized copy
+    route:Add('RESEARCH', function(ds)
+        strip_phi(ds)
+        ds:Set('PatientID', uid())
+    end)
+
+    -- Cloud AI gets fully de-identified copy with new UIDs
+    route:Add('CLOUD_AI', function(ds)
+        strip_phi(ds)
+        ds:Set('PatientName', 'DEIDENTIFIED')
+        ds:Set('PatientID', uid())
+        ds:Set('StudyInstanceUID', uid())
+        ds:Set('SeriesInstanceUID', uid())
+        ds:Set('SOPInstanceUID', uid())
+    end)
+
+    log:info('Mammography fan-out:',
+        file.sourceAeTitle, '->', file.destinationAeTitle,
+        '+ RESEARCH + CLOUD_AI')
+  Conditions:
+    - Tag: 0008,0060
+      MatchExpression: MG
 ```
