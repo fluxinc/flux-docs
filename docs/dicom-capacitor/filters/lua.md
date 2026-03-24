@@ -75,7 +75,9 @@ Scripts have access to the following globals:
 | `dataset` | object | Read and write DICOM tags with audit logging |
 | `route` | object | Route images to additional destinations |
 | `file` | object | Read-only metadata about the current image |
+| `queue` | object | Read-only queries against the in-memory processing queue |
 | `study` | table | Key-value state shared across images in the same study (24h TTL) |
+| `study.queue` | object | Read-only queue queries scoped to the current study |
 | `series` | table | Key-value state shared across images in the same series (24h TTL) |
 | `print(...)` | function | Log output (appears in per-file logs) |
 | `uid()` | function | Generate a new DICOM UID |
@@ -142,6 +144,100 @@ if file.destinationAeTitle == 'EXTERNAL_PACS' then
     dataset:Remove('PatientBirthDate')
 end
 ```
+
+### queue
+
+The `queue` object provides read-only access to the in-memory processing queue. This is the same data visible in the web UI's queue view. All queries run against the live in-memory database and return a snapshot at the time of the call.
+
+**Count methods** return a number:
+
+- `queue:total()` — Total number of items in the queue.
+- `queue:count(state)` — Count of items in the specified state (`"New"`, `"Prepared"`, `"Failed"`, `"Rejected"`, `"Expired"`).
+- `queue:countByStudy(studyUID)` — Count of items belonging to a study.
+- `queue:countByStudy(studyUID, state)` — Count of items belonging to a study in a specific state.
+- `queue:countByDestination(aeTitle)` — Count of items destined for a specific AE title.
+- `queue:countByDestination(aeTitle, state)` — Count filtered by destination and state.
+
+**Find methods** return an item list (see [Iterating Queue Items](#iterating-queue-items) below):
+
+- `queue:findByStudy(studyUID)` — All items for a study.
+- `queue:findByState(state)` — All items in a state.
+- `queue:findByDestination(aeTitle)` — All items for a destination.
+- `queue:findByDestination(aeTitle, state)` — Items for a destination in a specific state.
+
+```lua
+-- Check how many items are waiting globally
+local pending = queue:count('New')
+print('Pending items:', pending)
+
+-- Check if a specific destination has failures
+if queue:countByDestination('AI_SERVER', 'Failed') > 10 then
+    -- Too many failures, skip routing to AI_SERVER
+    print('AI_SERVER has too many failures, skipping')
+else
+    route:Add('AI_SERVER')
+end
+```
+
+### study.queue
+
+The `study.queue` object provides the same query capabilities as `queue`, but automatically scoped to the current image's StudyInstanceUID. Available when the image has a StudyInstanceUID; `nil` otherwise.
+
+- `study.queue:totalCount()` — Total items in this study.
+- `study.queue:countByState(state)` — Items in this study with a specific state.
+- `study.queue:items()` — All items in this study.
+- `study.queue:itemsByState(state)` — Items in this study filtered by state.
+- `study.queue:destinations()` — Distinct destination AE titles for this study (string array).
+- `study.queue:modalities()` — Distinct modalities for this study (string array).
+
+```lua
+-- Wait for all images before routing
+local newCount = study.queue:countByState('New')
+local preparedCount = study.queue:countByState('Prepared')
+if newCount > 1 then
+    -- More images still arriving, don't route yet
+    error('retry: waiting for study to complete (' .. newCount .. ' images pending)')
+end
+
+-- Check which destinations this study has been routed to
+local dests = study.queue:destinations()
+print('Study destinations:', dests.Length)
+```
+
+### Iterating Queue Items
+
+The `queue:find*()` and `study.queue:items*()` methods return an item list object. Use `count()` and `get(i)` to iterate (1-based indexing):
+
+```lua
+local items = study.queue:items()
+for i = 1, items:count() do
+    local item = items:get(i)
+    print(item.state, item.destinationAeTitle, item.modality)
+end
+```
+
+Each item exposes these read-only fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | number | Internal record ID |
+| `state` | string | `"New"`, `"Prepared"`, `"Failed"`, `"Rejected"`, or `"Expired"` |
+| `sourceAeTitle` | string | AE title of the sender |
+| `destinationAeTitle` | string | AE title of the destination |
+| `studyInstanceUID` | string | DICOM Study Instance UID |
+| `seriesInstanceUID` | string | DICOM Series Instance UID |
+| `sopInstanceUID` | string | DICOM SOP Instance UID |
+| `sopClassUID` | string | DICOM SOP Class UID |
+| `modality` | string | DICOM modality (e.g., `"CT"`, `"MR"`) |
+| `patientID` | string | Patient ID |
+| `patientName` | string | Patient name |
+| `accessionNumber` | string | Accession number |
+| `attemptCount` | number | Number of delivery attempts |
+| `lastError` | string | Last error message (if any) |
+| `format` | string | File format (`"dcm"`, `"json"`, `"yml"`) |
+| `pendingState` | string | Deferred state change (if any) |
+| `createdAt` | string | ISO 8601 timestamp when the item entered the queue |
+| `updatedAt` | string | ISO 8601 timestamp of the last state change |
 
 ### study and series
 
@@ -396,4 +492,36 @@ The following examples show a complete `lua.yml` file with common scenarios:
     dataset:Set('StudyDescription', string.upper(desc))
     dataset:Set('ContentDate', os.date('%Y%m%d'))
     dataset:Set('ContentTime', os.date('%H%M%S'))
+
+# Example 11: Queue-aware routing
+# Only route to the AI server when the queue isn't backed up there.
+# Uses the global queue API to check destination health before routing.
+- Description: Route to AI if healthy
+  Script: |
+    local failed = queue:countByDestination('AI_SERVER', 'Failed')
+    local pending = queue:countByDestination('AI_SERVER', 'New')
+    if failed > 20 then
+        print('AI_SERVER has ' .. failed .. ' failures, skipping')
+    elseif pending > 100 then
+        print('AI_SERVER backlog at ' .. pending .. ', skipping')
+    else
+        route:Add('AI_SERVER')
+    end
+  Conditions:
+    - Tag: 0008,0060
+      MatchExpression: CT
+
+# Example 12: Study completeness check
+# Use study.queue to detect partially processed studies and tag
+# them for operator review.
+- Description: Flag partial studies
+  Script: |
+    local total = study.queue:totalCount()
+    local prepared = study.queue:countByState('Prepared')
+    local failed = study.queue:countByState('Failed')
+    if failed > 0 and prepared > 0 then
+        -- Some images failed, some succeeded — flag for review
+        dataset:Set('ImageComments',
+            'PARTIAL_STUDY: ' .. failed .. ' of ' .. total .. ' failed')
+    end
 ```
