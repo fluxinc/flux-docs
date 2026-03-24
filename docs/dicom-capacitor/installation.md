@@ -75,11 +75,14 @@ On first run, Capacitor creates default configuration files in the data director
 <data-dir>/
   config.yml        # Service settings
   nodes.yml         # Destination PACS/servers
+  sop-class-priorities.txt  # Optional SOP class queue priority rules
   cache/            # DICOM file cache
   log/              # Log files
     capacitor_service.log        # Main service log
     capacitor_service_audit.log  # Audit log
 ```
+
+The generated `sop-class-priorities.txt` file contains only `default` by default, which preserves normal FIFO processing until you add explicit SOP Class UIDs in descending priority order.
 
 You can override the data directory path on any platform:
 

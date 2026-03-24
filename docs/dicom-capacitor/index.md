@@ -19,6 +19,7 @@ storage commitment, and other DICOM services.  It can also be configured to anon
 - **Routing**: Routes DICOM images to different destinations based on configurable criteria.
 - **Mutations**: Applies mutations to DICOM images based on configurable criteria.
 - **Sorting**: Sorts DICOM images based on configurable criteria.
+- **Queue Prioritization**: Can optionally prioritize cached studies by SOP Class UID before delivery, while preserving FIFO order within the same priority level.
 - **Storage Commitment**: Sends and receives DICOM storage commitment requests.
 - **Worklist**: Queries, caches, and manipulates DICOM worklist data.
 - **Query/Retrieve**: Queries and retrieves DICOM images from a remote node.
