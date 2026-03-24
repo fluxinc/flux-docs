@@ -14,6 +14,8 @@ The following configuration files are used by [filters](filters/index.md) (creat
 Queue prioritization is configured inside `nodes.yml`, not in a separate file:
 - **`SopClassPriorities`** - Optional ordered SOP Class UID list on `NodeRole: Storage` nodes. Earlier entries have higher queue priority, `default` marks where unlisted SOP classes should fall, and omitting the property keeps FIFO behavior for that destination. See [nodes.yml / SopClassPriorities](nodes.md#sopclasspriorities).
 
+This is intended for per-destination queue scheduling, such as making urgent or lightweight image classes arrive before lower-value backlog. It does not replace `sortings.yml`, which is still used for ordering within the same priority class.
+
 All configuration files should be placed in the DICOM Capacitor directory. By default this is at:
 - **Windows**: `%ProgramData%\Flux Inc\DICOM Capacitor\`
 - **macOS/Linux**: `/var/lib/dicom-capacitor/data/`

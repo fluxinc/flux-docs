@@ -136,6 +136,19 @@ Use the special `default` entry to set where unlisted SOP classes should fall in
 
 This setting applies only to `NodeRole: Storage`.
 
+Use this when queue order matters clinically or operationally. A common example is sending small 2D acquisition images first so they are visible quickly at the destination, while lower-priority derived objects, documentation, or bulky secondary captures can wait behind them.
+
+Behavior:
+- Priority is evaluated per queued item for this destination.
+- Higher-priority items can overtake older lower-priority backlog on the next send-batch refresh.
+- Items with the same resolved priority remain FIFO.
+- A batch already in flight is not interrupted.
+
+This is different from other ordering controls:
+- `Priority` on the node is the DICOM message priority field, not queue scheduling.
+- `SopClassPriorities` changes backlog scheduling across queued files for one destination.
+- `sortings.yml` and Lua sorting are still the tools for ordering files within the same priority class or within a study/batch.
+
 **Example**:
 ```yaml
 - AeTitle: PACS
@@ -146,6 +159,30 @@ This setting applies only to `NodeRole: Storage`.
     - 1.2.840.10008.5.1.4.1.1.1      # Computed Radiography Image Storage
     - 1.2.840.10008.5.1.4.1.1.1.1    # Digital X-Ray Image Storage - For Presentation
     - default
+```
+
+**Example: urgent 2D before routine backlog**
+```yaml
+- AeTitle: REVIEW_PACS
+  HostName: 192.168.1.50
+  Port: 104
+  NodeRole: Storage
+  SopClassPriorities:
+    - 1.2.840.10008.5.1.4.1.1.1      # CR Image Storage
+    - 1.2.840.10008.5.1.4.1.1.2      # CT Image Storage
+    - default                        # normal queue position for everything else
+    - 1.2.840.10008.5.1.4.1.1.7      # Secondary Capture Image Storage
+```
+
+**Example: keep default FIFO, but push reports to the back**
+```yaml
+- AeTitle: ARCHIVE
+  HostName: 192.168.1.60
+  Port: 104
+  NodeRole: Storage
+  SopClassPriorities:
+    - default
+    - 1.2.840.10008.5.1.4.1.1.104.1  # Encapsulated PDF Storage
 ```
 
 ## ProcessDelay
