@@ -92,12 +92,14 @@ Most `config.yml` settings can be overridden via environment variables using the
 | `filters` | `CAPACITOR_FILTERS` |
 | `processDelay` | `CAPACITOR_PROCESS_DELAY` |
 | `processDelayWindowMultiplier` | `CAPACITOR_PROCESS_DELAY_WINDOW_MULTIPLIER` |
+| `suppressWebLog` | `CAPACITOR_SUPPRESS_WEB_LOG` |
 
 ```yaml
 environment:
   CAPACITOR_MY_AE_TITLE: "MY_ROUTER"
   CAPACITOR_SCP_PORT: "11112"
   CAPACITOR_FILTERS: "lua"
+  CAPACITOR_SUPPRESS_WEB_LOG: "true"   # Suppress web/API log file output
 ```
 
 Environment variables override `config.yml` settings. Command-line overrides (`--config.*`) take highest priority.
@@ -135,6 +137,8 @@ The service log is also written to the `/data/log/` volume, so you can access `c
 ```bash
 tail -f ./data/log/capacitor_service.log
 ```
+
+Web/API request logs are written to a separate file (`capacitor_service_web.log`) to keep the main log focused on DICOM operations. To suppress web logs entirely (recommended in Docker), set `CAPACITOR_SUPPRESS_WEB_LOG=true`.
 
 ## Upgrading
 
