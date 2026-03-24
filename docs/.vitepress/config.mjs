@@ -28,6 +28,7 @@ export default defineConfig({
           {
             text: "DICOM Capacitor",
             link: "/dicom-capacitor/",
+            collapsed: false,
             items: [
               { text: "Overview", link: "/dicom-capacitor/index.md" },
               { text: "Installation", link: "/dicom-capacitor/installation" },
@@ -105,6 +106,7 @@ export default defineConfig({
           {
             text: "DICOM Printer 2",
             link: "/dicom-printer-2/",
+            collapsed: true,
             items: [
               { text: "Overview", link: "/dicom-printer-2/index.md" },
               { text: "Architecture & Design", link: "/dicom-printer-2/architecture" },
