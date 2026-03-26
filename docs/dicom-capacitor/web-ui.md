@@ -20,18 +20,25 @@ The dashboard binds to `127.0.0.1` on native installs (localhost only) and `0.0.
 
 ## Authentication
 
-Most dashboard pages are read-only and do not require authentication. Actions that modify state (retrying items, moving items between queues) and the **Settings** page require an API token.
+Most dashboard pages are read-only and do not require authentication. Actions that modify state (retrying items, editing nodes, managing queue items) and the **Settings** page require a service password.
 
-Configure the token in `config.yml`:
+Configure the service password in `config.yml`:
 
 ```yaml
 api:
-  token: "your-secret-token"
+  servicePassword: "your-password"
 ```
 
-When a protected action is attempted without a token, the dashboard prompts for one. The token is stored in the browser's session storage and cleared when the tab is closed.
+When a protected action is attempted, the dashboard prompts for the service password. The password is stored as a browser cookie (`capacitor_session`) and persists across tabs and sessions.
 
-If no token is configured in `config.yml`, all write operations return `403 Forbidden`.
+For programmatic/scripted API access, a separate bearer token can also be configured:
+
+```yaml
+api:
+  token: "your-api-token"
+```
+
+If neither credential is configured, write endpoints are open (backward-compatible).
 
 ## Pages
 
@@ -40,10 +47,12 @@ If no token is configured in `config.yml`, all write operations return `403 Forb
 The landing page shows a live overview of the service:
 
 - **Queue statistics** — Total items and counts by state (New, Prepared, Failed, Rejected)
-- **Node status** — Each configured destination node with its queue depth breakdown
+- **Node status** — Each configured destination node with queue depth, delivery stats, and C-ECHO testing
+- **Inline node editing** — Edit node properties (host, port, transfer syntax, aliases, etc.) directly from the dashboard. Click the pencil icon on any node row, enter the service password, and the node is automatically paused for editing. Changes are saved atomically to `nodes.yml`.
+- **Schedule override** — Temporarily bypass a node's `ProcessSchedule` to release studies outside of scheduled windows. The fast-forward button appears next to each scheduled node.
 - **System info** — Version, uptime, AE title, and activation state
 
-Data refreshes automatically every few seconds.
+Data refreshes automatically every few seconds. When the service is unavailable (stopped, restarting), the dashboard shows a gentle overlay indicating it is waiting for the service to respond.
 
 ### Queue
 
@@ -70,7 +79,7 @@ Files shown include:
 - `config.yml`, `nodes.yml`, `mutations.yml`, `routings.yml`, `sortings.yml`, `lua.yml`
 - Any `.lua` script files referenced by `Script:` entries in `lua.yml`
 
-This page requires the API token.
+This page requires the service password.
 
 ## Changing the Port
 

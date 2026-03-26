@@ -21,13 +21,18 @@ INFO: API listening on http://127.0.0.1:1080
 
 ## Authentication
 
-Read endpoints are open. Write endpoints require a Bearer token matching the `token` value in `config.yml`:
+Read endpoints are open. Write endpoints (marked 🔒) accept either credential:
 
-```
-Authorization: Bearer secret
+- **Service password** (browser UI): Set `api.servicePassword` in `config.yml`. Sent as a `capacitor_session` cookie.
+- **Bearer token** (programmatic): Set `api.token` in `config.yml`. Sent as `Authorization: Bearer <token>` header.
+
+```yaml
+api:
+  servicePassword: "your-password"   # for browser UI
+  token: "your-api-token"            # for scripted access
 ```
 
-Missing or wrong token → `403 Forbidden`. No token configured → `403 Forbidden` with code `NO_TOKEN_CONFIGURED`.
+Missing or wrong credentials → `403 Forbidden`. If neither is configured, write endpoints are open (backward-compatible).
 
 ## Response Envelope
 
@@ -94,6 +99,47 @@ Returns all configured destination nodes with per-node queue depth.
 
 Returns a single node. `404` if not found.
 
+#### `PUT /api/nodes/{aeTitle}` 🔒
+
+Updates a node's properties. The node must be paused and fully drained (no checked-out items) before editing.
+
+```json
+{
+  "role": "Storage",
+  "hostName": "192.168.1.100",
+  "port": 104,
+  "priority": 0,
+  "processDelay": 0,
+  "impersonate": false,
+  "transferSyntax": "",
+  "batchSize": 0,
+  "minimumLineSpeed": 500,
+  "aliases": ["PACS", "ARCHIVE"]
+}
+```
+
+The `role` field is required to disambiguate when multiple nodes share the same AE title (e.g., one Storage and one QueryRetrieve). Returns `409 Conflict` if the node is not paused or has items checked out.
+
+#### `POST /api/nodes/{aeTitle}/pause` 🔒
+
+Pauses delivery for a single node. Other nodes continue processing normally.
+
+#### `POST /api/nodes/{aeTitle}/resume` 🔒
+
+Resumes delivery for a paused node.
+
+#### `POST /api/nodes/{aeTitle}/echo` 🔒
+
+Sends a C-ECHO to the node and returns latency and success status. Times out after 10 seconds.
+
+#### `POST /api/nodes/{aeTitle}/override-schedule` 🔒
+
+Temporarily overrides the node's `ProcessSchedule`, allowing delivery outside of scheduled windows. The override is in-memory only and clears on service restart.
+
+#### `DELETE /api/nodes/{aeTitle}/override-schedule` 🔒
+
+Clears the schedule override, returning the node to its configured schedule.
+
 ---
 
 ### Queue
@@ -136,9 +182,37 @@ Moves the item to `Failed` state (will retry on next cycle).
 
 Moves the item to `Rejected` state (will not retry).
 
+#### `POST /api/queue/items/{id}/retry` 🔒
+
+Moves a failed or rejected item back to `New` state for reprocessing.
+
+#### `POST /api/queue/items/{id}/move` 🔒
+
+Moves an item to a specified target state. Body: `{ "targetState": "New" }`.
+
 #### `DELETE /api/queue/items/{id}` 🔒
 
 Permanently deletes the item and its file from disk.
+
+#### `POST /api/queue/actions/retry-failed` 🔒
+
+Bulk retries all failed items matching optional filters (source, destination, modality).
+
+#### `POST /api/queue/actions/retry-rejected` 🔒
+
+Bulk retries all rejected items matching optional filters.
+
+#### `POST /api/queue/studies/{studyUid}/move` 🔒
+
+Moves all items in a study to a target state. Body: `{ "targetState": "New" }`.
+
+#### `DELETE /api/queue/studies/{studyUid}` 🔒
+
+Deletes all items in a study.
+
+#### `POST /api/queue/series/{seriesUid}/move` 🔒
+
+Moves all items in a series to a target state.
 
 ---
 
@@ -167,6 +241,22 @@ Disables all processing (Storage SCU, Worklist SCU, Storage Commit SCU, Prepare)
 #### `POST /api/service/resume` 🔒
 
 Re-enables all processing.
+
+#### `GET /api/service/processing-status`
+
+Returns a summary of processing state including per-node pause status and active job count.
+
+```json
+{
+  "ok": true,
+  "data": {
+    "allPaused": false,
+    "checkedOutItems": 2,
+    "activeJobs": 3,
+    "idle": false
+  }
+}
+```
 
 ---
 
