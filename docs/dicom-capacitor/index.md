@@ -22,6 +22,7 @@ storage commitment, and other DICOM services.  It can also be configured to anon
 - **Queue Prioritization**: Can optionally prioritize queued files by SOP Class UID per storage destination in `nodes.yml`, so later-arriving high-priority images can move ahead of older low-priority backlog while preserving FIFO within the same priority level.
 - **Storage Commitment**: Sends and receives DICOM storage commitment requests.
 - **Worklist**: Queries, caches, and manipulates DICOM worklist data.
+- **Worklist Prefetch**: Starts background study retrieval from newly refreshed worklist results so scheduled studies or recent priors can be available earlier at a local cache or viewer destination.
 - **Query/Retrieve**: Queries and retrieves DICOM images from a remote node.
 
 Capacitor is designed to be:

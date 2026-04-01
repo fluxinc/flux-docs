@@ -47,6 +47,10 @@ export default defineConfig({
                     link: "/dicom-capacitor/nodes",
                   },
                   {
+                    text: "Worklist Prefetch",
+                    link: "/dicom-capacitor/prefetch",
+                  },
+                  {
                     text: "Filters",
                     link: "/dicom-capacitor/filters/",
                     items: [

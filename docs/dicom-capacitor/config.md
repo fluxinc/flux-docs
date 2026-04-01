@@ -292,6 +292,33 @@ Determines whether DICOM Capacitor should move rejected files to the `rejected` 
 
 The AE Title that DICOM Capacitor will use to identify itself when sending DICOM data and responding to DICOM queries. This value can be overridden by "impersonation" in the `nodes.yml` file.
 
+## prefetchEnabled
+
+- Type: `boolean`
+- Default: `false`
+
+Enables [worklist prefetch](./prefetch). When enabled, DICOM Capacitor loads `prefetch.yml` from the data directory and starts background prefetch workers if at least one valid rule is present.
+
+Environment variable override: `CAPACITOR_PREFETCH_ENABLED`
+
+## prefetchConcurrency
+
+- Type: `number`
+- Default: `1`
+
+The number of background prefetch workers that can process work items at the same time.
+
+Environment variable override: `CAPACITOR_PREFETCH_CONCURRENCY`
+
+## prefetchQueueSize
+
+- Type: `number`
+- Default: `100`
+
+The maximum number of pending prefetch work items kept in memory. Size this for the largest expected worklist refresh burst at your site.
+
+Environment variable override: `CAPACITOR_PREFETCH_QUEUE_SIZE`
+
 ## processDelay
 
 - Type: `number`

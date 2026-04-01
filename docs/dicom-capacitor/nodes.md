@@ -104,6 +104,16 @@ Accepted values:
 
 Specific roles may require and allow additional configuration in `config.yml`, `nodes.yml`, and `mutations.yml`.
 
+## Prefetch Node Roles
+
+[Worklist prefetch](./prefetch) ties together three node roles:
+
+- `AeTitles` in `prefetch.yml` must resolve to `NodeRole: Worklist` nodes.
+- `QueryRetrieveNode` must resolve to a `NodeRole: QueryRetrieve` node.
+- `MoveDestination` must resolve to a `NodeRole: Storage` node.
+
+Normal node behavior still applies to prefetch traffic. For example, Query/Retrieve node settings such as `HostName`, `Port`, `Priority`, and `Impersonate` affect the upstream lookup and move requests used by prefetch.
+
 ## Port
 
 - Type: `number`
