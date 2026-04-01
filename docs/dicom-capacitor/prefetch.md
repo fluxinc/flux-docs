@@ -1,8 +1,6 @@
 # Worklist Prefetch
 
-Worklist prefetch lets DICOM Capacitor start background Query/Retrieve activity when newly refreshed worklist results match configured rules. This is typically used to warm a local cache or viewer destination before the modality user opens the study.
-
-> DICOM Capacitor can trigger worklist-driven prefetch and route the retrieved studies, but it does not currently act as a dedicated prefetch cache product on its own. Flux Inc offers prefetch-cache functionality as an add-on for deployments that need that behavior.
+Worklist prefetch lets DICOM Capacitor start background Query/Retrieve activity when newly refreshed worklist results match configured rules. This is typically used to warm a local cache or viewer destination before the modality user opens the study. DICOM Capacitor can trigger worklist-driven prefetch and route the retrieved studies, but it does not currently act as a dedicated prefetch cache product on its own. Flux Inc offers prefetch-cache functionality as an add-on for deployments that need that behavior.
 
 ## How It Works
 
