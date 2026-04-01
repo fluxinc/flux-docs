@@ -75,6 +75,10 @@ export default defineConfig({
                 ],
               },
               {
+                text: "Worklist Pre-Fetch",
+                link: "/dicom-capacitor/prefetch",
+              },
+              {
                 text: "Starting and Stopping the Service",
                 link: "/dicom-capacitor/starting-and-stopping",
               },

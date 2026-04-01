@@ -5,7 +5,8 @@ The following configuration files are required:
 - **`config.yml`** - Main service configuration settings
 - **`nodes.yml`** - Network node definitions for DICOM endpoints
 
-The following configuration files are used by [filters](filters/index.md) (create only the ones you need):
+The following configuration files are optional (create only the ones you need):
+- **`prefetch.yml`** - Worklist-triggered pre-fetch rules. See [Worklist Pre-Fetch](prefetch)
 - **`routings.yml`** - Required by the [route](filters/route) filter
 - **`mutations.yml`** - Required by the [mutate](filters/mutate) filter
 - **`sortings.yml`** - Required by the [sort](filters/sort) filter

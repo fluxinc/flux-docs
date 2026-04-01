@@ -292,6 +292,27 @@ Determines whether DICOM Capacitor should move rejected files to the `rejected` 
 
 The AE Title that DICOM Capacitor will use to identify itself when sending DICOM data and responding to DICOM queries. This value can be overridden by "impersonation" in the `nodes.yml` file.
 
+## prefetchConcurrency
+
+- Type: `number`
+- Default: `1`
+
+The number of concurrent background prefetch workers. Each worker processes one C-FIND/C-MOVE operation at a time. Increase this to allow parallel pre-fetch operations, but be mindful of upstream PACS load. See [Worklist Pre-Fetch](prefetch) for details.
+
+## prefetchEnabled
+
+- Type: `boolean`
+- Default: `false`
+
+Enables the worklist-triggered pre-fetch system. When enabled, DICOM Capacitor loads rules from `prefetch.yml` in the data directory and automatically retrieves studies based on new worklist items. See [Worklist Pre-Fetch](prefetch) for details.
+
+## prefetchQueueSize
+
+- Type: `number`
+- Default: `100`
+
+The maximum number of pending pre-fetch work items in the bounded queue. When the queue is full, new work items are dropped with a warning. Increase this if worklist refreshes produce many new items at once. See [Worklist Pre-Fetch](prefetch) for details.
+
 ## processDelay
 
 - Type: `number`
