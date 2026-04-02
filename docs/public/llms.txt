@@ -1,0 +1,58 @@
+# Flux Docs
+
+> Technical documentation for DICOM Capacitor and DICOM Printer 2 by Flux Inc. — medical imaging routing, processing, and printing software for healthcare environments.
+
+## DICOM Capacitor
+
+DICOM Capacitor is a Windows/Linux/Docker service that receives DICOM images and worklist/QR queries via SCP, applies configurable filters (Lua scripting, tag mutation, routing, sorting, query proxying), and forwards to destination nodes.
+
+- [Overview](https://docs.fluxinc.ca/dicom-capacitor/): Product overview and feature summary
+- [Installation](https://docs.fluxinc.ca/dicom-capacitor/installation): Windows and Linux installation
+- [Docker](https://docs.fluxinc.ca/dicom-capacitor/docker): Docker deployment
+- [Configuration](https://docs.fluxinc.ca/dicom-capacitor/configuration): Configuration guide
+- [Settings Reference](https://docs.fluxinc.ca/dicom-capacitor/config): Full config.yml reference
+- [Nodes](https://docs.fluxinc.ca/dicom-capacitor/nodes): Configuring DICOM nodes (SCP, SCU, Worklist, QR)
+- [Filters](https://docs.fluxinc.ca/dicom-capacitor/filters/): Filter pipeline overview
+- [Lua Filter](https://docs.fluxinc.ca/dicom-capacitor/filters/lua): Lua scripting for storage and query proxying — contexts, entry config, error handling
+- [Lua API Reference](https://docs.fluxinc.ca/dicom-capacitor/filters/lua-api): Complete Lua global object and method reference
+- [Lua Examples](https://docs.fluxinc.ca/dicom-capacitor/filters/lua-examples): Lua scripting examples and cheat sheet
+- [Mutate Filter](https://docs.fluxinc.ca/dicom-capacitor/filters/mutate): Declarative tag mutation rules
+- [Route Filter](https://docs.fluxinc.ca/dicom-capacitor/filters/route): Declarative routing rules
+- [Sort Filter](https://docs.fluxinc.ca/dicom-capacitor/filters/sort): Image ordering
+- [Filter Conditions](https://docs.fluxinc.ca/dicom-capacitor/filters/conditions): Condition syntax shared across filters
+- [Worklist Pre-Fetch](https://docs.fluxinc.ca/dicom-capacitor/prefetch): Worklist caching and pre-fetch configuration
+- [Web Dashboard](https://docs.fluxinc.ca/dicom-capacitor/web-ui): Web UI usage and features
+- [HTTP API](https://docs.fluxinc.ca/dicom-capacitor/api): REST API reference
+- [Command Line](https://docs.fluxinc.ca/dicom-capacitor/command-line): CLI options and overrides
+- [Cache](https://docs.fluxinc.ca/dicom-capacitor/cache): Cache inspection and management
+- [Logs](https://docs.fluxinc.ca/dicom-capacitor/logs): Log access and interpretation
+- [Starting and Stopping](https://docs.fluxinc.ca/dicom-capacitor/starting-and-stopping): Service management
+- [Upgrading](https://docs.fluxinc.ca/dicom-capacitor/upgrading): Upgrade procedures
+- [Uninstallation](https://docs.fluxinc.ca/dicom-capacitor/uninstallation): Removal
+
+## DICOM Printer 2
+
+DICOM Printer 2 is a Windows service that automates DICOM printing workflows — receiving print jobs, applying transformations, and routing output.
+
+- [Overview](https://docs.fluxinc.ca/dicom-printer-2/): Product overview
+- [Architecture](https://docs.fluxinc.ca/dicom-printer-2/architecture): Design and architecture
+- [Installation](https://docs.fluxinc.ca/dicom-printer-2/installation): Installation
+- [Configuration](https://docs.fluxinc.ca/dicom-printer-2/configuration): Configuration guide
+- [Configuration Reference](https://docs.fluxinc.ca/dicom-printer-2/config): Full config reference
+- [Actions](https://docs.fluxinc.ca/dicom-printer-2/actions/): Action pipeline overview
+- [Query Action](https://docs.fluxinc.ca/dicom-printer-2/actions/query): DICOM query actions
+- [Store Action](https://docs.fluxinc.ca/dicom-printer-2/actions/store): DICOM store actions
+- [Print Action](https://docs.fluxinc.ca/dicom-printer-2/actions/print): Print actions
+- [SetTag Action](https://docs.fluxinc.ca/dicom-printer-2/actions/settag): Tag manipulation
+- [SetSequence Action](https://docs.fluxinc.ca/dicom-printer-2/actions/setsequence): Sequence manipulation
+- [Image Manipulation](https://docs.fluxinc.ca/dicom-printer-2/actions/image-manipulation): Image processing actions
+- [Workflow](https://docs.fluxinc.ca/dicom-printer-2/workflow/): Workflow configuration
+- [Placeholders](https://docs.fluxinc.ca/dicom-printer-2/placeholders): Placeholder syntax
+- [Drop Monitor](https://docs.fluxinc.ca/dicom-printer-2/drop-monitor): Drop monitor configuration
+- [Queue Dashboard](https://docs.fluxinc.ca/dicom-printer-2/queue-dashboard): Queue monitoring
+- [Troubleshooting](https://docs.fluxinc.ca/dicom-printer-2/troubleshooting): Common issues and solutions
+- [DICOM Conformance Statement](https://docs.fluxinc.ca/dicom-printer-2/conformance): DICOM conformance details
+
+## Optional
+
+- [Full content](https://docs.fluxinc.ca/llms-full.txt): All documentation pages concatenated for LLM consumption

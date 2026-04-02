@@ -1,10 +1,39 @@
 import { defineConfig } from 'vitepress'
+import { writeFileSync, readdirSync, readFileSync, statSync } from 'fs'
+import { join, relative } from 'path'
+
+function collectMdFiles(dir) {
+  const results = []
+  for (const entry of readdirSync(dir).sort()) {
+    if (entry === 'node_modules' || entry.startsWith('.')) continue
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) {
+      results.push(...collectMdFiles(full))
+    } else if (entry.endsWith('.md') && entry !== 'api-examples.md') {
+      results.push(full)
+    }
+  }
+  return results
+}
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Flux Docs",
   description: "Documentation for our Products",
   base: "/",
+
+  buildEnd: async (siteConfig) => {
+    const srcDir = siteConfig.srcDir
+    const outDir = siteConfig.outDir
+    const files = collectMdFiles(srcDir)
+    const parts = ['# Flux Docs — Full Content\n']
+    for (const file of files) {
+      const rel = relative(srcDir, file)
+      const content = readFileSync(file, 'utf-8')
+      parts.push(`\n\n---\n<!-- source: ${rel} -->\n\n${content}`)
+    }
+    writeFileSync(join(outDir, 'llms-full.txt'), parts.join(''), 'utf-8')
+  },
   head: [
     ['link', { rel: 'icon', href: '/logo.svg' }]
   ],
