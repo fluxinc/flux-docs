@@ -65,6 +65,16 @@ export default defineConfig({
                       {
                         text: "Lua",
                         link: "/dicom-capacitor/filters/lua",
+                        items: [
+                          {
+                            text: "API Reference",
+                            link: "/dicom-capacitor/filters/lua-api",
+                          },
+                          {
+                            text: "Examples",
+                            link: "/dicom-capacitor/filters/lua-examples",
+                          },
+                        ],
                       },
                       {
                         text: "Filter Conditions",

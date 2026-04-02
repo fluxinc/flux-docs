@@ -182,7 +182,7 @@ A comma-separated list of filters that DICOM Capacitor will apply to incoming DI
 
 Filter values include:
 - `route` - Routes incoming images to different nodes, discards, or saves to disk. Requires `routings.yml` to be present in the same directory as `config.yml`.
-- `lua` - Programmable scripting for routing, tag mutations, and cross-image state using Lua. Requires `lua.yml` to be present in the same directory as `config.yml`.
+- `lua` - Programmable scripting for storage routing/mutation and proxied C-FIND request/result mutation using Lua. Requires `lua.yml` to be present in the same directory as `config.yml`.
 - `mutate` - Mutates incoming images based on a set of mutations. Requires `mutations.yml` to be present in the same directory as `config.yml`
 - `sort` - Re-orders DICOM images based on configurable criteria. Requires `sortings.yml` to be present.
 - `siemens_cto_converter` - Converts all Siemens CT images to DICOM BTO format
