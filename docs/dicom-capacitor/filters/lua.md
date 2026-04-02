@@ -67,11 +67,16 @@ Available globals: `dataset`, `route`, `file`, `study`, `series`, `queue`, `log`
 Reads and writes DICOM tags on the current image. Tags can be referenced by keyword (`PatientName`) or hex notation (`0010,0010` or `00100010`). Every mutating call is recorded in the audit log.
 
 - `dataset:Get(tag)` — Returns the tag value as a string, or `nil` if absent.
+- `dataset:Exists(path)` — Returns `true` if a tag, sequence item, or nested path exists.
+- `dataset:ToTable()` / `dataset:ToTable(path)` — Serialize the whole dataset or a subtree into a Lua-table-shaped object.
+- `dataset:Select(path)` — Select one sequence item and return it as a mutable dataset proxy.
+- `dataset:Items(path)` — Select zero or more sequence items and return an item list (`count()` / `get(i)`).
 - `dataset:Count(tag)` — Returns the number of items in a sequence, or `0`.
 - `dataset:Set(tag, value)` — Sets a tag value. Creates the tag if it doesn't exist.
 - `dataset:Remove(tag)` — Removes a tag. Silent no-op if absent.
 - `dataset:Populate(table)` — Bulk-write nested DICOM content from a Lua table. Each field produces an audit entry.
 - `dataset:PopulateAt(path, table)` — Bulk-write into a specific sequence item or path.
+- `dataset:Append(sequencePath)` / `dataset:Append(sequencePath, table)` — Append one new sequence item and optionally populate it.
 
 ```lua
 local name = dataset:Get('PatientName')
@@ -86,10 +91,12 @@ dataset:Remove('PatientBirthDate')
 All dataset methods accept path expressions for navigating into sequences:
 
 - `ScheduledProcedureStepSequence[1].Modality` — 1-based index into a sequence item
-- `RequestAttributesSequence[ScheduledProcedureStepID='STEP1'].CodeValue` — selector: first item where the tag equals the value. If multiple items match, only the first is used.
+- `RequestAttributesSequence[ScheduledProcedureStepID='STEP1'].CodeValue` — selector: the item where the tag equals the value
 - `Set()` auto-creates missing sequences and items as needed
 - `Set()` with a selector creates the item if none exists, seeding the selector tag
 - `Remove('Sequence[2]')` removes a sequence item; `Remove('Sequence[1].Tag')` removes only a child tag
+- Singular methods (`Get`, `Set`, `Remove`, `PopulateAt`, `Exists`, `ToTable`, `Select`) require selector uniqueness. If more than one item matches, Lua throws an explicit ambiguous-selector error.
+- Use `Items()` when you want zero or more matches, including duplicate selector values.
 
 ```lua
 dataset:Set('ScheduledProcedureStepSequence[1].ScheduledStationAETitle', 'CT_ROOM')
@@ -101,6 +108,32 @@ dataset:Remove("RequestAttributesSequence[ScheduledProcedureStepID='STEP1']")
 ```
 
 The same path syntax applies in all contexts: storage `dataset`, query `dataset`, query `request`, and route lambda datasets.
+
+#### Sequence Item Proxies
+
+`Select()` and `Items():get(i)` return sequence item proxies. They behave like smaller datasets rooted at that item.
+
+- Mutable item proxies expose `Get`, `Exists`, `ToTable`, `Select`, `Items`, `Count`, `Set`, `Remove`, `Populate`, `PopulateAt`, `Append`, and `Delete()`.
+- `Delete()` removes that sequence item from its parent sequence.
+
+```lua
+local attrs = dataset:Items("RequestAttributesSequence")
+for i = attrs:count(), 1, -1 do
+  local attr = attrs:get(i)
+  local codes = attr:Items("ScheduledProtocolCodeSequence")
+  for j = 1, codes:count() do
+    if codes:get(j):Get("CodeValue") == "PROC1" then
+      attr:Delete()
+      break
+    end
+  end
+end
+
+local first = dataset:Select("ScheduledProcedureStepSequence[1]")
+if first then
+  dataset:Append("ScheduledProcedureStepSequence", first:ToTable())
+end
+```
 
 #### Bulk Writes with Populate
 
@@ -260,7 +293,7 @@ Available globals: `dataset`, `query`, `session`, `request` (result phase only),
 
 ### dataset
 
-The same API as storage — `Get`, `Set`, `Remove`, `Count`, `Populate`, `PopulateAt` — applied to the current context:
+The same API as storage — `Get`, `Exists`, `ToTable`, `Select`, `Items`, `Count`, `Set`, `Remove`, `Populate`, `PopulateAt`, `Append` — applied to the current context:
 
 - In request hooks: the outbound C-FIND request dataset.
 - In result hooks: the current result row dataset.
@@ -295,6 +328,10 @@ end
 Read-only view of the effective request dataset. Available in result hooks only.
 
 - `request:Get(path)` — Read a tag from the original request.
+- `request:Exists(path)` — Check whether a request path exists.
+- `request:ToTable()` / `request:ToTable(path)` — Serialize the whole request or a nested subtree.
+- `request:Select(path)` — Select one request sequence item as a read-only dataset proxy.
+- `request:Items(path)` — Iterate request sequence items with `count()` / `get(i)`.
 - `request:Count(path)` — Count items in a sequence in the original request.
 
 `request` has no `Set`, `Populate`, or `Remove` — it is read-only.
@@ -304,6 +341,7 @@ Read-only view of the effective request dataset. Available in result hooks only.
 Result hook control. Available in result hooks only.
 
 - `response:drop()` — Suppress this result row. Script errors do not silently suppress rows; only an explicit `drop()` does.
+- `response.index` — 1-based index of the current proxied result row.
 
 ```lua
 if dataset:Get('AccessionNumber') == 'HIDE' then

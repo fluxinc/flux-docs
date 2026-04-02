@@ -31,11 +31,16 @@ The mutable dataset for the current image, request, or result row. Every mutatin
 | Method | Returns | Notes |
 |--------|---------|-------|
 | `dataset:Get(path)` | `string` or `nil` | Returns the tag value, or `nil` if absent |
+| `dataset:Exists(path)` | `boolean` | Returns `true` if a tag, sequence item, or nested path exists |
+| `dataset:ToTable()` / `dataset:ToTable(path)` | `table` or scalar | Serializes the whole dataset or a subtree into the same shape accepted by `Populate()` / `Append()` |
+| `dataset:Select(path)` | [`DatasetItem`](#datasetitem) or `nil` | Selects one sequence item |
+| `dataset:Items(path)` | [`DatasetItemList`](#datasetitemlist) | Returns zero or more sequence items |
 | `dataset:Set(path, value)` | — | Creates the tag (and any missing sequence items) if absent |
 | `dataset:Remove(path)` | — | Removes a tag, a sequence item, or a whole sequence. Silent no-op if absent. |
 | `dataset:Count(path)` | `number` | Number of items in a sequence, or `0` |
 | `dataset:Populate(table)` | — | Bulk-write from a Lua table. See [Path syntax](#path-syntax). |
 | `dataset:PopulateAt(path, table)` | — | Bulk-write into a specific path or selected sequence item |
+| `dataset:Append(sequencePath)` / `dataset:Append(sequencePath, table)` | [`DatasetItem`](#datasetitem) | Appends one new sequence item and optionally populates it |
 
 ### Path syntax
 
@@ -43,12 +48,14 @@ All path arguments follow the same syntax:
 
 - Plain keyword or hex: `PatientName`, `0010,0010`, `00100010`
 - Sequence index (1-based): `ScheduledProcedureStepSequence[1].Modality`
-- Selector: `RequestAttributesSequence[ScheduledProcedureStepID='STEP1'].CodeValue` — matches the first item where the tag equals the value. If multiple items match, only the first is used.
+- Selector: `RequestAttributesSequence[ScheduledProcedureStepID='STEP1'].CodeValue` — matches the item where the tag equals the value
 - `Set()` and `Populate()` auto-create missing sequences and items
 - A selector on a `Set()` or `PopulateAt()` creates the item if none matches and seeds the selector tag
 - `Remove('Sequence[n]')` removes the item; `Remove('Sequence[n].Tag')` removes only the child tag
+- Singular methods (`Get`, `Set`, `Remove`, `PopulateAt`, `Exists`, `ToTable`, `Select`) require selector uniqueness. If more than one item matches, Lua throws an explicit ambiguous-selector error.
+- Use `Items()` when you want zero or more matches, including duplicate selector values.
 
-The same path syntax applies to `request:Get()` and `request:Count()`.
+The same path syntax applies to `request:Get()`, `request:Exists()`, `request:ToTable()`, `request:Select()`, `request:Items()`, and `request:Count()`.
 
 ---
 
@@ -59,9 +66,13 @@ Read-only view of the effective request dataset. Available in result hooks only.
 | Method | Returns | Notes |
 |--------|---------|-------|
 | `request:Get(path)` | `string` or `nil` | |
+| `request:Exists(path)` | `boolean` | |
+| `request:ToTable()` / `request:ToTable(path)` | `table` or scalar | |
+| `request:Select(path)` | [`ReadonlyDatasetItem`](#readonlydatasetitem) or `nil` | |
+| `request:Items(path)` | [`DatasetItemList`](#datasetitemlist) | |
 | `request:Count(path)` | `number` | |
 
-No mutating methods — `Set`, `Remove`, and `Populate` are not available.
+No mutating methods — `Set`, `Remove`, `Populate`, `PopulateAt`, `Append`, and `Delete()` are not available.
 
 ---
 
@@ -112,6 +123,7 @@ Result row control. Result hooks only.
 | Method | Notes |
 |--------|-------|
 | `response:drop()` | Suppress this result row. Only an explicit `drop()` removes a row — script errors do not. |
+| `response.index` | 1-based index of the current proxied result row. |
 
 ---
 
@@ -214,6 +226,53 @@ for i = 1, items:count() do
     print(item.destinationAeTitle, item.lastError)
 end
 ```
+
+---
+
+## DatasetItemList
+
+Returned by `dataset:Items(...)` and `request:Items(...)`.
+
+| Method | Returns | Notes |
+|--------|---------|-------|
+| `list:count()` | `number` | Total selected items |
+| `list:get(i)` | [`DatasetItem`](#datasetitem), [`ReadonlyDatasetItem`](#readonlydatasetitem), or `nil` | 1-based index |
+
+---
+
+## DatasetItem
+
+Mutable sequence item proxy returned by `dataset:Select(...)`, `dataset:Append(...)`, and `dataset:Items(...):get(i)`.
+
+| Method | Returns | Notes |
+|--------|---------|-------|
+| `item:Get(path)` | `string` or `nil` | |
+| `item:Exists(path)` | `boolean` | |
+| `item:ToTable()` / `item:ToTable(path)` | `table` or scalar | |
+| `item:Select(path)` | [`DatasetItem`](#datasetitem) or `nil` | |
+| `item:Items(path)` | [`DatasetItemList`](#datasetitemlist) | |
+| `item:Count(path)` | `number` | |
+| `item:Set(path, value)` | — | |
+| `item:Remove(path)` | — | |
+| `item:Populate(table)` | — | |
+| `item:PopulateAt(path, table)` | — | |
+| `item:Append(sequencePath)` / `item:Append(sequencePath, table)` | [`DatasetItem`](#datasetitem) | |
+| `item:Delete()` | — | Removes the current sequence item from its parent sequence |
+
+---
+
+## ReadonlyDatasetItem
+
+Read-only sequence item proxy returned by `request:Select(...)` and `request:Items(...):get(i)`.
+
+| Method | Returns | Notes |
+|--------|---------|-------|
+| `item:Get(path)` | `string` or `nil` | |
+| `item:Exists(path)` | `boolean` | |
+| `item:ToTable()` / `item:ToTable(path)` | `table` or scalar | |
+| `item:Select(path)` | [`ReadonlyDatasetItem`](#readonlydatasetitem) or `nil` | |
+| `item:Items(path)` | [`DatasetItemList`](#datasetitemlist) | |
+| `item:Count(path)` | `number` | |
 
 ---
 
