@@ -54,13 +54,13 @@ Each entry in `lua.yml` defines a script and the conditions under which it runs.
 | `qr_find_query` | Outbound proxied Query/Retrieve C-FIND request dataset |
 | `qr_find_result` | Inbound proxied Query/Retrieve C-FIND result dataset |
 
-An entry may list multiple `Affects` values within the same family (e.g. `[worklist_query, worklist_result]`), but may not mix `storage` with query affects, or request affects with result affects.
+Each entry targets exactly one pipeline phase. An entry may not mix `storage` with query affects, request affects with result affects, or worklist affects with query/retrieve affects.
 
 ## Storage Context
 
 Storage scripts run in the prepare pipeline for each incoming DICOM image. One Lua VM is created per image; all matching entries execute sequentially in that VM.
 
-Available globals: `dataset`, `route`, `file`, `study`, `series`, `queue`, `log`, `print`, `uid`, `include`.
+Available globals: `dataset`, `route`, `file`, `study`, `series`, `queue`, `node`, `log`, `print`, `uid`, `include`.
 
 ### dataset
 
@@ -287,7 +287,7 @@ Item fields:
 
 Query scripts run inside a proxied C-FIND session. One Lua VM is created per incoming proxied request; it survives from the request phase through all result rows for that query.
 
-Available globals: `dataset`, `query`, `session`, `request` (result phase only), `response` (result phase only), `queue`, `log`, `print`, `uid`, `include`.
+Available globals: `dataset`, `query`, `session`, `request` (result phase only), `response` (result phase only), `queue`, `node`, `log`, `print`, `uid`, `include`.
 
 `route`, `file`, `study`, and `series` are not available in query contexts.
 
