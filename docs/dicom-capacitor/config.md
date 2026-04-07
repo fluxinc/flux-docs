@@ -295,21 +295,14 @@ The AE Title that DICOM Capacitor will use to identify itself when sending DICOM
 ## prefetchConcurrency
 
 - Type: `number`
-- Default: `1`
+- Default: `4`
 
 The number of concurrent background prefetch workers. Each worker processes one C-FIND/C-MOVE operation at a time. Increase this to allow parallel pre-fetch operations, but be mindful of upstream PACS load. See [Worklist Pre-Fetch](prefetch) for details.
-
-## prefetchEnabled
-
-- Type: `boolean`
-- Default: `false`
-
-Enables the worklist-triggered pre-fetch system. When enabled, DICOM Capacitor loads rules from `prefetch.yml` in the data directory and automatically retrieves studies based on new worklist items. See [Worklist Pre-Fetch](prefetch) for details.
 
 ## prefetchQueueSize
 
 - Type: `number`
-- Default: `100`
+- Default: `256`
 
 The maximum number of pending pre-fetch work items in the bounded queue. When the queue is full, new work items are dropped with a warning. Increase this if worklist refreshes produce many new items at once. See [Worklist Pre-Fetch](prefetch) for details.
 
@@ -424,6 +417,13 @@ A YAML array of Calling AE Titles for which diagnostic logging should be bypasse
 - Default: `2`
 
 The number of days of worklist records that Capacitor will attempt to retrieve as part of cached `Worklist` queries.
+
+## worklistAutomationEnabled
+
+- Type: `boolean`
+- Default: `false`
+
+Enables managed worklist queries and the worklist-triggered pre-fetch system. When enabled, DICOM Capacitor loads query definitions and prefetch rules from `worklist.yml` in the data directory. Managed queries refresh upstream worklist nodes on a schedule; prefetch rules automatically retrieve studies when new worklist items appear. See [Worklist Pre-Fetch](prefetch) for details.
 
 ## worklistFilterStored
 
