@@ -6,7 +6,7 @@ The following configuration files are required:
 - **`nodes.yml`** - Network node definitions for DICOM endpoints
 
 The following configuration files are optional (create only the ones you need):
-- **`worklist.yml`** - Managed worklist queries and pre-fetch rules. See [Worklist Pre-Fetch](prefetch)
+- **`worklist.yml`** - Managed worklist queries and pre-fetch rules. See [Worklist Automation](worklist-automation)
 - **`routings.yml`** - Required by the [route](filters/route) filter
 - **`mutations.yml`** - Required by the [mutate](filters/mutate) filter
 - **`sortings.yml`** - Required by the [sort](filters/sort) filter

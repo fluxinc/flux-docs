@@ -1,18 +1,14 @@
-# Worklist Pre-Fetch
+# Pre-Fetch
 
-Worklist pre-fetch automatically retrieves studies from a Query/Retrieve node when new items appear on a worklist. This warms the normal storage pipeline so that images are already cached at the destination before a technologist opens the patient.
+Pre-fetch automatically retrieves studies from a Query/Retrieve node when new items appear on a [managed worklist query](worklist-queries). This warms the normal storage pipeline so that images are already cached at the destination before a technologist opens the patient.
 
 Pre-fetched images arrive as regular cached files through the existing storage flow. Pre-fetch does not create a local queryable archive -- the QR SCP remains a proxy to upstream QR nodes.
 
-## Managed Worklist Queries
-
-Pre-fetch rules are driven by **managed worklist queries** -- scheduled queries defined in `worklist.yml` that keep worklist results cached locally on a configurable refresh interval. Each managed query polls an upstream worklist node and maintains a snapshot of the current results. When a refresh returns new items that were not present in the previous snapshot, those items are fed into the prefetch evaluation pipeline.
-
-Managed queries and prefetch rules live in the same `worklist.yml` file under separate top-level keys (`Queries` and `PrefetchRules`). Prefetch rules reference managed queries by ID rather than referencing worklist node AE titles directly.
+Pre-fetch rules are defined in the `PrefetchRules` section of [`worklist.yml`](worklist-automation).
 
 ## How It Works
 
-1. A managed query defined in `worklist.yml` refreshes its upstream worklist node on its configured schedule.
+1. A [managed query](worklist-queries) refreshes its upstream worklist node on its configured schedule.
 2. Capacitor compares the refresh results against the previous snapshot and identifies newly-appeared items.
 3. Each new worklist item is evaluated against the `TriggerConditions` of every prefetch rule whose `QueryIds` include that query.
 4. For items that pass trigger conditions, Capacitor issues a study-level C-FIND against the configured QR node.
@@ -20,79 +16,6 @@ Managed queries and prefetch rules live in the same `worklist.yml` file under se
 6. Matching studies are retrieved via C-MOVE to the configured storage destination.
 
 Studies that are already stored (via [storage receipts](logs.md#storage-receipts)) or already queued in the cache are skipped. A persistent journal prevents duplicate fetches across restarts.
-
-## Enabling Pre-Fetch
-
-Pre-fetch requires three things:
-
-1. **Enable in `config.yml`:**
-   ```yaml
-   worklistAutomationEnabled: true
-   ```
-
-2. **Create a `worklist.yml` file** in the data directory (same location as `config.yml`) with both `Queries` and `PrefetchRules` sections.
-
-3. **Configure at least one worklist node and one QR node** in `nodes.yml`.
-
-An example `worklist.example.yml` is included with the installer.
-
-## Configuration
-
-### config.yml Settings
-
-Three settings in `config.yml` control the pre-fetch worker:
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| [`worklistAutomationEnabled`](config.md#worklistautomationenabled) | boolean | `false` | Master switch for managed queries and pre-fetch |
-| [`prefetchConcurrency`](config.md#prefetchconcurrency) | number | `4` | Number of background worker threads |
-| [`prefetchQueueSize`](config.md#prefetchqueuesize) | number | `256` | Bounded queue size; excess items are dropped |
-
-When `worklistAutomationEnabled` is `true`, Capacitor loads both managed queries and prefetch rules from `worklist.yml` at startup.
-
-### worklist.yml
-
-The `worklist.yml` file has two top-level keys:
-
-- **`Queries`**: An array of managed worklist queries that refresh upstream worklist nodes on a schedule.
-- **`PrefetchRules`**: An array of prefetch rules that react to new worklist items from those queries.
-
-```yaml
-# worklist.yml
-
-Queries:
-- Id: mwl-main
-  WorklistNode: MWL_MAIN
-  RefreshIntervalSeconds: 60
-  Request:
-    Modality: CT
-    ScheduledDate:
-      WindowDays: 1
-
-PrefetchRules:
-- Id: ct-priors
-  Description: Fetch recent CT priors for upcoming CT worklist items
-  QueryIds: [mwl-main]
-  QueryRetrieveNode: PACS_QR
-  MoveDestination: VIEWER_CACHE
-  TriggerConditions:
-  - Tag: "0008,0060"
-    MatchExpression: CT
-  Mode: priors
-  FindKeys:
-  - PatientID
-  - AccessionNumber
-  LookbackYears: 3
-  MaxStudies: 2
-  FetchScheduledStudy: true
-  StudyConditions:
-  - Tag: "0008,0061"
-    MatchExpression: CT
-  ExcludeConditions:
-  - Tag: "0008,1030"
-    MatchExpression: "(?i)localizer|scout|dose.report"
-  CooldownMinutes: 60
-```
 
 ## Rule Reference
 
@@ -108,14 +31,14 @@ A unique identifier for the rule. Used internally for journal keys, cooldown tra
 - Type: `string`
 - Default: same as `Id`
 
-A human-readable description of the rule. Used in log messages.
+A human-readable description of the rule. Used in log messages and the dashboard.
 
 ### QueryIds
 
 - Type: `string[]`
 - Required (at least one entry)
 
-A list of managed query IDs (from the `Queries` section of `worklist.yml`) that this rule applies to. When a managed query refresh returns new items, they are evaluated against rules that reference that query's ID.
+A list of [managed query](worklist-queries) IDs (from the `Queries` section of `worklist.yml`) that this rule applies to. When a managed query refresh returns new items, they are evaluated against rules that reference that query's ID.
 
 ### QueryRetrieveNode
 
@@ -223,106 +146,89 @@ Pre-fetch uses multiple layers to avoid duplicate work:
 
 ### Fetch the Scheduled Study Only
 
-The simplest configuration: when a CT worklist item appears on the `mwl-main` managed query, fetch the study that the worklist references.
-
 ```yaml
-# worklist.yml
-
-Queries:
-- Id: mwl-main
-  WorklistNode: MWL_MAIN
-  RefreshIntervalSeconds: 60
-  Request:
-    Modality: CT
-    ScheduledDate:
-      WindowDays: 1
-
 PrefetchRules:
-- Id: ct-scheduled
-  QueryIds: [mwl-main]
-  QueryRetrieveNode: PACS_QR
-  MoveDestination: VIEWER_CACHE
-  TriggerConditions:
-  - Tag: "0008,0060"
-    MatchExpression: CT
-  Mode: scheduled
+  - Id: ct-scheduled
+    QueryIds: [mwl-main]
+    QueryRetrieveNode: PACS_QR
+    MoveDestination: VIEWER_CACHE
+    TriggerConditions:
+      - Tag: "0008,0060"
+        MatchExpression: CT
+    Mode: scheduled
 ```
 
 ### Fetch Prior CT Studies
 
-Fetch up to 3 prior CT studies from the last 5 years when a CT worklist item appears, excluding localizers and dose reports.
+Fetch up to 3 prior CT studies from the last 5 years, excluding localizers and dose reports.
 
 ```yaml
-# worklist.yml
-
-Queries:
-- Id: mwl-main
-  WorklistNode: MWL_MAIN
-  RefreshIntervalSeconds: 60
-  Request:
-    Modality: CT
-    ScheduledDate:
-      WindowDays: 1
-
 PrefetchRules:
-- Id: ct-priors
-  QueryIds: [mwl-main]
-  QueryRetrieveNode: PACS_QR
-  MoveDestination: VIEWER_CACHE
-  TriggerConditions:
-  - Tag: "0008,0060"
-    MatchExpression: CT
-  Mode: priors
-  FetchScheduledStudy: true
-  LookbackYears: 5
-  MaxStudies: 3
-  StudyConditions:
-  - Tag: "0008,0061"
-    MatchExpression: CT
-  ExcludeConditions:
-  - Tag: "0008,1030"
-    MatchExpression: "(?i)localizer|scout|dose.report"
-  CooldownMinutes: 120
+  - Id: ct-priors
+    QueryIds: [mwl-main]
+    QueryRetrieveNode: PACS_QR
+    MoveDestination: VIEWER_CACHE
+    TriggerConditions:
+      - Tag: "0008,0060"
+        MatchExpression: CT
+    Mode: priors
+    FetchScheduledStudy: true
+    LookbackYears: 5
+    MaxStudies: 3
+    StudyConditions:
+      - Tag: "0008,0061"
+        MatchExpression: CT
+    ExcludeConditions:
+      - Tag: "0008,1030"
+        MatchExpression: "(?i)localizer|scout|dose.report"
+    CooldownMinutes: 120
 ```
 
 ### Multiple Rules for Different Modalities
 
 ```yaml
-# worklist.yml
-
-Queries:
-- Id: mwl-main
-  WorklistNode: MWL_MAIN
-  RefreshIntervalSeconds: 60
-  Request:
-    ScheduledDate:
-      WindowDays: 1
-
 PrefetchRules:
-- Id: ct-priors
-  QueryIds: [mwl-main]
-  QueryRetrieveNode: PACS_QR
-  MoveDestination: CT_VIEWER
-  TriggerConditions:
-  - Tag: "0008,0060"
-    MatchExpression: CT
-  Mode: priors
-  LookbackYears: 3
-  MaxStudies: 2
-  CooldownMinutes: 60
+  - Id: ct-priors
+    QueryIds: [mwl-main]
+    QueryRetrieveNode: PACS_QR
+    MoveDestination: CT_VIEWER
+    TriggerConditions:
+      - Tag: "0008,0060"
+        MatchExpression: CT
+    Mode: priors
+    LookbackYears: 3
+    MaxStudies: 2
+    CooldownMinutes: 60
 
-- Id: mr-priors
-  QueryIds: [mwl-main]
-  QueryRetrieveNode: PACS_QR
-  MoveDestination: MR_VIEWER
-  TriggerConditions:
-  - Tag: "0008,0060"
-    MatchExpression: MR
-  Mode: priors
-  LookbackYears: 2
-  MaxStudies: 1
-  CooldownMinutes: 60
+  - Id: mr-priors
+    QueryIds: [mwl-main]
+    QueryRetrieveNode: PACS_QR
+    MoveDestination: MR_VIEWER
+    TriggerConditions:
+      - Tag: "0008,0060"
+        MatchExpression: MR
+    Mode: priors
+    LookbackYears: 2
+    MaxStudies: 1
+    CooldownMinutes: 60
 ```
+
+## Dashboard
+
+The **Prefetch** page in the web dashboard shows:
+
+- **Status**: Whether the prefetch service is running, with startup diagnostics if it failed to start.
+- **Telemetry**: Queue depth, active workers, completed/failed counts, skip reasons.
+- **Activity log**: Recent journal entries with status, rule, patient, study UID, and timestamps.
+- **Rules**: Loaded rule cards showing mode, target nodes, conditions, and configuration.
+
+## API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prefetch/status` | Service state, telemetry, startup diagnostics |
+| GET | `/api/prefetch/rules` | Loaded rule summaries |
+| GET | `/api/prefetch/activity?limit=25` | Recent journal entries |
 
 ## Troubleshooting
 
@@ -331,7 +237,7 @@ PrefetchRules:
 - Verify `worklistAutomationEnabled: true` in `config.yml`.
 - Verify `worklist.yml` exists in the data directory and contains valid `Queries` and `PrefetchRules` sections.
 - Check that the `QueryIds` in each rule reference a valid managed query ID from the `Queries` section.
-- Check that managed queries are refreshing (worklist items must appear in the worklist cache).
+- Check that managed queries are refreshing (the Worklist dashboard page shows refresh status).
 - Check the service logs for prefetch-related messages -- rules that fail validation at startup are logged with the reason.
 
 ### Studies are not being retrieved

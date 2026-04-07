@@ -114,8 +114,18 @@ export default defineConfig({
                 ],
               },
               {
-                text: "Worklist Pre-Fetch",
-                link: "/dicom-capacitor/prefetch",
+                text: "Worklist Automation",
+                link: "/dicom-capacitor/worklist-automation",
+                items: [
+                  {
+                    text: "Managed Queries",
+                    link: "/dicom-capacitor/worklist-queries",
+                  },
+                  {
+                    text: "Pre-Fetch",
+                    link: "/dicom-capacitor/prefetch",
+                  },
+                ],
               },
               {
                 text: "Starting and Stopping the Service",
