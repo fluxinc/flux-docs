@@ -55,6 +55,17 @@ All path arguments follow the same syntax:
 - Singular methods (`Get`, `Set`, `Remove`, `PopulateAt`, `Exists`, `ToTable`, `Select`) require selector uniqueness. If more than one item matches, Lua throws an explicit ambiguous-selector error.
 - Use `Items()` when you want zero or more matches, including duplicate selector values.
 
+### Private tags
+
+Numeric paths like `0055,1001` can read, update, and remove existing private
+elements in the dataset, even when the private creator is not registered in the
+DICOM dictionary. The path resolves to the matching stored element so the private
+creator attached to that element is preserved.
+
+Numeric paths do not create new unregistered private elements. Creating a private
+element that is not already present requires a registered private creator or a
+future explicit creator syntax.
+
 The same path syntax applies to `request:Get()`, `request:Exists()`, `request:ToTable()`, `request:Select()`, `request:Items()`, and `request:Count()`.
 
 ---
