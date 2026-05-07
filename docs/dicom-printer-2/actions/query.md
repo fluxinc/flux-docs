@@ -177,6 +177,45 @@ Patient queries use the Patient Root Information Model instead of the Study Root
 
 The `level` attribute determines which required tags are automatically included in the query. For example, `level="STUDY"` includes Study Date, Study Time, Accession Number, and Study Instance UID among others. If an unknown level value is provided, it defaults to `PATIENT`.
 
+## Local Post-Filtering
+
+DP2 evaluates `<DcmTag>` patterns both as wire-level query keys sent to the SCP and as local filters applied to the SCP's response. When the SCP returns a superset (it doesn't honor every constraint, interprets ranges differently, or returns extra rows on purpose), local post-filtering rejects results that don't match the configured pattern before the workflow consumes them.
+
+Date constraints are the most load-bearing case:
+
+- **Study and Patient queries** — `<DcmTag tag="(0008,0020)">#{Date,-7,7}</DcmTag>` is sent on the wire as a date range *and* enforced locally against `(0008,0020)` StudyDate in each returned dataset. Out-of-range studies are dropped even if the SCP returns them.
+- **Worklist queries** — date constraints target Scheduled Procedure Step Start Date `(0040,0002)` inside the `(0040,0100)` Scheduled Procedure Step Sequence. A candidate is accepted if any SPS item's Start Date matches; otherwise the candidate is rejected.
+
+Local post-filtering does not recover when an SCP returns zero rows because it rejected range syntax on the wire. If your SCP does not honor `YYYYMMDD-YYYYMMDD` range queries, narrow the wire query to a single date or split into multiple queries.
+
+## Worklist Date Constraints
+
+DP2 accepts four input forms for the Worklist scheduled-date filter, in precedence order:
+
+1. **Canonical SPS date** — explicit `(0040,0002)` Scheduled Procedure Step Start Date inside the `(0040,0100)` sequence:
+
+   ```xml
+   <DcmSequence tag="(0040,0100)">
+     <DcmItem>
+       <DcmTag tag="(0040,0002)">#{Date,-7,7}</DcmTag>
+     </DcmItem>
+   </DcmSequence>
+   ```
+
+2. **Root `StudyDate` alias** — root `(0008,0020)` is an ergonomic shorthand for SPS Start Date. DP2 rewrites it into the canonical SPS sequence form before sending the wire query and applying the local filter:
+
+   ```xml
+   <DcmTag tag="(0008,0020)">#{Date,-7,7}</DcmTag>
+   ```
+
+3. **Job-derived StudyDate** — when no date is configured, DP2 uses the current job's `(0008,0020)` StudyDate as the SPS Start Date constraint.
+
+4. **Default** — when neither the config nor the job supplies a date, DP2 defaults to `#{Date,-7,7}` — the 15-day window ending today (today minus 14 through today, centered 7 days ago).
+
+The selected constraint is enforced locally on returned candidates, not just sent on the wire. If both the canonical SPS form and the root alias are configured, the canonical form wins and the alias is ignored with a warning in the log.
+
+A root `StudyDate` *exclusion* alias (e.g. `!#{Date,-7,7}`) cannot be combined with an explicit `(0040,0100)` sequence filter. That mixed inclusion/exclusion combination is rejected at config-load time. To exclude items by date while applying other SPS filters, place the exclusion directly inside the canonical SPS sequence form.
+
 ## Manual Query
 
 Manual Query parks a job in `queue/manual/` for manual worklist matching through the [Queue Dashboard](/dicom-printer-2/queue-dashboard). Unlike other query types, it does **not** perform a C-FIND operation.

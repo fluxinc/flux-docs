@@ -148,6 +148,8 @@ Each path segment must be a pure placeholder or static text. The directory `E:\D
 
 ### Worklist query using today's date
 
+Worklist scheduled dates live inside `(0040,0100)` Scheduled Procedure Step Sequence at `(0040,0002)` Scheduled Procedure Step Start Date. Use the canonical SPS sequence form, or the root `(0008,0020)` StudyDate alias as a shorthand:
+
 ```xml
 <Query name="TodayWorklist" type="Worklist">
   <ConnectionParameters>
@@ -156,10 +158,13 @@ Each path segment must be a pure placeholder or static text. The directory `E:\D
     <Host>192.168.1.200</Host>
     <Port>104</Port>
   </ConnectionParameters>
-  <DcmTag tag="(0040,0002)">#{Date}</DcmTag>
+  <!-- Root StudyDate is an ergonomic alias for SPS Start Date -->
+  <DcmTag tag="(0008,0020)">#{Date}</DcmTag>
   <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
 </Query>
 ```
+
+See [Worklist Date Constraints](actions/query.md#worklist-date-constraints) for the full precedence order and the canonical SPS sequence form.
 
 ## Related Topics
 
