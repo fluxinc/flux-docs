@@ -593,9 +593,12 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
   - `forceAssignment` or `force-assignment` (Optional): A boolean value (`true` or `false`). If `true` and the query returns multiple results, the first result will be used. If `false` (default) and multiple results are found, a warning will be logged, and no tags will be assigned.
 - **Content**:
   - `<ConnectionParameters>`: Defines the DICOM connection and association parameters for communicating with the SCP. Refer to the [Connection Parameters](#subsubsection-connectionparameters) section for details.
-  - `<DcmTag>`: Specifies a DICOM tag to include in the query or to use as a local filter for the results. Each `<DcmTag>` can define a specific tag, a pattern to match its value, and whether it is an exclusion filter.
+  - `<DcmTag>`: Specifies a DICOM tag to include in the query or to use as a local filter for the results. Each `<DcmTag>` can define a specific tag, a pattern to match its value, whether it is an exclusion filter, and whether the value should be sent on the wire or only enforced locally.
     - **Attributes for `<DcmTag>`**:
       - `tag` : DICOM tag group and element written in standard notation, e.g: `(0010,0020)`.
+      - `match` (Optional, default `both`): Controls whether the configured value is sent as a C-FIND wire matching key. Valid values:
+        - `both` (default): send the value on the wire and enforce it in DP2's local post-filter.
+        - `local`: send the tag as an empty C-FIND return key and enforce the configured value only in the local post-filter. Useful when the SCP rejects range syntax (e.g. `YYYYMMDD-YYYYMMDD`) or other patterns DP2 needs the SCP to return so it can be filtered on. `match="local"` is not supported on `<DcmSequence>`; configs that try it are rejected at load.
     - **Content of `<DcmTag>`**: The text content of the element specifies a pattern to match the value of the DICOM tag. If the element is empty, the tag is included in the query but no local filtering is applied. Supported pattern types:
       - **Exact match**: The pattern must exactly equal the tag value (e.g., `CT`). All pattern matching is **case-insensitive**.
       - **Wildcard match**: `*` matches any sequence of characters (e.g., `John*` matches `John Doe`, `Johnny`). **Multiple wildcards** are supported in a single pattern (e.g., `*CHEST*` matches `AP CHEST PORTABLE`).
