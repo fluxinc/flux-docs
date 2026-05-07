@@ -179,14 +179,22 @@ The `level` attribute determines which required tags are automatically included 
 
 ## Local Post-Filtering
 
-DP2 evaluates `<DcmTag>` patterns both as wire-level query keys sent to the SCP and as local filters applied to the SCP's response. When the SCP returns a superset (it doesn't honor every constraint, interprets ranges differently, or returns extra rows on purpose), local post-filtering rejects results that don't match the configured pattern before the workflow consumes them.
+DP2 evaluates Query `<DcmTag>` patterns both as wire-level query keys sent to the SCP and as local filters applied to the SCP's response. When the SCP returns a superset (it doesn't honor every constraint, interprets ranges differently, or returns extra rows on purpose), local post-filtering rejects results that don't match the configured pattern before the workflow consumes them.
+
+Use `match="local"` when the value should not be sent as a wire matching key:
+
+```xml
+<DcmTag tag="(0008,0020)" match="local">#{Date,-7,7}</DcmTag>
+```
+
+With `match="local"`, DP2 sends the tag as an empty C-FIND return key and applies the configured value only after results come back. This is useful for SCPs that reject `YYYYMMDD-YYYYMMDD` range syntax but will accept a broader query and return the date field needed for local filtering. The default is `match="both"`, which preserves the existing behavior: send the value on the wire and post-filter locally.
 
 Date constraints are the most load-bearing case:
 
 - **Study and Patient queries** — `<DcmTag tag="(0008,0020)">#{Date,-7,7}</DcmTag>` is sent on the wire as a date range *and* enforced locally against `(0008,0020)` StudyDate in each returned dataset. Out-of-range studies are dropped even if the SCP returns them.
 - **Worklist queries** — date constraints target Scheduled Procedure Step Start Date `(0040,0002)` inside the `(0040,0100)` Scheduled Procedure Step Sequence. A candidate is accepted if any SPS item's Start Date matches; otherwise the candidate is rejected.
 
-Local post-filtering does not recover when an SCP returns zero rows because it rejected range syntax on the wire. If your SCP does not honor `YYYYMMDD-YYYYMMDD` range queries, narrow the wire query to a single date or split into multiple queries.
+If an SCP returns zero rows because it rejected range syntax on the wire, use `match="local"` on the date tag to avoid sending the range as a wire matching key. This still depends on the SCP accepting the broader query and returning the date attribute DP2 needs for local filtering.
 
 ## Worklist Date Constraints
 
@@ -206,6 +214,12 @@ DP2 accepts four input forms for the Worklist scheduled-date filter, in preceden
 
    ```xml
    <DcmTag tag="(0008,0020)">#{Date,-7,7}</DcmTag>
+   ```
+
+   Add `match="local"` to request SPS Start Date as an empty return key while enforcing the date range only in DP2:
+
+   ```xml
+   <DcmTag tag="(0008,0020)" match="local">#{Date,-7,7}</DcmTag>
    ```
 
 3. **Job-derived StudyDate** — when no date is configured, DP2 uses the current job's `(0008,0020)` StudyDate as the SPS Start Date constraint.
