@@ -199,10 +199,10 @@ export default defineConfig({
                 ]
               },
               { text: "Drop Monitor", link: "/dicom-printer-2/drop-monitor" },
-              { text: "Control Application", link: "/dicom-printer-2/control-app" },
-              { text: "Queue Dashboard", link: "/dicom-printer-2/queue-dashboard" },
+              { text: "DICOM Printer Console", link: "/dicom-printer-2/control-app" },
+              { text: "Manual Matching", link: "/dicom-printer-2/queue-dashboard" },
               { text: "Licensing and Activation", link: "/dicom-printer-2/licensing" },
-              { text: "Starting and Stopping the Service", link: "/dicom-printer-2/starting-and-stopping" },
+              { text: "Starting and Stopping the Services", link: "/dicom-printer-2/starting-and-stopping" },
               { text: "Interrogating the Logs", link: "/dicom-printer-2/logs" },
               { text: "Troubleshooting", link: "/dicom-printer-2/troubleshooting" },
               { text: "Uninstallation", link: "/dicom-printer-2/uninstallation" },

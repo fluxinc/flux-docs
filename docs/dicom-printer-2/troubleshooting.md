@@ -35,13 +35,13 @@ A job enters the `Held` state when a `<Perform>` node has `onError="Hold"` and t
 | Activation wizard fails to connect | Verify outbound HTTPS connectivity to `store.fluxinc.ca`. Check proxy settings. The activation wizard requires an interactive console session (not Session 0). |
 | Hardware request code changed | If hardware components changed (e.g., NIC replacement), the request code will differ from the original activation. A new activation code is required. |
 
-### 9.5. Manual Queue and Queue Dashboard
+### 9.5. Manual Matching and DICOM Printer Console
 
 #### Jobs stuck in queue/manual/
 
-- Verify the Queue Dashboard is running and accessible
-- Check that `config.xml` contains valid `<Query type="Worklist">` connection parameters (the dashboard uses these for worklist lookups)
-- Confirm the DICOM worklist SCP is reachable from the DP2 host
+- Verify the [DICOM Printer Console](control-app.md) opens and connects to the API. If the window reports "service unreachable," confirm `DICOMPrinterApiService` is running: `sc query DICOMPrinterApiService`.
+- Check that `config.xml` contains at least one valid `<Query type="Worklist">` (or `Study`/`Patient`) endpoint — the Console populates its endpoint selector from these.
+- Confirm the DICOM worklist SCP is reachable from the DP2 host (use the Console **Manage → Storage** C-ECHO action to test).
 
 #### .match file not being picked up
 

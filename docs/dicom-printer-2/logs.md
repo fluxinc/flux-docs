@@ -70,7 +70,32 @@ Log files are named `dicom_printer_service.log` (active), `dicom_printer_service
 
 Log files are stored in the `log/` subdirectory under the application root path. The `log/old/` and `log/plugins/` subdirectories are created automatically.
 
-### 11.6. Practical Tips for Log Analysis
+### 11.6. PHI Redaction
+
+By default DP2 redacts patient-identifying values from the event log using a DICOM-tag-aware redactor. The behavior is controlled by the `<RedactSensitiveLogValues>` setting in the `<General>` section (added in 2.2.44):
+
+| Setting | Default | Description |
+|---|---|---|
+| `RedactSensitiveLogValues` | `true` | When `true`, sensitive values are replaced with `****OBSCURED****` before they reach the log. Set to `false` to inspect real DICOM tag values during diagnostics. |
+
+Redacted tags include patient identifiers (name, ID, birth date, sex, address, phone, age, comments, history, other-IDs, mother-birth-name, insurance, medical-record-locator), exam identifiers (`StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`, `StudyID`, `AccessionNumber`), all physician and operator name variants, requested/scheduled procedure descriptions and IDs, admitting-diagnoses-description, and all private tags (odd group). Hostnames, usernames, file names, and AE titles are **not** redacted. The redactor applies across `Query`, `Job`, `Store`, `Run`, `WorklistQuery`, `SetTag`, `SetSequence`, `Parse`, and `IfNode` log paths.
+
+Earlier releases (2.2.43 and earlier) gated PHI redaction on the `_DEBUG` build flag; 2.2.44 replaced that with this runtime setting so release builds can be toggled without rebuilding.
+
+### 11.7. Console, API, and Drop Monitor logs
+
+The DICOM Printer Console and the `DICOMPrinterApiService` write to a rolling WinSW-managed log alongside the DP2 service log:
+
+| Source | Default path under `%ProgramData%\Flux Inc\DICOM Printer 2\log\` |
+|---|---|
+| Main service | `dicom_printer_service.log` (+ numbered rotations) |
+| Drop Monitor service | `dicom_drop_monitor.log` |
+| API service (`DICOMPrinterApiService`) | WinSW rolling log written by the service wrapper |
+| Plugins | `log/plugins/` subdirectory |
+
+The Console **Manage → Logs** pane tails all of these sources concurrently with regex filtering and follow-by-default. Invalid regexes are reported in a status line without breaking the tail.
+
+### 11.8. Practical Tips for Log Analysis
 
 - **Find errors quickly.** Search for `[ERROR` or `[FATAL` in the log file to locate failures.
 - **Trace a specific job.** In debug builds, log lines include the job ID in brackets (e.g., `[job_001]`). Use this to filter messages for a single job.

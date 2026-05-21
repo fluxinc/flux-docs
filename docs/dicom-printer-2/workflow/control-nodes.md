@@ -246,7 +246,7 @@ The `.meta` file is:
 ### Resuming Suspended Jobs
 
 Suspended jobs remain in the queue and can be resumed:
-- Manually through the Control Application
+- Manually through the [DICOM Printer Console](/dicom-printer-2/control-app)
 - Automatically after fixing the issue (e.g., adding patient to worklist)
 - By modifying the job data and resuming
 
@@ -511,7 +511,7 @@ Resume actions are typically triggered:
 </If>
 ```
 
-Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queue/manual/` for manual matching via the Queue Dashboard. After three unsuccessful suspend/resume cycles, the `Suspend` node falls through and `ParkForManualMatch` executes, giving operators a way to resolve the job manually.
+Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queue/manual/` for manual matching via the [DICOM Printer Console](/dicom-printer-2/control-app). After three unsuccessful suspend/resume cycles, the `Suspend` node falls through and `ParkForManualMatch` executes, giving operators a way to resolve the job manually.
 
 ### Conditional Routing with Fallback
 

@@ -49,74 +49,51 @@ The activation code is invalid or corrupted.
 
 ## Activation Process
 
-### Method 1: Using the Control Application
+### Method 1: Using the DICOM Printer Console
 
-1. **Launch Control Application**
+1. **Launch the Console**
    ```
-   Start Menu → Flux Inc → DICOM Printer 2 → Control Application
+   Start Menu → Flux Inc → DICOM Printer 2 → DICOM Printer Console
    ```
 
-2. **Navigate to Licensing Tab**
-   Click the "Licensing" or "Activation" tab
+2. **Open Manage → Activate**
+   Click the gear icon in the top bar to open Manage, then click **Activate**. The Console resolves the installed activator via `/api/admin/activate-info` and launches it.
 
-3. **Generate Request Code**
-   - Click "Generate Request Code"
-   - Request code is displayed and copied to clipboard
-   - Example: `XXXX-XXXX-XXXX-XXXX`
+3. **Complete activation in the wizard**
+   The activator opens the activation page in the default web browser, displays the hardware request code, and polls the licensing server in the background until activation succeeds.
 
-4. **Obtain Activation Code**
-   - Visit Flux Inc activation portal
-   - Enter request code
-   - Receive activation code
-   - OR contact Flux Inc support with request code
-
-5. **Enter Activation Code**
-   - Click "Enter Activation Code"
-   - Paste or type activation code
-   - Click "Activate"
-
-6. **Verify Activation**
-   - License status changes to "Active"
-   - Validity period is displayed
-   - Service continues with full functionality
+4. **Verify activation**
+   The Console Manage pane reflects the new licensed state once the activator reports success.
 
 ### Method 2: Using Command Line
 
-1. **Generate Activation Data**
+1. **Launch the interactive activation wizard**
    ```cmd
    cd "C:\Program Files (x86)\Flux Inc\DICOM Printer 2"
-   DicomPrinterService.exe --activation-data
+   DicomPrinter.exe --activate
    ```
+   The wizard opens the activation page in the default browser, displays the request code, and polls until activation completes. Requires an interactive console session (not Session 0).
 
-   Output:
-   ```
-   Request Code: XXXX-XXXX-XXXX-XXXX
-   ```
-
-2. **Get Activation URL**
+2. **Inspect current activation data**
    ```cmd
-   DicomPrinterService.exe --get-activation-url
+   DicomPrinter.exe --activation-data
    ```
+   Emits an XML document containing the hardware `RequestCode` and the stored `ActivationCode`.
 
-   Output:
+3. **Print the machine-specific activation URL**
+   ```cmd
+   DicomPrinter.exe --get-activation-url
    ```
-   https://activation.fluxinc.ca/activate?request=XXXX-XXXX-XXXX-XXXX&product=DicomPrinter2
+   Outputs a URL like `https://store.fluxinc.ca/activate?request=...` that you can paste into a browser on another machine to complete activation.
+
+4. **Apply an activation code by hand (offline)**
+   Edit `config.xml`:
+   ```xml
+   <General>
+     <RegistrationKey>YOUR-ACTIVATION-CODE-HERE</RegistrationKey>
+   </General>
    ```
-
-3. **Open URL in Browser**
-   - Copy URL and open in web browser
-   - Complete online activation process
-   - Receive activation code
-
-4. **Apply Activation Code**
-   - Option A: Use Control Application to enter code
-   - Option B: Manually edit `config.xml`:
-     ```xml
-     <General>
-       <RegistrationKey>YOUR-ACTIVATION-CODE-HERE</RegistrationKey>
-     </General>
-     ```
-   - Restart the service
+   Restart `DicomPrinterService` (see [Starting and Stopping the Services](starting-and-stopping.md)).
 
 ## Activation Code Format
 
@@ -135,9 +112,9 @@ XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
 
 ### Checking Expiration
 
-**Control Application:**
+**DICOM Printer Console:**
 ```
-Licensing Tab → Days Remaining
+Manage → Activate (shows current activation state and days remaining)
 ```
 
 **Service Logs:**
@@ -283,7 +260,7 @@ Contact Flux Inc for licensing options and pricing.
 ## Related Topics
 
 - [Installation](installation.md)
-- [Control Application](control-app.md)
+- [DICOM Printer Console](control-app.md)
 - [Command-Line Options](command-line.md)
 - [Configuration](configuration.md)
 - [Support](support.md)

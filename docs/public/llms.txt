@@ -49,7 +49,11 @@ DICOM Printer 2 is a Windows service that automates DICOM printing workflows —
 - [Workflow](https://docs.fluxinc.co/dicom-printer-2/workflow/): Workflow configuration
 - [Placeholders](https://docs.fluxinc.co/dicom-printer-2/placeholders): Placeholder syntax
 - [Drop Monitor](https://docs.fluxinc.co/dicom-printer-2/drop-monitor): Drop monitor configuration
-- [Queue Dashboard](https://docs.fluxinc.co/dicom-printer-2/queue-dashboard): Queue monitoring
+- [DICOM Printer Console](https://docs.fluxinc.co/dicom-printer-2/control-app): WebView2 desktop console + API service (replaces Control Application and Queue Dashboard as of v2.4.0)
+- [Manual Matching](https://docs.fluxinc.co/dicom-printer-2/queue-dashboard): Operator-driven worklist matching, queue/manual layout, .match file contract
+- [Starting and Stopping](https://docs.fluxinc.co/dicom-printer-2/starting-and-stopping): Service management (DICOMPrinterService + DICOMPrinterApiService)
+- [Logs](https://docs.fluxinc.co/dicom-printer-2/logs): Log access, PHI redaction, multi-source tailing
+- [Upgrading](https://docs.fluxinc.co/dicom-printer-2/upgrading): Upgrade procedures including 2.4.0 migration notes
 - [Troubleshooting](https://docs.fluxinc.co/dicom-printer-2/troubleshooting): Common issues and solutions
 - [DICOM Conformance Statement](https://docs.fluxinc.co/dicom-printer-2/conformance): DICOM conformance details
 

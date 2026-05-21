@@ -9,7 +9,7 @@ DICOM Printer 2 supports four query types:
 - **Worklist (MWL)** - Query DICOM Modality Worklist for scheduled procedures
 - **Study** - Query for existing DICOM studies using the Study Root Information Model
 - **Patient** - Query for DICOM patients using the Patient Root Information Model. Supports a `level` attribute: `PATIENT`, `STUDY`, `SERIES`, `IMAGE`
-- **Manual** - Parks jobs in `queue/manual/` for manual worklist matching via the [Queue Dashboard](/dicom-printer-2/queue-dashboard). Does not perform a C-FIND query
+- **Manual** - Parks jobs in `queue/manual/` for operator-driven worklist matching via the [DICOM Printer Console](/dicom-printer-2/control-app). Does not perform a C-FIND query — see [Manual Matching](/dicom-printer-2/queue-dashboard)
 
 ## Basic Syntax
 
@@ -68,6 +68,75 @@ Forces the use of the peer's AE Title in the response, even if it differs from `
 ```
 
 Useful when querying servers that respond with a different AE Title than they're configured with.
+
+### `select`
+
+Controls how a multi-result C-FIND response is reduced before assignment.
+
+**Type:** Enum
+**Valid Values:** `first`, `last`
+**Default:** unset — the legacy "single match wins, multiple match warns and skips assignment" behavior is preserved.
+
+```xml
+<Query name="FindStudies" type="Study" select="first" ...>
+```
+
+When `select="first"` or `select="last"` is set, the locally-filtered result list is reduced to that single dataset and assignment proceeds. When unset, multi-result responses log a warning and no tags are assigned (the historical behavior).
+
+`select` pairs naturally with [`order-by`](#order-by) so the choice of which result wins is deterministic across runs:
+
+```xml
+<Query name="LatestStudy" type="Study"
+       select="last" order-by="StudyDate asc">
+  <!-- ... -->
+</Query>
+```
+
+Added in 2.4.0 (#84).
+
+### `order-by`
+
+SQL-like sort clause applied to the locally-filtered result list before `select` reduces it.
+
+**Type:** String — one or more comma-separated clauses
+**Default:** unset — results retain the PACS response order.
+
+Each clause is `<tag> [asc|desc]`. The tag is either a DCMTK dictionary name (e.g. `StudyDate`, `AccessionNumber`) or a numeric DICOM tag in `(GGGG,EEEE)` form. Direction defaults to `asc`.
+
+```xml
+<!-- Newest study first -->
+<Query name="LatestStudy" type="Study"
+       select="first" order-by="StudyDate desc">
+  <!-- ... -->
+</Query>
+
+<!-- Sort by date, then time as a tie-breaker -->
+<Query name="OrderedStudies" type="Study"
+       order-by="(0008,0020) asc, (0008,0030) asc">
+  <!-- ... -->
+</Query>
+```
+
+Tag-name lookup is case-insensitive. Numeric tags are accepted with or without parentheses (`0008,0020` and `(0008,0020)` are equivalent).
+
+Sort semantics:
+
+- Missing values are ordered **after** present values, regardless of `asc`/`desc`.
+- Ties preserve the PACS response order (stable sort).
+- If a requested sort tag is missing from one or more returned datasets, DP2 logs a warning identifying the tag so operators can either add it to the query's return keys or drop the clause.
+
+### `force-assignment`
+
+Legacy alias for `select="first"`.
+
+**Type:** Boolean
+**Default:** `false`
+
+```xml
+<Query name="FindWorklistEntry" force-assignment="true" ...>
+```
+
+When both `force-assignment` and `select` are present, `select` wins. If the two disagree (e.g. `select="last" force-assignment="true"`), a warning is logged. New configs should prefer `select`.
 
 ## Query Criteria
 
@@ -232,7 +301,7 @@ A root `StudyDate` *exclusion* alias (e.g. `!#{Date,-7,7}`) cannot be combined w
 
 ## Manual Query
 
-Manual Query parks a job in `queue/manual/` for manual worklist matching through the [Queue Dashboard](/dicom-printer-2/queue-dashboard). Unlike other query types, it does **not** perform a C-FIND operation.
+Manual Query parks a job in `queue/manual/` for operator-driven worklist matching through the [DICOM Printer Console](/dicom-printer-2/control-app). Unlike other query types, it does **not** perform a C-FIND operation.
 
 When executed, ManualQuery:
 
@@ -240,21 +309,26 @@ When executed, ManualQuery:
 2. Deletes any existing `.meta` file (giving the job a fresh retry budget if it re-enters the workflow)
 3. Sets the **Held** flag on the job, which prevents file deletion and stops workflow execution
 
-`ConnectionParameters` are **optional**. If provided, they are read by the Queue Dashboard for worklist lookup but are not used by DICOM Printer 2 itself.
+`ConnectionParameters` are **optional** on a Manual query — DP2 does not contact a remote SCP. The Console enumerates the *other* `<Query>` actions in the config (Worklist, Study, Patient) to populate its endpoint selector.
 
 ```xml
-<Query name="ParkForManualMatch" type="Manual">
-  <!-- Optional: connection settings used by Queue Dashboard for worklist lookup -->
-  <ConnectionParameters>
-    <PeerAETitle>RIS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
-    <Host>192.168.1.200</Host>
-    <Port>11112</Port>
-  </ConnectionParameters>
-</Query>
+<Query name="ParkForManualMatch" type="Manual" />
 ```
 
-See [Queue Dashboard](/dicom-printer-2/queue-dashboard) for details on the manual matching workflow.
+A typical workflow pairs Manual with `ManualMatch` to wait for the operator's `.match` file before continuing:
+
+```xml
+<Workflow>
+  <Perform action="FindWorklistEntry"/>
+  <If field="QUERY_FOUND" value="false">
+    <Perform action="ParkForManualMatch"/>
+    <Perform action="ManualMatch"/>
+  </If>
+  <Perform action="SendToPACS"/>
+</Workflow>
+```
+
+See [Manual Matching](/dicom-printer-2/queue-dashboard) for the on-disk contract and [DICOM Printer Console](/dicom-printer-2/control-app) for the operator UI.
 
 ## Using Query Results
 

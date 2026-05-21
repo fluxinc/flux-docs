@@ -1,190 +1,157 @@
-# Control Application
+# DICOM Printer Console
 
-The Control Application is a graphical user interface for managing the DICOM Printer 2 service.
+The **DICOM Printer Console** is the operator UI for DICOM Printer 2. It bundles a WebView2 desktop window (`DICOMPrinterConsole.exe`) with a local ASP.NET Core HTTP service (`DICOMPrinterApi.exe`, Windows service `DICOMPrinterApiService`) and replaces the legacy `DICOMPrinterControl.exe` WinForms application and the earlier separately-branded "Queue Dashboard" web UI.
 
-## What is the Control Application?
+The Console covers:
 
-The Control Application provides a user-friendly interface to:
-- Start and stop the DICOM Printer 2 service
-- View service status
-- Monitor real-time log output
-- Manage software activation
-- View and edit configuration files
-- Monitor processing queues
+- Queue triage — Review, Queue, and Expired tabs with page previews and `.dxi`-backed payload navigation
+- **Manual worklist matching** — search any configured Worklist or Study endpoint, propose values, and apply a `.match` companion file to a parked job
+- **Manage pane** — service status, start/stop/restart of `DICOMPrinterApiService` and `DicomPrinterService`, storage endpoint listing with inline C-ECHO and query test, and a multi-source live log tail
+- **Config editor** — CodeMirror XML editor with line numbers, syntax highlighting, DTD validation, inline gutter markers at the line/column reported by the parser, and a save-triggered config reload that does not bounce the service
+- Activation — surfaces the installed activator via `/api/admin/activate-info`
 
-## Features
+> **Available since:** 2.4.0. Earlier releases shipped `DICOMPrinterControl.exe` and a separate Queue Dashboard web UI; both surfaces have been folded into the Console.
 
-### Service Management
+## Architecture
 
-Control the DICOM Printer 2 service:
-- **Start Service** - Start the background service
-- **Stop Service** - Stop the background service
-- **Restart Service** - Stop and restart the service
-- **View Status** - See current service state (Running, Stopped)
+| Process | Role |
+|---|---|
+| `DICOMPrinterApi.exe` | ASP.NET Core HTTP service (`DICOMPrinterApiService`) — exposes the Console UI assets and the `/api/*` endpoints used by the desktop window. Default listener: `http://localhost:5009`. |
+| `DICOMPrinterConsole.exe` | WebView2 desktop window. Embeds Microsoft Edge WebView2 and points it at the local API. Installer ships an offline-capable WebView2 runtime bundle so no internet access is required at install time. |
+| `OpenQueueDashboard.exe` | Compatibility launcher used by the Start Menu shortcut and by plugins. Reopens an existing Console window if one is already running. |
 
-### Log Viewer
+The API service runs as a Windows service started by the installer. The Console can be launched on demand from the Start Menu (Flux Inc → DICOM Printer Console) or by running `OpenQueueDashboard.exe`. Closing the Console window does not stop the API service.
 
-View service logs in real-time:
-- **Live Tail** - Automatically scrolls to show new log entries
-- **Search/Filter** - Find specific log entries
-- **Verbosity Control** - Adjust log detail level
-- **Export** - Save log excerpts for analysis
+### HTTP API surface
 
-### Activation Management
+The Console UI is the primary consumer of the API, but the endpoints are documented because plugins and external tooling can call them on `http://localhost:5009`.
 
-Manage software licensing:
-- **View License Status** - See activation state and expiration
-- **Generate Request Code** - Create activation request
-- **Enter Activation Code** - Activate the software
-- **View License Details** - See license validity period and features
+| Endpoint | Purpose |
+|---|---|
+| `/api/admin/service/status` | Current state of `DicomPrinterService` |
+| `/api/admin/service/start`, `/stop`, `/restart` | Service lifecycle control |
+| `/api/admin/config/get`, `/validate`, `/save` | Config read, DTD-aware validation, and save (triggers a reload across the API) |
+| `/api/admin/activate-info` | Resolves the installed activator path and launches it via `launch-activate` |
+| `/api/storage-endpoints` | Distinct Store/Worklist/Study/Manual endpoints derived from the last saved config; used by the Manage pane for listing and C-ECHO |
 
-### Configuration Management
+## Launching
 
-Edit configuration:
-- **View Config** - Display current configuration
-- **Edit Config** - Modify settings (opens in default XML editor)
-- **Validate Config** - Check configuration for errors
-- **Reload Config** - Apply configuration changes (restarts service)
-
-## Launching the Control Application
-
-### From Start Menu
+### Start Menu
 
 ```
-Start Menu → Flux Inc → DICOM Printer 2 → Control Application
+Start Menu → Flux Inc → DICOM Printer 2 → DICOM Printer Console
 ```
 
-### From Installation Directory
+The shortcut runs `OpenQueueDashboard.exe`, which opens a Console window or focuses the existing one.
 
-Default location:
+### Installation directory
+
 ```
-C:\Program Files (x86)\Flux Inc\DICOM Printer 2\DicomPrinterControl.exe
+C:\Program Files (x86)\Flux Inc\DICOM Printer 2\dicom-printer-2-queue\OpenQueueDashboard.exe
 ```
 
-### From Command Line
+The `dicom-printer-2-queue\` subdirectory is a compatibility alias from the prior Queue Dashboard layout; the binaries inside are the Console + API stack.
+
+### Command line
 
 ```cmd
-"C:\Program Files (x86)\Flux Inc\DICOM Printer 2\DicomPrinterControl.exe"
+"C:\Program Files (x86)\Flux Inc\DICOM Printer 2\dicom-printer-2-queue\OpenQueueDashboard.exe"
 ```
 
-## Using the Control Application
+If the API service is not running, start it with `net start DICOMPrinterApiService` (see [Starting and Stopping](starting-and-stopping.md)).
 
-### Starting the Service
+## Working with the Console
 
-1. Launch the Control Application
-2. Click **Start Service** button
-3. Service status changes to "Running"
-4. Log messages appear in the log viewer
+### Queue triage
 
-### Stopping the Service
+Jobs surface in three tabs:
 
-1. Click **Stop Service** button
-2. Service begins graceful shutdown
-3. Service status changes to "Stopped"
-4. Currently processing jobs are completed before shutdown
+- **Review** — jobs parked by `<Query type="Manual">` plus `<Perform action="ManualMatch" />` that do not yet have a `.match` companion file. The operator can preview pages, search a worklist or PACS, and apply a match.
+- **Queue** — jobs in the active queue, including those with a `.match` companion waiting for `DicomPrinter.exe` to pick them up.
+- **Expired** — jobs moved to `queue_expired/`. Operators can restore them back into the active queue.
 
-### Viewing Logs
+Page previews and payload enumeration follow the `.dxi` job manifest, so PDF-backed and multi-image jobs all render correctly.
 
-The log viewer displays:
-- Timestamp
-- Log level (INFO, WARNING, ERROR, DEBUG)
-- Message text
+### Manual matching
 
-**Features:**
-- Auto-scroll to follow new entries
-- Search/filter capabilities
-- Copy log entries to clipboard
-- Export to file
+When a job lands in the Review tab:
 
-### Managing Activation
+1. Select the job. The Console reads the job's parsed text and dataset and seeds the form fields.
+2. Run a query against any configured Worklist, Study, or PACS endpoint. The endpoint dropdown is deduplicated by host/port/peer AE/local AE.
+3. Pick a candidate and (optionally) edit values. **Apply Match** is enabled only when a job is selected, the form holds enough exam data, and the proposed values are materially different from the seeded values.
+4. The Console highlights any missing or insufficient fields rather than silently refusing. The confirmation dialog renders only fields that would actually change.
+5. On apply the API writes a `.match` companion file alongside the job's `.dxi`, immediately returns the job from `queue/manual/` to `queue/`, and tolerates brief `.dxi` lock contention during the move.
 
-#### View Current License Status
+`.match` companion files use the same `(GGGG,EEEE)=value` line format as before; existing customer plugins that consume them continue to work. See [Manual Matching](queue-dashboard.md) for the on-disk contract.
 
-1. Click **Licensing** tab
-2. View:
-   - License state (Active, Expired, Unlicensed)
-   - Validity period
-   - Days remaining
-   - Registered to
+### Manage pane
 
-#### Activate Software
+The Manage gear icon in the top bar opens a fullscreen dialog with:
 
-1. Click **Licensing** tab
-2. Click **Generate Request Code**
-3. Copy request code
-4. Visit activation URL or contact Flux Inc
-5. Receive activation code
-6. Click **Enter Activation Code**
-7. Paste activation code
-8. Click **Activate**
+- **Service** — status, start/stop/restart, and an auto-refreshing status line (no manual refresh button).
+- **Activate** — resolves and launches the installed activator. Surfaces a concrete error if the host cannot launch instead of silently no-op'ing.
+- **Storage** — all configured Store, Worklist, Study, and Manual endpoints from the last saved config, with inline C-ECHO actions where applicable.
+- **Logs** — live tail of DICOM Printer, queue, drop-monitor, and console/API logs with regex filtering and follow-by-default. Invalid regexes are reported in a status line without breaking the tail.
+- **Config editor** — CodeMirror with line numbers, XML syntax highlighting, DTD-aware validation, and a gutter marker at the line/column reported by the validator. Inline C-ECHO and query-test actions are exposed for the `<ConnectionParameters>` block under the cursor. Save triggers a config reload across the API; no service bounce is required.
 
-See [Licensing and Activation](licensing.md) for detailed instructions.
+### Keyboard shortcuts
 
-### Editing Configuration
+The Console uses a Gmail-style `g`-prefix chord for area navigation when no input is focused:
 
-1. Click **Configuration** tab
-2. Click **Edit Configuration**
-3. Configuration file opens in default XML editor
-4. Make changes and save
-5. Click **Reload Configuration**
-6. Service restarts with new configuration
+| Chord | Action |
+|---|---|
+| `g r` | Go to Review |
+| `g q` | Go to Queue |
+| `g e` | Go to Expired |
 
-**Important:** Stop the service before editing configuration to prevent conflicts.
+WASD mirrors the arrow keys for row navigation when no input is focused. Press `?` to open the keyboard help.
 
-## Control Application Permissions
+## Permissions
 
-The Control Application requires:
-- **Administrator privileges** for service management (start/stop)
-- **Read access** to configuration and log directories
-- **Write access** to configuration directory (for configuration edits)
+The Console (WebView2 window) runs as the interactive user. The API service runs under the service account configured for `DICOMPrinterApiService` (Local System by default). Operations that require service control (start/stop/restart of `DicomPrinterService`) are issued via the API, so the desktop window does not need to be elevated.
 
-Run as administrator if service controls are disabled.
+The HTTP listener binds to loopback (`localhost`) only. Configuration of authentication and remote exposure is covered in the security white paper shipped with the installer.
 
 ## Troubleshooting
 
-### "Access Denied" When Starting/Stopping Service
+### Console window does not open
 
-**Cause:** Insufficient permissions
+`OpenQueueDashboard.exe` requires the API service to be reachable.
 
-**Solution:** Right-click Control Application and select "Run as administrator"
+1. Check that `DICOMPrinterApiService` is running:
+   ```cmd
+   sc query DICOMPrinterApiService
+   ```
+2. If stopped, start it:
+   ```cmd
+   net start DICOMPrinterApiService
+   ```
+3. Verify the listener:
+   ```cmd
+   curl http://localhost:5009/api/admin/service/status
+   ```
 
-### Configuration Changes Not Applied
+### Console starts off-screen
 
-**Cause:** Service not restarted after configuration edit
+Fixed in 2.4.0 (#127): the window now centres on the active display on first launch.
 
-**Solution:** Click "Reload Configuration" or manually restart the service
+### Configuration changes not picked up
 
-### Log Viewer Shows Old Data
+Saves through the Manage pane trigger a config reload across the API. If a change was made by hand-editing `config.xml`, click **Reload** in the Manage pane or restart `DicomPrinterService`.
 
-**Cause:** Log file not refreshing
+### Inline validation reports an error but the editor cursor is elsewhere
 
-**Solution:**
-- Click "Refresh" button
-- Close and reopen Control Application
-- Check if service is running
+Click the validation echo to jump the editor to the failing line/column and render the echoed snippet alongside.
 
-### Cannot Open Configuration File
+### Activate button does nothing
 
-**Cause:** No XML editor associated with .xml files
+Fixed in 2.4.0 (#92): the button now posts `launch-activate` to the WebView host. If the host cannot launch the activator (missing file, blocked by policy), the Console surfaces a concrete operator-facing error instead of silently doing nothing. Confirm the activator path with `/api/admin/activate-info`.
 
-**Solution:**
-- Associate .xml files with an editor (Notepad, VS Code, etc.)
-- Manually open `%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml`
+## Related topics
 
-## Alternative Management Methods
-
-While the Control Application provides a convenient GUI, you can also manage DICOM Printer 2 using:
-
-- **Windows Services** (`services.msc`)
-- **Command line** (`sc` and `net` commands)
-- **PowerShell** (service management cmdlets)
-
-See [Starting and Stopping the Service](starting-and-stopping.md) for command-line methods.
-
-## Related Topics
-
+- [Manual Matching](queue-dashboard.md)
 - [Starting and Stopping the Service](starting-and-stopping.md)
 - [Licensing and Activation](licensing.md)
 - [Configuration](configuration.md)
-- [Logging](logs.md)
+- [Interrogating the Logs](logs.md)
 - [Installation](installation.md)

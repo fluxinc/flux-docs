@@ -21,7 +21,7 @@ DICOM Printer 2 supports the following action types:
 ### Communication Actions
 
 - **[Query](query.md)** - Query DICOM worklists or studies for patient data and metadata
-- **[ManualQuery](query.md#manual-query)** - Parks jobs in `queue/manual/` for manual worklist matching via the [Queue Dashboard](/dicom-printer-2/queue-dashboard)
+- **[ManualQuery](query.md#manual-query)** - Parks jobs in `queue/manual/` for operator-driven worklist matching via the [DICOM Printer Console](/dicom-printer-2/control-app); see [Manual Matching](/dicom-printer-2/queue-dashboard) for the on-disk contract
 - **[Store](store.md)** - Send DICOM objects to remote PACS or storage systems using C-STORE
 - **[Print](print.md)** - Send images to DICOM film printers using DICOM Basic Grayscale Print
 

@@ -63,18 +63,33 @@ sc start DICOMPrinterService
 
 When running as a service, the application operates in Session 0 and has no console output. All activity is recorded in the log files under the `log/` directory.
 
-### 8.5. Queue Dashboard
+### 8.5. DICOM Printer Console and API service
 
-The Queue Dashboard is an optional component installed by the Inno Setup installer. It is a self-contained .NET 8 executable that requires no additional runtime. A Start Menu shortcut is created during installation.
+The Inno Setup installer also deploys the **DICOM Printer Console** — a WebView2 desktop UI (`DICOMPrinterConsole.exe`) backed by a local ASP.NET Core HTTP service (`DICOMPrinterApi.exe`, Windows service `DICOMPrinterApiService`). The API service is installed and started automatically; the Console is launched on demand via a Start Menu shortcut that runs `OpenQueueDashboard.exe`.
 
-To launch manually:
+The Console + API stack is published framework-dependent for `win-x86` on .NET 10. The installer bundles the ASP.NET Core 10 `x86` runtime and an offline WebView2 runtime so no internet access is required at install time.
+
+| Component | Path under `{app}` |
+|---|---|
+| API service host | `dicom-printer-2-queue\DICOMPrinterApi.exe` |
+| WinSW service wrapper | `dicom-printer-2-queue\DICOMPrinterApi.WinSW.xml` |
+| Console desktop window | `dicom-printer-2-queue\DICOMPrinterConsole.exe` |
+| Launcher / activator | `dicom-printer-2-queue\OpenQueueDashboard.exe` |
+
+> The `dicom-printer-2-queue\` directory and `OpenQueueDashboard.exe` name are compatibility aliases inherited from the prior Queue Dashboard lineage; the binaries inside are the new Console + API stack introduced in 2.4.0.
+
+To launch manually (or focus an existing window):
 ```
-QueueDashboard.exe --path "C:\ProgramData\Flux Inc\DICOM Printer 2"
+"C:\Program Files (x86)\Flux Inc\DICOM Printer 2\dicom-printer-2-queue\OpenQueueDashboard.exe"
 ```
 
-See [Queue Dashboard](/dicom-printer-2/queue-dashboard) for configuration and usage.
+The default API listener is `http://localhost:5009` (loopback only). See [DICOM Printer Console](/dicom-printer-2/control-app) for the UI walkthrough and [Manual Matching](/dicom-printer-2/queue-dashboard) for the queue/match-file contract.
 
-### 8.6. First-Run Checklist
+### 8.6. Offline installation
+
+The installer is offline-capable: build-time prerequisite preparation (`scripts/prepare_installer_prereqs.ps1`) packages the WebView2 standalone runtime alongside the ASP.NET Core `x86` runtime, removing the runtime download that earlier installers performed at install time. A repeatable VM install harness (`scripts/installer_vm_test.ps1`) and one-time elevated broker prep script (`scripts/prepare_installer_vm_test_broker.ps1`) cover end-to-end offline install verification.
+
+### 8.7. First-Run Checklist
 
 1. **Verify directory structure.** Ensure the root directory and its subdirectories (`config/`, `log/`, `queue/`, `temp/`) exist. Create any missing directories manually or allow the installer to set them up.
 2. **Place the configuration file.** Copy a valid `config.xml` and `config.dtd` into the `config/` directory. Review and customize the `<General>`, `<ActionsList>`, and `<Workflow>` sections as needed.

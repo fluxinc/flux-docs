@@ -66,7 +66,8 @@ If the query returns no matches, or if a specific tag was requested but the SCP 
 All query types share this fundamental configuration structure:
 
 ```xml
-<Query type="[QueryType]" force-assignment="[boolean]" name="[ActionName]">
+<Query type="[QueryType]" name="[ActionName]"
+       select="first|last" order-by="StudyDate desc">
     <ConnectionParameters>
         <MyAeTitle>LOCAL_AE</MyAeTitle>
         <PeerAeTitle>REMOTE_AE</PeerAeTitle>
@@ -78,9 +79,17 @@ All query types share this fundamental configuration structure:
 ```
 
 # Core Attributes
- 
-- force-assignment - When true, uses first match even with multiple results
-- ConnectionParameters - Network connection settings
+
+- `name` — workflow identifier for the action
+- `type` — `Worklist`, `Study`, `Patient`, or `Manual`
+- `level` — for `Patient` and `Study` queries: `PATIENT`, `STUDY`, `SERIES`, or `IMAGE`
+- `select` — `first` or `last` to reduce a multi-result response deterministically (added in 2.4.0)
+- `order-by` — comma-separated sort clauses applied before `select` (added in 2.4.0)
+- `force-assignment` — legacy alias for `select="first"`. If both are present, `select` wins
+- `forcePeerAe` — forces the peer AE title in the response (Worklist)
+- `ConnectionParameters` — network connection settings (optional on `type="Manual"`)
+
+See [Query Actions § Optional Attributes](query.md#optional-attributes) for full attribute reference including `select`, `order-by`, and `match="local"`.
 
 ## Query-Specific Implementations
 

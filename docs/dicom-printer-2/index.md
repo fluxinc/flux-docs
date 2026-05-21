@@ -16,15 +16,18 @@ Jobs arrive from two sources: a **Windows printer driver** (print from any appli
 
 ## Architecture
 
-DP2 is made up of three components:
+DP2 is made up of these components:
 
 | Component | Role |
 |---|---|
 | **DicomPrinter.exe** | Main processing service — runs the workflow engine |
 | **Drop Monitor** | Watches configured folders; converts and injects PDFs and images as jobs |
-| **Control Application** | GUI tool for configuration, licensing, and monitoring |
+| **DICOM Printer Console** | WebView2 desktop UI (`DICOMPrinterConsole.exe`) for queue triage, manual worklist matching, configuration editing, and service control |
+| **DICOM Printer API service** | Local ASP.NET Core HTTP service (`DICOMPrinterApi.exe`, Windows service `DICOMPrinterApiService`) that backs the Console — listens on `http://localhost:5009` by default |
 
-See [Architecture & Design](architecture.md) for a detailed walkthrough of the job lifecycle, application modes, and DICOM service interactions.
+As of v2.4.0 the legacy WinForms `DICOMPrinterControl.exe` and the separately-branded "Queue Dashboard" surface have been consolidated into the new Console + API stack. The `OpenQueueDashboard.exe` launcher and `dicom-printer-2-queue/` install directory remain as compatibility aliases.
+
+See [Architecture & Design](architecture.md) for a detailed walkthrough of the job lifecycle, application modes, and DICOM service interactions, and the [DICOM Printer Console](control-app.md) page for the operator UI.
 
 ## Getting started
 

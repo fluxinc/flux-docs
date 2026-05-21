@@ -11,7 +11,7 @@ This guide describes how to completely remove DICOM Printer 2 from your system.
    ```
 
 2. **Save Activation Code**
-   - Record your activation code from config.xml or Control Application
+   - Record your activation code from `config.xml` (`<RegistrationKey>`) or via `DicomPrinter.exe --activation-data`
    - Keep for potential reinstallation
 
 3. **Export Logs** (if needed for troubleshooting or records)
@@ -143,8 +143,8 @@ HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\DicomPrinter2Service
 ### Files in Use
 
 **Solutions:**
-1. Close Control Application
-2. Stop DICOM Printer 2 service
+1. Close any open DICOM Printer Console windows
+2. Stop the `DICOMPrinterService` and `DICOMPrinterApiService` services
 3. Close any applications accessing DICOM Printer 2 directories
 4. Restart computer and retry uninstallation
 

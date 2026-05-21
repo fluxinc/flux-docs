@@ -87,6 +87,9 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
   - `<ValidityPeriod>` element.
   - `<Verbosity>` element.
   - `<RegistrationKey>` element.
+  - `<MaximumLogFileSize>` element.
+  - `<MaximumLogFileCount>` element.
+  - `<RedactSensitiveLogValues>` element.
 - **Default Value**: Not applicable
 
 ### Subsection: `<CheckingInterval>`
@@ -128,6 +131,30 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Attributes**: None
 - **Content**: String value.
 - **Default Value**: None
+
+### Subsection: `<MaximumLogFileSize>`
+
+- **Description**: Maximum size of the active log file before rotation occurs. Accepts values with `KB`, `MB`, or `GB` suffixes (case-insensitive); a bare integer is treated as bytes. The minimum enforced size is 1 MB.
+- **Occurrence**: Zero or one (optional).
+- **Attributes**: None
+- **Content**: Size value.
+- **Default Value**: `50MB`
+
+### Subsection: `<MaximumLogFileCount>`
+
+- **Description**: Maximum number of rotated log files to keep. Older files beyond this count are deleted. The minimum is 2.
+- **Occurrence**: Zero or one (optional).
+- **Attributes**: None
+- **Content**: Positive integer value.
+- **Default Value**: `10`
+
+### Subsection: `<RedactSensitiveLogValues>`
+
+- **Description**: When `true`, the DICOM-tag-aware log redactor obscures patient identifiers, exam identifiers, physician/operator names, requested/scheduled procedure descriptions, admitting diagnoses, and all private tags before they reach the event log. Hostnames, usernames, and file names are not redacted. When `false`, real DICOM tag values appear in the log — useful for diagnostics. Added in 2.2.44.
+- **Occurrence**: Zero or one (optional).
+- **Attributes**: None
+- **Content**: `true` or `false`.
+- **Default Value**: `true`
 
 ## Section: `<ActionsList>`
 
@@ -589,8 +616,12 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Occurrence**: Zero or more.
 - **Attributes**:
   - `name` : a unique identifier by which this action can be referred to by other entities.
-  - `type` : query type. Enumerated values: `Study`, `Worklist`, or `Patient`.
-  - `forceAssignment` or `force-assignment` (Optional): A boolean value (`true` or `false`). If `true` and the query returns multiple results, the first result will be used. If `false` (default) and multiple results are found, a warning will be logged, and no tags will be assigned.
+  - `type` : query type. Enumerated values: `Study`, `Worklist`, `Patient`, or `Manual`. `Manual` parks the job in `queue/manual/` for operator-driven matching via the [DICOM Printer Console](control-app.md); see [Manual Matching](queue-dashboard.md).
+  - `level` (Optional, `Patient` and `Study` queries): Query/retrieve level. Enumerated values: `PATIENT`, `STUDY`, `SERIES`, `IMAGE`. Defaults to `PATIENT` for Patient queries and `STUDY` for Study queries.
+  - `forcePeerAe` (Optional, default `false`): When `true`, forces the use of the peer's AE Title in the response even if it differs from the called AE.
+  - `select` (Optional): Reduces a multi-result, locally-filtered response to a single dataset for assignment. Enumerated values: `first`, `last`. When unset, the legacy "single match wins, multiple match warns and skips assignment" behavior is preserved. Added in 2.4.0.
+  - `order-by` (Optional): SQL-like sort clause applied to the locally-filtered result list before `select` reduces it. Format: comma-separated `<tag> [asc|desc]` clauses where `<tag>` is a DCMTK dictionary name (e.g. `StudyDate`) or a numeric DICOM tag (e.g. `(0008,0020)`). Direction defaults to `asc`. Missing values sort after present values; ties preserve PACS response order. A warning is logged if a sort tag is missing from one or more returned datasets. Added in 2.4.0.
+  - `forceAssignment` or `force-assignment` (Optional, legacy): A boolean value. Acts as an alias for `select="first"`. If both `force-assignment` and `select` are present, `select` wins; a warning is logged if they disagree. New configs should prefer `select`.
 - **Content**:
   - `<ConnectionParameters>`: Defines the DICOM connection and association parameters for communicating with the SCP. Refer to the [Connection Parameters](#subsubsection-connectionparameters) section for details.
   - `<DcmTag>`: Specifies a DICOM tag to include in the query or to use as a local filter for the results. Each `<DcmTag>` can define a specific tag, a pattern to match its value, whether it is an exclusion filter, and whether the value should be sent on the wire or only enforced locally.

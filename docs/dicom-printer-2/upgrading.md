@@ -2,6 +2,57 @@
 
 This guide covers upgrading DICOM Printer 2 to a newer version.
 
+## Upgrading to 2.4.0
+
+Version 2.4.0 consolidates the legacy `DICOMPrinterControl.exe` WinForms application and the separately-branded Queue Dashboard web UI into a single **[DICOM Printer Console](control-app.md)** (WebView2 desktop) backed by a local ASP.NET Core HTTP service. The installer performs the migration automatically; the notes below cover what changes on disk and what to verify after upgrade.
+
+### Service rename and binary swap
+
+The Windows service that backed the prior Queue Dashboard has been renamed:
+
+| Before 2.4.0 | 2.4.0+ |
+|---|---|
+| Service name `DICOMPrinterQueueService` | `DICOMPrinterApiService` |
+| Binary `QueueDashboard.exe` (self-contained .NET 8 `x64`) | `DICOMPrinterApi.exe` (framework-dependent .NET 10 `x86`) |
+| WinSW wrapper `QueueDashboard.WinSW.xml` | `DICOMPrinterApi.WinSW.xml` |
+
+The upgrade installer:
+
+1. Stops and removes the prior `DICOMPrinterQueueService` (or the legacy queue/control service) before installing the new one.
+2. Removes the retired `DICOMPrinterControl.exe` from `{app}` and the legacy "Control Application" Start Menu shortcut.
+3. Cleans up the prior WinSW wrapper file so the new service launches cleanly.
+4. Stops the previous API/console process before replacing binaries, eliminating "DLL in use" failures on upgrade.
+
+The default API listener is `http://localhost:5009` (loopback only) — unchanged from earlier releases.
+
+### Shortcuts and launchers
+
+- The Start Menu entry "DICOM Printer Console" launches via `OpenQueueDashboard.exe` (compatibility alias).
+- The legacy "Control Application" Start Menu shortcut is removed.
+- The `dicom-printer-2-queue\` install subdirectory is retained as a compatibility alias for the install path — the binaries inside are the new Console + API stack.
+
+### Offline-capable installer
+
+The 2.4.0 installer bundles the ASP.NET Core 10 `x86` runtime and an offline WebView2 runtime; no internet access is required at install time. Earlier installers downloaded these at install time and could fail on isolated networks.
+
+### Verification after a 2.4.0 upgrade
+
+1. Confirm the new service is registered and running:
+   ```cmd
+   sc query DICOMPrinterApiService
+   ```
+2. Confirm the prior service is gone:
+   ```cmd
+   sc query DICOMPrinterQueueService
+   ```
+   Should report "service does not exist".
+3. Open the Console from the Start Menu (Flux Inc → DICOM Printer Console). The window should open and connect to `http://localhost:5009`.
+4. From the Console **Manage** pane verify service status, that the storage endpoint list shows each configured Store/Worklist/Study endpoint, and that the config editor loads `config.xml`.
+
+### Config compatibility
+
+`config.xml` is preserved across the upgrade. New optional Query attributes (`select`, `order-by`, `match="local"`) and the General `<RedactSensitiveLogValues>` option default to behavior that matches earlier releases. See the [Configuration Reference](config.md) and [Query Actions](actions/query.md) for full attribute details.
+
 ## Before Upgrading
 
 ### 1. Backup Configuration
@@ -15,15 +66,15 @@ copy "%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml" "%USERPROFILE%\D
 ### 2. Record Activation Code
 
 Save your activation code:
-- Open Control Application → Licensing tab
+- Open the DICOM Printer Console → Manage → Activate (or extract from `config.xml`)
 - Copy activation code
 - OR extract from config.xml `<RegistrationKey>` element
 
 ### 3. Note Current Version
 
 Check current version:
-- Control Application → About
-- OR command line: `DicomPrinterService.exe --version`
+- DICOM Printer Console → Manage → Service (the version is shown alongside the service state)
+- OR command line: `DicomPrinter.exe --version`
 
 ### 4. Review Release Notes
 
@@ -36,10 +87,10 @@ Before upgrading, review release notes for:
 ### 5. Stop the Service
 
 ```cmd
-net stop DicomPrinter2Service
+net stop DICOMPrinterService
 ```
 
-OR use Control Application to stop service.
+OR use the DICOM Printer Console Manage pane to stop the service.
 
 ## Upgrade Process
 
@@ -149,7 +200,7 @@ Generally:
 ### 1. Check Service Status
 
 ```cmd
-sc query DicomPrinter2Service
+sc query DICOMPrinterService
 ```
 
 Should show `STATE: 4 RUNNING`
@@ -169,7 +220,7 @@ Look for:
 
 ### 3. Verify License
 
-- Check license status in Control Application
+- Check license status in the DICOM Printer Console (Manage → Activate)
 - Verify activation is still valid
 - Reactivate if necessary (same activation code works)
 
@@ -196,7 +247,7 @@ If upgrade causes issues:
 ### 1. Stop Service
 
 ```cmd
-net stop DicomPrinter2Service
+net stop DICOMPrinterService
 ```
 
 ### 2. Uninstall New Version
@@ -221,7 +272,7 @@ copy "%USERPROFILE%\Desktop\config_backup.xml" "%ProgramData%\Flux Inc\DICOM Pri
 ### 5. Restart Service
 
 ```cmd
-net start DicomPrinter2Service
+net start DICOMPrinterService
 ```
 
 ### 6. Verify Operation

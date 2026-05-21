@@ -52,11 +52,11 @@ While DP2 is a console-only application, it can interact with users and external
 
 This architecture allows DP2 to be highly adaptable, supporting complex workflows that require external interaction.
 
-### 2.4. Queue Dashboard
+### 2.4. DICOM Printer Console
 
-| **Queue Dashboard** | Web-based UI for managing queue jobs that need manual worklist matching |
+| **DICOM Printer Console** | WebView2 desktop UI (`DICOMPrinterConsole.exe`) backed by the `DICOMPrinterApiService` HTTP service (`DICOMPrinterApi.exe`) for queue triage, manual worklist matching, configuration editing, log tailing, and service control |
 
-The ManualQuery action parks unmatched jobs in `queue/manual/`. The Queue Dashboard provides a web interface for technologists to search the worklist, select matches, and write `.match` companion files. When DP2 next polls the queue, it reads the `.match` file, applies the matched tags, and resumes normal workflow processing.
+The `<Query type="Manual">` plus `<Perform action="ManualMatch" />` workflow parks unmatched jobs in `queue/manual/`. The Console (introduced in 2.4.0, replacing both the legacy `DICOMPrinterControl.exe` WinForms application and the prior Queue Dashboard web UI) presents the parked jobs to the operator, queries any configured Worklist, Study, or Patient endpoint to find a candidate, and writes a `.match` companion file alongside the job's `.dxi`. When DP2 next polls `queue/`, it reads the `.match` file, applies the matched tags, and resumes workflow processing. See [DICOM Printer Console](control-app.md) and [Manual Matching](queue-dashboard.md).
 
 ### 2.5. Global Application Paths
 
