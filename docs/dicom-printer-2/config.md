@@ -754,6 +754,26 @@ See section: Connection Parameters.
   - `<Angle>`: The number of degrees by which the images will be rotated clockwise. Must be an integer value divisible by 90.
 - **Default Value**: Not applicable.
 
+### Subsection: `<AutoRotateText>`
+
+- **Description**: Automatically orients each page so the dominant amount of *parseable text* is horizontal and upright, rotating clockwise by 0, 90, 180, or 270 degrees. Unlike `<Rotate>` (which applies a fixed angle), `AutoRotateText` analyzes each page and chooses the rotation. It handles **both raster image pages and direct PDF pages** with the same decision: raster pages are rotated in place, while PDF pages are rotated losslessly via the page `/Rotate` attribute (no rasterizing or re-encoding) and stored as encapsulated PDF (ePDF). It is deliberately conservative: when the orientation is ambiguous it leaves the page unchanged rather than risk an upside-down result. Normal usage needs no child elements — just `<AutoRotateText name="AutoOrient"/>`. See the [AutoRotateText action reference](/dicom-printer-2/actions/image-manipulation#autorotatetext-action) for full guidance.
+- **Occurrence**: Zero or more.
+- **Attributes**:
+  - `name` : a unique identifier by which this action can be referred to by other entities.
+- **Content** (all optional; conservative defaults shown):
+  - `<MaxAnalysisSide>`: Longest edge, in pixels, the page is downsampled to for analysis. The full-resolution image is what gets rotated. Default `1600`.
+  - `<MinAxisConfidence>`: Minimum confidence that one text axis (horizontal vs. vertical) dominates before any rotation. Range 0–1. Default `0.30`.
+  - `<MinScoreDelta>`: Minimum normalized margin between the winning and losing axis text scores. Range 0–1. Default `0.15`.
+  - `<MinDirectionConfidence>`: Minimum confidence in the up-vs-down decision before applying a 90°/270° correction. Range 0–1. Default `0.35`.
+  - `<MinDirectionConfidence180>`: Stricter direction confidence required specifically for a 180° flip of an already-horizontal page (the rarest, highest-risk case). Range 0–1. Default `0.60`.
+  - `<MinLinesFor180>`: Minimum number of detected text lines required before a 180° flip is allowed. Default `6`.
+  - `<MarginBandPercent>`: Width of the page-edge band, as a percentage of the shorter side, whose text is de-weighted (e.g. browser headers/footers, URLs, page numbers). Range 0–49. Default `8`.
+  - `<MarginWeight>`: Weight applied to text that falls inside the margin band. Range 0–1; lower means margin text counts for less. Default `0.25`.
+  - `<TrustHintConfidence>`: A per-page orientation hint from Drop Monitor (`<jobid>.orientation.json`) at or above this confidence is trusted directly, skipping raster analysis. Range 0–1. Default `0.90`.
+  - `<UseHints>`: Whether to read the optional Drop Monitor orientation sidecar. `true` or `false`. Default `true`.
+  - `<FailOnUnsupported>`: When `true`, the action fails on a page it genuinely cannot process (e.g. an unreadable image, or a PDF page when the required QPDF/poppler tools are unavailable); when `false` it logs a warning and leaves that page unchanged (fail-open). Default `false`.
+- **Default Value**: Not applicable.
+
 ### Subsection: `<SetTag>`
 
 - **Description**: Assigns a specified value to a DICOM tag. This action can set both standard and private DICOM tags, with options to control replacement behavior and whether the tag is applied globally to the job or uniquely to each image instance.
