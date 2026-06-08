@@ -36,7 +36,7 @@ Actions define the processing steps that are applied to each print job or file. 
 - **[SetTag](actions/settag.md)** - Add, modify, or delete DICOM tags
 - **[SetSequence](actions/setsequence.md)** - Write DICOM sequence structures into the job dataset
 - **[Save](actions/save.md)** - Save DICOM files to local directories
-- **[Image Manipulation](actions/image-manipulation.md)** - Trim, rotate, or resize images
+- **[Image Manipulation](actions/image-manipulation.md)** - Trim, rotate, auto-orient, or resize images
 - **[Run (Plugins)](actions/run.md)** - Execute external console or GUI applications
 - **[Notify](actions/notify.md)** - Send notifications
 

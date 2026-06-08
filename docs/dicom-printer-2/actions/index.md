@@ -34,6 +34,7 @@ DICOM Printer 2 supports the following action types:
 ### Image Processing Actions
 
 - **[Image Manipulation](image-manipulation.md)** - Trim, rotate, resize images
+- **[AutoRotateText](image-manipulation.md#autorotatetext-action)** - Automatically orient pages so the dominant parseable text is upright (conservative; no-ops when ambiguous)
 - **[AddInstance](image-manipulation.md#addinstance)** - Adds a new image instance to the job from an image file or blank canvas
 
 ### Integration Actions
