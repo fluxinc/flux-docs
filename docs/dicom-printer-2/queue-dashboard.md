@@ -32,9 +32,12 @@ DP2's runtime root (default `%ProgramData%\Flux Inc\DICOM Printer 2`) has these 
 
 ```
 <root>/
+  .env                  Environment-variable values (optional)
+  .env.local            Local environment overrides (optional)
   config/
     config.xml          DP2 configuration (parse rules + Query endpoints)
     .env                Environment-variable overrides (optional)
+    .env.local          Config-local environment overrides (optional)
   queue/                Active jobs awaiting processing
     manual/             Jobs parked by ManualQuery for manual matching
   queue_expired/        Expired jobs
@@ -87,17 +90,21 @@ The matching surface (Console or third-party tool) reads `config/config.xml` fro
 
 `config.xml` values support `${VAR:-default}` interpolation:
 
-1. Real environment variables are checked first.
-2. Values from `config/.env` are checked next.
-3. The inline default is used as a fallback.
+1. Root `.env` and `.env.local` are loaded from the DP2 runtime root.
+2. `config/.env` and `config/.env.local` are loaded next.
+3. Process environment variables override all file values.
+4. The inline default is used as a fallback.
 
-Example `config/.env`:
+Example root `.env` or `config/.env`:
 
 ```
 WORKLIST_HOST=192.168.1.50
 WORKLIST_PORT=11112
 WORKLIST_AE=DIMOD
 ```
+
+The Console/API uses this same resolver when it reads query endpoints for manual
+matching, storage endpoint listing, inline C-ECHO, and query-test actions.
 
 ## Endpoint configuration (`<Query type="Manual">`)
 

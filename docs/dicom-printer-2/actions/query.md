@@ -223,6 +223,10 @@ Query for studies from the last 7 days for a specific patient:
 </Query>
 ```
 
+For Study queries, `ModalitiesInStudy` `(0008,0061)` may contain multiple
+modalities. Pipe-list exclusions such as `!CR|!OT` exclude any returned study
+whose `ModalitiesInStudy` value matches either excluded modality.
+
 ## Patient Query Example
 
 Patient queries use the Patient Root Information Model instead of the Study Root model. They support a `level` attribute that controls the Query/Retrieve level: `PATIENT` (default), `STUDY`, `SERIES`, or `IMAGE`.
@@ -298,6 +302,43 @@ DP2 accepts four input forms for the Worklist scheduled-date filter, in preceden
 The selected constraint is enforced locally on returned candidates, not just sent on the wire. If both the canonical SPS form and the root alias are configured, the canonical form wins and the alias is ignored with a warning in the log.
 
 A root `StudyDate` *exclusion* alias (e.g. `!#{Date,-7,7}`) cannot be combined with an explicit `(0040,0100)` sequence filter. That mixed inclusion/exclusion combination is rejected at config-load time. To exclude items by date while applying other SPS filters, place the exclusion directly inside the canonical SPS sequence form.
+
+## Worklist Modality Constraints
+
+For Worklist queries, root `Modality` `(0008,0060)` is also accepted as an
+ergonomic alias for Scheduled Procedure Step Modality `(0040,0100)/(0008,0060)`.
+This lets a config use the familiar root tag while DP2 targets the Worklist SPS
+item where MWL servers normally return modality.
+
+Literal single-modality values are sent to the SCP as SPS Modality and then
+enforced locally:
+
+```xml
+<Query name="FindWorklistEntry" type="Worklist">
+  <DcmTag tag="(0008,0060)">CR</DcmTag>
+</Query>
+```
+
+Patterns that are not safe or portable as wire matching keys are requested as
+empty SPS Modality return keys and filtered locally by DP2. This includes
+regular expressions, pipe-list alternates, wildcards, exclusions, and explicit
+`match="local"`:
+
+```xml
+<!-- Accept CI, CR, or PF locally. -->
+<DcmTag tag="(0008,0060)">^(CI|CR|PF)$</DcmTag>
+
+<!-- Exclude CR and OT locally. -->
+<DcmTag tag="(0008,0060)">!CR|!OT</DcmTag>
+
+<!-- Force local filtering even for a literal value. -->
+<DcmTag tag="(0008,0060)" match="local">CR</DcmTag>
+```
+
+Multiple modality filters are enforced independently. If the config also
+contains a canonical in-sequence SPS Modality filter, the canonical sequence
+constraint is authoritative for that sequence item. `match="local"` remains a
+`<DcmTag>` attribute; it is not supported on `<DcmSequence>`.
 
 ## Manual Query
 
@@ -493,6 +534,7 @@ Exclusion filters support wildcards:
 - `!DEMO*` — exclude entries starting with "DEMO"
 - `!*TEST*` — exclude entries containing "TEST"
 - `!CARDIOLOGY` — exclude exact match "CARDIOLOGY"
+- `!CR|!OT` — exclude either value in a pipe-list
 
 Exclusion filters also work on sequence tags within `<DcmSequence>` elements. When an exclusion filter matches, the entire result dataset is rejected.
 

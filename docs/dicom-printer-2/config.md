@@ -72,6 +72,21 @@ Several configuration elements support **tag placeholders** — special tokens e
 - The `<SetTag>` content supports Date placeholders (`#{Date}`, `#{Date,offset}`, `#{Date,offset,range}`) but does not support DICOM tag value placeholders (`#{group,element}` or `#{TagName}`).
 - The `<Notify>` `<Message>` element uses a different placeholder system based on positional `%1`, `%2`, etc. markers paired with `<Input>` tags, and does not support the `#{...}` placeholder syntax described here.
 
+# Section: Environment Variable Syntax
+
+Configuration values can also use shell-style environment placeholders before
+the XML is parsed:
+
+- `${VAR_NAME}` resolves to the configured variable value. If the value is
+  missing, the placeholder remains visible.
+- `${VAR_NAME:-default}` resolves to the configured variable value, or to
+  `default` when the value is missing.
+
+DP2 loads `.env` and `.env.local` from the runtime root, then from the
+`config/` directory. Later files override earlier files, and process
+environment variables override file values. The main service, Console/API, and
+Drop Monitor use the same resolver.
+
 # Chapter 2: Config File Elements
 
 All actions and parameters that are to be performed by DICOM Printer must be specified in the `config.xml` file structure described in the listing below. (See `config_conformation.xml` for the structure.)
@@ -635,7 +650,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
       - **Wildcard match**: `*` matches any sequence of characters (e.g., `John*` matches `John Doe`, `Johnny`). **Multiple wildcards** are supported in a single pattern (e.g., `*CHEST*` matches `AP CHEST PORTABLE`).
       - **Range match**: `low-high` (e.g., `20260101-20260131` for dates, `A-M` for strings). Either `low` or `high` can be omitted (e.g., `-20260131` for values up to a date).
       - **Regular expression**: Patterns containing regex metacharacters (`^`, `$`, `[`, `]`, `(`, `)`, `{`, `}`, `+`, `|`) are interpreted as regular expressions and matched case-insensitively against the full value.
-      - **Negation prefix (`!`)**: Prefixing the pattern content with `!` inverts the filter into an exclusion filter. Results whose tag value matches the pattern (after stripping `!`) will be excluded. For example, `!CT` excludes results where the tag value is `CT`, and `!*CHEST*` excludes results containing `CHEST`. The `!` prefix is stripped before the pattern is evaluated.
+      - **Negation prefix (`!`)**: Prefixing the pattern content with `!` inverts the filter into an exclusion filter. Results whose tag value matches the pattern (after stripping `!`) will be excluded. For example, `!CT` excludes results where the tag value is `CT`, `!*CHEST*` excludes results containing `CHEST`, and `!CR|!OT` excludes either `CR` or `OT`. Each `!` in a pipe-list is normalized before the pattern is evaluated.
     - **Content of `<DcmTag>` (for sequences)**: When the `tag` attribute refers to a DICOM sequence tag, use `<DcmSequence>` instead (see below).
   - `<DcmSequence>`: Specifies a DICOM sequence tag to include in the query. Contains nested `<DcmItem>` elements, each of which contains `<DcmTag>` elements defining the attributes within the sequence items.
     - **Attributes for `<DcmSequence>`**:
@@ -657,6 +672,13 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
     <DcmTag tag="(0008,1030)">!*SCOUT*</DcmTag>  <!-- Exclude studies with SCOUT in description -->
 </Query>
 ```
+
+For Worklist queries, root `StudyDate` `(0008,0020)` and root `Modality`
+`(0008,0060)` can be used as aliases for the Scheduled Procedure Step Sequence
+values `(0040,0100)/(0040,0002)` and `(0040,0100)/(0008,0060)`. Literal values
+are sent as SPS matching keys and enforced locally; regex, wildcard, pipe-list,
+exclusion, and `match="local"` values request empty SPS return keys and are
+filtered locally after the SCP responds.
 
 ### Subsection: `<Store>`
 

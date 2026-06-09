@@ -7,9 +7,13 @@ DP2 expects the following directory layout under its root path. By default the r
 
 ```
 <root>/
+  .env                 — Site or machine environment values (optional)
+  .env.local           — Local overrides (optional)
   config/
     config.xml          — Main XML configuration file
     config.dtd          — DTD schema for config.xml validation
+    .env                — Config-specific environment values (optional)
+    .env.local          — Config-specific local overrides (optional)
     .activation         — Cached activation code (created automatically)
   log/                  — Log files (created automatically)
   queue/                — Spooler directory, monitored for incoming job files
@@ -89,7 +93,37 @@ The default API listener is `http://localhost:5009` (loopback only). See [DICOM 
 
 The installer is offline-capable: build-time prerequisite preparation (`scripts/prepare_installer_prereqs.ps1`) packages the WebView2 standalone runtime alongside the ASP.NET Core `x86` runtime, removing the runtime download that earlier installers performed at install time. A repeatable VM install harness (`scripts/installer_vm_test.ps1`) and one-time elevated broker prep script (`scripts/prepare_installer_vm_test_broker.ps1`) cover end-to-end offline install verification.
 
-### 8.7. First-Run Checklist
+### 8.7. Site-profile installation
+
+Managed deployments can use one customer-neutral installer with external
+site-profile companion files. Place these files next to
+`DICOMPrinterSetup-*.exe`, or pass the profile catalog path with
+`/SITEPROFILES=...`:
+
+- `DICOMPrinterSiteProfiles.ini` — maps site aliases to environment values.
+- `DICOMPrinterSiteConfig.xml` — optional companion config template, or the
+  template named by `[Manifest] ConfigTemplate=...` in the catalog.
+
+Silent examples:
+
+```cmd
+DICOMPrinterSetup-2.4.7.0-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-A
+DICOMPrinterSetup-2.4.7.0-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-B /SITEPROFILES=\\fileserver\dp2\DICOMPrinterSiteProfiles.ini
+```
+
+Use `/REQUIRE_SITE=1` when a silent deployment must fail closed if no valid
+site profile is selected. Interactive installs show a Site Configuration page
+when a companion catalog is present, with options for a generic install,
+profile selection, or manual entry.
+
+When a profile is selected, the installer writes the selected values to
+`%ProgramData%\Flux Inc\DICOM Printer 2\.env`, installs the companion template
+as `config\config.xml`, keeps `config.default.xml` as the product default, and
+writes an audit record under `config\site-profiles\`. The main service,
+Console/API, and Drop Monitor all resolve these values through the same
+environment substitution path.
+
+### 8.8. First-Run Checklist
 
 1. **Verify directory structure.** Ensure the root directory and its subdirectories (`config/`, `log/`, `queue/`, `temp/`) exist. Create any missing directories manually or allow the installer to set them up.
 2. **Place the configuration file.** Copy a valid `config.xml` and `config.dtd` into the `config/` directory. Review and customize the `<General>`, `<ActionsList>`, and `<Workflow>` sections as needed.

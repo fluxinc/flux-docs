@@ -193,7 +193,7 @@ The user activates Find SCU in order to query for matching studies or worklist a
 
 ##### Store SCU
 
-Store SCU is initiated by the user, and activated in the background, always synchronously, when the user requests that images to be sent to a remote AE, which is selected from a configured list. Store SCU will only make a single attempt at association; if it fails, then another user request is required to commence another attempt.
+Store SCU is initiated by the user, and activated in the background, always synchronously, when the user requests that images or encapsulated PDFs be sent to a remote AE, which is selected from a configured list. For one `Store` action on one job, Store SCU makes a single association attempt and sends all compatible generated instances on that association. If association or C-STORE fails, workflow error handling controls whether the job is held, retried, discarded, or ignored.
 
 ##### Print SCU
 
@@ -294,7 +294,7 @@ Find SCU does not accept associations.
 
 ###### Activity - Send Images/PDFs
 
-- **Description:** A single attempt will be made to store the image/PDF. Failure handling (retry/abort) is user-configurable.
+- **Description:** A single association attempt will be made for the Store action. All compatible generated image and/or encapsulated PDF instances for the job are sent as separate C-STORE operations over that association, then the association is released. Failure handling (retry/abort) is user-configurable.
 
 - **Proposed Presentation Contexts:** The user can configure one of the following groups of transfer syntaxes to be proposed.
 

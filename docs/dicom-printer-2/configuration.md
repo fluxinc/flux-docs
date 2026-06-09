@@ -131,19 +131,34 @@ Configuration values can reference environment variables using shell-style synta
 
 | Format | Description |
 |---|---|
-| `${VAR_NAME}` | Replaced with the value of the environment variable. Empty if not set. |
+| `${VAR_NAME}` | Replaced with the value of the environment variable. If unset and no file value exists, the placeholder remains visible so the missing value is obvious. |
 | `${VAR_NAME:-default}` | Replaced with the variable value, or `default` if not set. |
 
 ### Resolution Order
 
 Variables are resolved in this order:
-1. System environment variables
-2. Values from `config/.env` file (if present)
+
+1. Process environment variables
+2. Values loaded from `.env` files
 3. Inline default value (after `:-`)
 
-### .env File
+Process environment variables override file values. Values loaded from later
+`.env` files override earlier files.
 
-Place a `.env` file in the `config/` directory alongside `config.xml`:
+### .env Files
+
+DP2 loads `.env` files from both the base directory and the `config/`
+directory:
+
+1. `<base-path>\.env`
+2. `<base-path>\.env.local`
+3. `<base-path>\config\.env`
+4. `<base-path>\config\.env.local`
+
+For a standard install, `<base-path>` is `%ProgramData%\Flux Inc\DICOM Printer 2`.
+The site-profile installer writes selected site values to the root `.env` file.
+Use `config/.env.local` for machine-local overrides that should win over a
+shared root `.env`.
 
 ```
 PACS_HOST=192.168.1.200
@@ -152,6 +167,11 @@ WORKLIST_AE=RIS_SERVER
 ```
 
 This is useful for deploying the same `config.xml` across multiple sites with different connection parameters.
+
+The main service, DICOM Printer Console/API, and Drop Monitor use the same
+environment loading and substitution rules. Console Manage-pane C-ECHO/query
+tests and Drop Monitor settings such as `<DropMonitor><Path>` therefore resolve
+the same `${...}` placeholders as the main service.
 
 ## Related Topics
 

@@ -23,7 +23,7 @@ The Drop Monitor reads its settings from the same `config.xml` used by DP2, insi
 <DicomPrinterConfig>
   <!-- ... ActionsList, Workflow, etc. ... -->
   <DropMonitor>
-    <Path>C:\DICOM\drop</Path>
+    <Path>${DP2_DROP_PATH:-C:\DICOM\drop}</Path>
     <ConvertToPNG>false</ConvertToPNG>
     <PdfConversionTimeoutMs>5000</PdfConversionTimeoutMs>
     <PathSeparator>/</PathSeparator>
@@ -46,6 +46,14 @@ The Drop Monitor reads its settings from the same `config.xml` used by DP2, insi
 | `MetadataOutputFormat` | `plaintext` | Format for extracted metadata (`plaintext` or `base64`). |
 | `TextFileEncoding` | `utf-8` | Character encoding for generated text (job) files. |
 
+Drop Monitor resolves `${VAR}` and `${VAR:-default}` placeholders with the same
+environment loader as the main DICOM Printer service. Values can come from the
+process environment, the base directory `.env` / `.env.local`, or
+`config/.env` / `config/.env.local`; process environment values have the
+highest precedence. This means a site-profile install that writes
+`%ProgramData%\Flux Inc\DICOM Printer 2\.env` can drive `<Path>` and other Drop
+Monitor settings without a Drop Monitor-specific config file.
+
 ### 10.4. Drop Monitor Service Management
 
 The Drop Monitor is installed and managed as a separate Windows service:
@@ -61,6 +69,7 @@ The service logs to `<CommonBasePath>/log/dicom_printer_drop_monitor_service.log
 ### 10.5. Troubleshooting the Drop Monitor
 
 - **Files not being picked up.** Verify the `<Path>` setting points to the correct folder. The Drop Monitor also handles files that are moved (renamed) into the folder, so atomic move operations are supported.
+- **A literal `${...}` appears in the configured path.** Confirm the variable is present in the process environment or one of the DP2 `.env` files. For installed site profiles, check `%ProgramData%\Flux Inc\DICOM Printer 2\.env` first, then `config\.env`.
 - **PDF conversion timeout.** If large PDFs fail to process, increase `<PdfConversionTimeoutMs>`. The default of 5000 ms may be insufficient for documents with many pages or complex graphics.
 - **Uppercase file extensions.** As of v2.4.12, the Drop Monitor accepts uppercase extensions (e.g., `.PDF`, `.DCM`). Earlier versions may silently ignore such files.
 - **Retry failures.** After `MaxRetryAttempts` failures, the file is abandoned. Check the Drop Monitor log for error details. Common causes include file permission problems or corrupted input files.

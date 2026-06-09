@@ -2,6 +2,55 @@
 
 This guide covers upgrading DICOM Printer 2 to a newer version.
 
+## Upgrading to 2.4.7
+
+Version 2.4.7 is backward-compatible for existing configs, but it changes a few
+runtime behaviors that operators may notice during validation.
+
+### Environment substitution parity
+
+The main service, DICOM Printer Console/API, and Drop Monitor now load and
+resolve the same environment sources:
+
+1. `%ProgramData%\Flux Inc\DICOM Printer 2\.env`
+2. `%ProgramData%\Flux Inc\DICOM Printer 2\.env.local`
+3. `%ProgramData%\Flux Inc\DICOM Printer 2\config\.env`
+4. `%ProgramData%\Flux Inc\DICOM Printer 2\config\.env.local`
+5. process environment variables
+
+Process environment values have highest precedence. This matters for configs
+that use `${VAR}` or `${VAR:-default}` in connection parameters or Drop Monitor
+settings. After upgrading, use the Console Manage pane to run inline C-ECHO or
+query-test actions against endpoints with placeholder-backed host, port, or AE
+title values, and verify the Drop Monitor log if `<DropMonitor><Path>` uses a
+placeholder.
+
+### Worklist Modality filtering
+
+Worklist root `Modality` `(0008,0060)` can now act as an alias for Scheduled
+Procedure Step Modality inside `(0040,0100)`. Literal modality values are sent
+as SPS matching keys and also enforced locally. Regex, wildcard, pipe-list,
+exclusion, and `match="local"` modality filters are requested as empty SPS
+return keys and then filtered locally by DP2.
+
+If a Worklist query previously returned extra rows because modality was only
+present inside the SPS sequence, expect the result set to become narrower after
+the upgrade.
+
+### Store association lifetime
+
+Each `Store` action now reuses one DICOM association across compatible
+instances in the job. Multi-page jobs should show one association request, one
+C-STORE per generated instance, and one association release in receiver logs.
+
+### Site-profile installer
+
+The 2.4.7 installer includes the site-profile companion-file workflow for
+managed deployments. A selected profile writes environment values to the root
+`.env` file and can install a companion config template. See
+[Installation and Deployment](installation.md#87-site-profile-installation) for
+the companion file names and silent install flags.
+
 ## Upgrading to 2.4.0
 
 Version 2.4.0 consolidates the legacy `DICOMPrinterControl.exe` WinForms application and the separately-branded Queue Dashboard web UI into a single **[DICOM Printer Console](control-app.md)** (WebView2 desktop) backed by a local ASP.NET Core HTTP service. The installer performs the migration automatically; the notes below cover what changes on disk and what to verify after upgrade.

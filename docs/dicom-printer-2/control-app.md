@@ -94,6 +94,12 @@ The Manage gear icon in the top bar opens a fullscreen dialog with:
 - **Logs** — live tail of DICOM Printer, queue, drop-monitor, and console/API logs with regex filtering and follow-by-default. Invalid regexes are reported in a status line without breaking the tail.
 - **Config editor** — CodeMirror with line numbers, XML syntax highlighting, DTD-aware validation, and a gutter marker at the line/column reported by the validator. Inline C-ECHO and query-test actions are exposed for the `<ConnectionParameters>` block under the cursor. Save triggers a config reload across the API; no service bounce is required.
 
+Storage endpoint discovery, inline C-ECHO, and query-test actions use the same
+environment substitution as the main DICOM Printer service. Config values such
+as `<Host>${PACS_HOST}</Host>` or `<Port>${PACS_PORT:-104}</Port>` resolve from
+the process environment plus the root/config `.env` and `.env.local` files
+before the Console attempts the network operation.
+
 ### Keyboard shortcuts
 
 The Console uses a Gmail-style `g`-prefix chord for area navigation when no input is focused:
@@ -138,6 +144,15 @@ Fixed in 2.4.0 (#127): the window now centres on the active display on first lau
 ### Configuration changes not picked up
 
 Saves through the Manage pane trigger a config reload across the API. If a change was made by hand-editing `config.xml`, click **Reload** in the Manage pane or restart `DicomPrinterService`.
+
+### C-ECHO or endpoint listing shows unresolved environment placeholders
+
+The Console/API reads the same `.env` sources as the main service:
+`%ProgramData%\Flux Inc\DICOM Printer 2\.env`, `.env.local`,
+`config\.env`, and `config\.env.local`, with process environment variables
+taking precedence. If a host, port, or AE title still appears as `${...}`, check
+those files and restart `DICOMPrinterApiService` after changing service-level
+environment values.
 
 ### Inline validation reports an error but the editor cursor is elsewhere
 

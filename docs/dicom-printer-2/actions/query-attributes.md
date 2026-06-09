@@ -113,6 +113,11 @@ Specific attributes:
 
 - forcePeerAe - Forces use of peer AE title in scheduled station
 - Supports Scheduled Procedure Step sequences
+- Root `StudyDate` `(0008,0020)` and root `Modality` `(0008,0060)` are accepted
+  as aliases for Scheduled Procedure Step Start Date and SPS Modality inside
+  `(0040,0100)`. Use root `Modality` for literal values, pipe-list filters,
+  regular expressions, wildcards, exclusions, or `match="local"` filters that
+  should be enforced against returned SPS items.
 
 ### Study Root Query
 
@@ -151,6 +156,7 @@ The system supports sophisticated matching patterns:
 - Wildcard matching: value*, *value*
 - Range specification: minimum-maximum
 - Pattern exclusion: !pattern
+- Pipe-list exclusion: !CR|!OT
 - Dynamic placeholders: #{TagName}
 - Date ranges: #{Date,-1,1}
 

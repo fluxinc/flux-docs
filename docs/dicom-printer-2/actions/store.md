@@ -150,6 +150,20 @@ Store actions automatically select the appropriate SOP Class based on the DICOM 
 - **Encapsulated PDF Storage** - For PDF documents (1.2.840.10008.5.1.4.1.1.104.1)
 - **Secondary Capture Image Storage** - For image-based print jobs (1.2.840.10008.5.1.4.1.1.7)
 
+## Association Lifetime
+
+For each job, a `Store` action opens one DICOM association to the configured
+Storage SCP and sends all compatible generated instances on that association.
+Multi-page image jobs therefore produce one association request, one C-STORE per
+page/instance, and one association release. Jobs containing both image and
+Encapsulated PDF instances use the same association when the SCP accepts the
+needed presentation contexts.
+
+If any C-STORE fails, the Store action fails and workflow error handling applies.
+DP2 aborts cleanup when the association state is uncertain; a final release
+warning by itself does not turn an otherwise successful Store action into a
+failed action.
+
 ## Basic Example
 
 Send uncompressed images to a PACS:
