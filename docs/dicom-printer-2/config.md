@@ -732,46 +732,40 @@ See section: Connection Parameters.
 
 ### Subsection: `<ParseJobTextFile>`
 
-- **Description**: Parse job text file action. This action parses any extracted print job text data.
+- **Description**: Parse job text file action. This action applies each child `<DcmTag>` expression to every line of the print job's text contents file.
 - **Occurrence**: Zero or more.
 - **Attributes**:
   - `name` : a unique identifier by which this action can be referred to by other entities.
+  - `defaultReplacePattern` (Optional): The default regular expression replacement pattern to use for capturing groups within `<DcmTag>`s. Defaults to `\1`.
+  - `defaultTransformation` (Optional): The default transformation to apply to extracted values. Accepted values are `toupper`, `tolower`, or `None`. Defaults to `None`.
+  - `defaultCaseSensitive` (Optional, 2.4.8+): Default case sensitivity for all child `<DcmTag>` expressions. Accepted values are `true` or `false`. Defaults to `true`.
+  - `matchPolicy` (Optional, 2.4.8+): `lastMatch` (default; every later match overwrites) or `firstMatch` (configured `<DcmTag>` order is priority order, strongest first; an entry keeps its first match and only earlier-listed entries may replace it).
 - **Content**:
-  - `<DcmElement>`.
+  - `<DcmTag>`.
 - **Default Value**: Not applicable.
 
-#### Subsubsection: `<DcmElement>`
+#### Subsubsection: `<DcmTag>` (Parse)
 
-- **Description**: DICOM tag.
+- **Description**: DICOM tag to extract data into. The content of this element is a regular expression (Qt `QRegularExpression`/PCRE2 as of 2.4.8; `<` in patterns must be XML-escaped as `&lt;`).
 - **Occurrence**: One or more.
 - **Attributes**:
-  - `tag` : DICOM tag group and element identifiers written in standard notation, e.g: `(20, 7F)`.
-- **Content**: Regular expression with one group.
+  - `tag` : DICOM tag group and element identifiers written in standard notation, e.g: `(0010,0020)`, or a DICOM dictionary name such as `PatientID`.
+  - `mandatory` (Optional): If `true`, the tag must be found and extracted; otherwise the parse action fails. Defaults to `false`.
+  - `replacePattern` (Optional): A regular expression replacement pattern for capturing groups within the element's content. Overrides `defaultReplacePattern`. Defaults to `\1`.
+  - `transform` (Optional): A transformation to apply to the extracted value. Accepted values are `toupper`, `tolower`, or `None`. Overrides `defaultTransformation`. Defaults to `None`.
+  - `caseSensitive` (Optional, 2.4.8+): `false` makes this expression match case-insensitively. Overrides `defaultCaseSensitive`. Defaults to `true`.
+  - `allowEmpty` (Optional, 2.4.8+): As of 2.4.8 a matched-but-empty value is skipped and does not satisfy `mandatory`; set `allowEmpty="true"` to write the blank value instead. Defaults to `false`.
+- **Content**: Regular expression, normally with one capturing group.
 - **Default Value**: None
 
 ### Subsection: `<ParseJobFileName>`
 
 - **Description**: Parse job file name action. This action parses the print spooler job name for data, e.g., Adobe Acrobat provides the name of each printed PDF as the spooler job name, where FileName.PDF becomes just "FileName". Print job name assignment from other applications will vary considerably.
 - **Occurrence**: Zero or more.
-- **Attributes**:
-  - `name` : a unique identifier by which this action can be referred to by other entities.
-  - `defaultReplacePattern` (Optional): The default regular expression replacement pattern to use for capturing groups within `<DcmElement>`s. Defaults to `\1`.
-  - `defaultTransformation` (Optional): The default transformation to apply to extracted values. Accepted values are `toupper`, `tolower`, or `None`. Defaults to `None`.
+- **Attributes**: Same as `<ParseJobTextFile>`: `name`, `defaultReplacePattern`, `defaultTransformation`, `defaultCaseSensitive` (2.4.8+), and `matchPolicy` (2.4.8+).
 - **Content**:
-  - `<DcmElement>`.
+  - `<DcmTag>` — same schema as under `<ParseJobTextFile>`; the expressions are applied to the job file name.
 - **Default Value**: Not applicable.
-
-#### Subsubsection: `<DcmElement>`
-
-- **Description**: DICOM tag to extract data into. The content of this element is a regular expression.
-- **Occurrence**: One or more.
-- **Attributes**:
-  - `tag` : DICOM tag group and element identifiers written in standard notation, e.g: `(20, 7F)`.
-  - `mandatory` (Optional): If this attribute is present (e.g., `mandatory="true"`), the tag must be found and extracted. If not found, the `ParseJobFileName` action will fail.
-  - `replacePattern` (Optional): A regular expression replacement pattern for capturing groups within the element's content. Overrides `defaultReplacePattern`. Defaults to `\1`.
-  - `transform` (Optional): A transformation to apply to the extracted value. Accepted values are `toupper`, `tolower`, or `None`. Overrides `defaultTransformation`. Defaults to `None`.
-- **Content**: Regular expression with one capturing group. This regular expression is applied to the job file name.
-- **Default Value**: None
 
 ### Subsection: `<PrintText>`
 
@@ -1086,7 +1080,8 @@ In the above example, `QueryAction` must be a Query action defined in `<ActionsL
     - `QUERY_PARTIAL` — evaluates to `1` if the last query returned multiple results, `0` otherwise.
     - `TAG_VALUE(group,element)` — evaluates based on a DICOM tag value from the job dataset. The group and element are hexadecimal numbers in parentheses, e.g., `TAG_VALUE(0008,0060)`. When this field type is used, the `value` attribute is interpreted as a **regular expression** and matched against the tag value.
     - `STORE_SUCCEEDED` — evaluates to `1` if the last store operation succeeded, `0` otherwise. Added in version 2.2.32.
-  - `value` (Required): The expected value to compare against. For `QUERY_FOUND`, `QUERY_PARTIAL`, and `STORE_SUCCEEDED`, use `1` (true) or `0` (false). For `CLIENT_HOST_NAME` and `PRINTED_FILE_NAME`, use an exact string. For `TAG_VALUE`, use a regular expression pattern.
+  - `value` (Required): The expected value to compare against. For `QUERY_FOUND`, `QUERY_PARTIAL`, and `STORE_SUCCEEDED`, use `1` (true) or `0` (false). For `CLIENT_HOST_NAME` and `PRINTED_FILE_NAME`, use an exact string. For `TAG_VALUE`, use a regular expression pattern (Qt `QRegularExpression`/PCRE2 as of 2.4.8; an absent tag is matched as an empty value, so `^$` detects empty-or-missing).
+  - `caseSensitive` (Optional, 2.4.8+): `false` makes literal comparisons and `TAG_VALUE` regular expressions case-insensitive. Defaults to `true`.
 - **Content**:
   - `<Statements>` (Required): Workflow nodes to execute when the value matches.
   - `<Else>` (Optional): Workflow nodes to execute when the value does not match.
@@ -1123,6 +1118,7 @@ In the above example, `QueryAction` must be a Query action defined in `<ActionsL
   - `field` (Required): The data source to evaluate against case values. Supported values:
     - `CLIENT_HOST_NAME` — matches against the originating client hostname.
     - `PRINTED_FILE_NAME` — matches against the print job filename.
+  - `caseSensitive` (Optional, 2.4.8+): `false` makes case lookup ignore case; when two `<Case>` values differ only by case, the first one declared wins. Defaults to `true`.
 - **Content**:
   - `<Case>` (One or more): Individual case branches with specific values to match.
     - **Attributes for `<Case>`**:

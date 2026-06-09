@@ -2,6 +2,51 @@
 
 This guide covers upgrading DICOM Printer 2 to a newer version.
 
+## Upgrading to 2.4.8
+
+Version 2.4.8 modernizes the Parse engine and conditional matching. Existing
+configurations keep working, with two intentional behavior corrections noted
+below.
+
+### Parse engine: QRegularExpression
+
+`ParseJobFileName` / `ParseJobTextFile` expressions (and `If TAG_VALUE(...)`
+patterns) now use Qt `QRegularExpression` (PCRE2) instead of the legacy QRegExp
+engine. Lookbehind, inline options such as `(?i)`, lazy quantifiers, and named
+groups are now available. Patterns are still validated at startup; an invalid
+pattern prevents the service from starting and is named in the log. Remember
+that `<` inside a pattern must be XML-escaped as `&lt;`.
+
+### New opt-in matching attributes
+
+- `caseSensitive="false"` on Parse `DcmTag` entries (or
+  `defaultCaseSensitive="false"` on the action) for case-insensitive matching.
+- `matchPolicy="firstMatch"` on Parse actions: configured `DcmTag` order
+  becomes priority order (strongest first), so a labeled match cannot be
+  overwritten by a weaker fallback later in the document. The default remains
+  the legacy last-match-wins. Configurations written for the legacy default
+  often list expressions weakest-first; re-order strongest-first when opting in.
+- `caseSensitive="false"` on `If` (literal and `TAG_VALUE` regex comparisons)
+  and on `Switch` (case lookup).
+
+See [Parse Actions](actions/parse.md) and
+[Conditional Nodes](workflow/conditional-nodes.md).
+
+### Behavior corrections
+
+- **Empty parse captures are no longer written.** A match whose rewritten
+  value is empty is skipped and no longer satisfies `mandatory` with a blank
+  value. Use `allowEmpty="true"` on the `DcmTag` if writing a blank value was
+  intentional.
+- **Parse `mandatory` state is per job.** Previously a tag found while parsing
+  one job could satisfy mandatory validation for a later job; each job is now
+  validated independently. If a workflow appeared to work only because of this
+  leak, jobs may newly fail parse validation — the configured `onError`
+  handling on the `<Perform>` node then applies.
+
+`If TAG_VALUE(...)` guards such as `value="^$"` continue to treat absent tags
+as empty, so route-to-manual-match workflows behave as before.
+
 ## Upgrading to 2.4.7
 
 Version 2.4.7 is backward-compatible for existing configs, but it changes a few

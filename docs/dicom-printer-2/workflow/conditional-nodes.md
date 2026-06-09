@@ -4,51 +4,66 @@ Conditional nodes enable workflow branching based on data values, query results,
 
 ## Conditional Node Types
 
-- **If** - Single condition evaluation
+- **If** - Single condition evaluation with optional Else branch
 - **Switch** - Multi-way branching with case statements
 
 ## If Nodes
 
-If nodes execute their child nodes when a condition is true.
+If nodes evaluate a condition and execute the nodes inside `<Statements>` when it is true, or the nodes inside the optional `<Else>` when it is false.
 
 ### Basic Syntax
 
 ```xml
-<If field="FieldType" value="CompareValue">
-  <!-- Nodes to execute if condition is true -->
+<If field="FIELD_TYPE" value="CompareValue">
+  <Statements>
+    <!-- Nodes to execute if the condition is true -->
+  </Statements>
+  <Else>
+    <!-- Optional: nodes to execute if the condition is false -->
+  </Else>
 </If>
 ```
+
+**The `<Statements>` element is required.** Workflow nodes placed directly inside `<If>` are a configuration error.
 
 ### Attributes
 
 #### `field` (Required)
 The type of field to evaluate.
 
-**Valid Values:** `CLIENT_HOST_NAME`, `PRINTED_FILE_NAME`, `QUERY_FOUND`, `QUERY_PARTIAL`, `TAG_VALUE`, `STORE_SUCCEEDED`
+**Valid Values:** `CLIENT_HOST_NAME`, `PRINTED_FILE_NAME`, `QUERY_FOUND`, `QUERY_PARTIAL`, `STORE_SUCCEEDED`, `TAG_VALUE(...)`
 
 #### `value` (Required)
-The value to compare against.
+The value to compare against. For `TAG_VALUE(...)` this is a regular expression; for all other fields it is compared literally.
 
-#### `tag` (Optional)
-For `TAG_VALUE` and `STORE_SUCCEEDED` field types, specifies the tag or action name.
+#### `caseSensitive` (Optional, 2.4.8+)
+**Valid Values:** `true` (default), `false`
+
+When `false`, literal comparisons (`CLIENT_HOST_NAME`, `PRINTED_FILE_NAME`, ...) ignore case, and `TAG_VALUE(...)` regular expressions match case-insensitively.
 
 ## Field Types
 
 ### CLIENT_HOST_NAME
 
-Compares the client hostname that submitted the print job.
+Compares the client hostname that submitted the print job (exact string match).
 
 ```xml
 <If field="CLIENT_HOST_NAME" value="WORKSTATION-01">
-  <!-- Execute for jobs from WORKSTATION-01 -->
-  <Perform action="ProcessFromWorkstation01"/>
+  <Statements>
+    <Perform action="ProcessFromWorkstation01"/>
+  </Statements>
 </If>
 ```
 
-Use cases:
-- Route jobs differently based on source computer
-- Apply specific processing for certain workstations
-- Implement workstation-specific workflows
+Add `caseSensitive="false"` when host naming conventions are inconsistent:
+
+```xml
+<If field="CLIENT_HOST_NAME" value="workstation-01" caseSensitive="false">
+  <Statements>
+    <Perform action="ProcessFromWorkstation01"/>
+  </Statements>
+</If>
+```
 
 ### PRINTED_FILE_NAME
 
@@ -56,169 +71,134 @@ Compares the print job filename using exact string matching.
 
 ```xml
 <If field="PRINTED_FILE_NAME" value="Report.pdf">
-  <!-- Execute for files named exactly "Report.pdf" -->
-  <Perform action="ProcessReport"/>
+  <Statements>
+    <Perform action="ProcessReport"/>
+  </Statements>
 </If>
 ```
 
-The comparison uses **exact matching** - the value must match the complete filename.
-
-```xml
-<If field="PRINTED_FILE_NAME" value="PatientData.pdf">
-  <!-- Execute for files named exactly "PatientData.pdf" -->
-  <Perform action="ProcessPDF"/>
-</If>
-
-<If field="PRINTED_FILE_NAME" value="scan001.jpg">
-  <!-- Execute for files named exactly "scan001.jpg" -->
-  <Perform action="ProcessImage"/>
-</If>
-```
-
-**Note:** Use TAG_VALUE with appropriate DICOM tags if you need pattern matching or substring matching for filenames
+**Note:** for pattern or substring matching, parse the filename into a tag first (see [Parse Actions](../actions/parse.md)) and use `TAG_VALUE(...)`.
 
 ### QUERY_FOUND
 
-Checks if a query action found matching results.
+Checks whether the most recent query action found a match.
+
+**Valid Values:** `1` (found), `0` (not found)
 
 ```xml
 <Perform action="QueryWorklist"/>
 
-<If field="QUERY_FOUND" value="true">
-  <!-- Query found a match -->
-  <Perform action="ProcessWithPatientData"/>
-</If>
-
-<If field="QUERY_FOUND" value="false">
-  <!-- No match found -->
-  <Perform action="HandleNoMatch"/>
+<If field="QUERY_FOUND" value="1">
+  <Statements>
+    <!-- Query found a match -->
+    <Perform action="ProcessWithPatientData"/>
+  </Statements>
+  <Else>
+    <!-- No match found -->
+    <Perform action="HandleNoMatch"/>
+  </Else>
 </If>
 ```
-
-**Valid Values:** `true`, `false`
-
-Common usage:
-- Execute actions only when patient data is found
-- Implement fallback processing for unmatched patients
-- Trigger alerts or manual review
 
 ### QUERY_PARTIAL
 
-Checks if a query returned multiple matches (partial/ambiguous results).
+Checks whether the most recent query returned multiple matches (ambiguous results).
+
+**Valid Values:** `1`, `0`
 
 ```xml
 <Perform action="QueryWorklist"/>
 
-<If field="QUERY_PARTIAL" value="true">
-  <!-- Multiple matches - needs manual selection -->
-  <Perform action="NotifyMultipleMatches"/>
-  <Suspend/>
-</If>
-```
-
-**Valid Values:** `true`, `false`
-
-Use cases:
-- Detect ambiguous patient matches
-- Trigger manual review for multiple results
-- Prevent incorrect patient matching
-
-### TAG_VALUE
-
-Compares a DICOM tag value using **regular expression matching**.
-
-```xml
-<If field="TAG_VALUE(0010,0040)" value="M">
-  <!-- Male patient -->
-  <Perform action="ProcessMalePatient"/>
-</If>
-
-<If field="TAG_VALUE(0010,0040)" value="F">
-  <!-- Female patient -->
-  <Perform action="ProcessFemalePatient"/>
-</If>
-```
-
-**Syntax:**
-- `field` - `TAG_VALUE(GGGG,EEEE)` where GGGG is group and EEEE is element (1-4 hex digits each)
-- `value` - Regular expression pattern to match
-
-**Matching Behavior:**
-Unlike other field types that use exact string comparison, TAG_VALUE uses **regular expression substring matching**. The value is treated as a regex pattern and matched against the tag's value using substring matching.
-
-**Examples:**
-
-Check modality (exact match):
-```xml
-<If field="TAG_VALUE(0008,0060)" value="^CT$">
-  <!-- CT images (exact match) -->
-  <Perform action="ProcessCT"/>
-</If>
-```
-
-Check patient ID exists (non-empty):
-```xml
-<If field="TAG_VALUE(0010,0020)" value=".+">
-  <!-- Non-empty patient ID -->
-  <Perform action="ProcessWithID"/>
-</If>
-```
-
-Check accession number pattern:
-```xml
-<If field="TAG_VALUE(0008,0050)" value="^ACC\d+$">
-  <!-- Accession number starting with "ACC" followed by digits -->
-  <Perform action="SpecialProcessing"/>
-</If>
-```
-
-**Private Tags:**
-Tags with odd group numbers are automatically treated as private tags and the private creator ID is set automatically.
-
-**Regular Expression Patterns:**
-```xml
-<!-- Match any CT or MR modality -->
-<If field="TAG_VALUE(0008,0060)" value="^(CT|MR)$">
-  <Perform action="ProcessCrossSectional"/>
-</If>
-
-<!-- Match patient IDs starting with "P" -->
-<If field="TAG_VALUE(0010,0020)" value="^P">
-  <Perform action="ProcessPrefixedID"/>
-</If>
-
-<!-- Check if tag contains specific text -->
-<If field="TAG_VALUE(0008,0080)" value="General Hospital">
-  <Perform action="ProcessGeneralHospital"/>
+<If field="QUERY_PARTIAL" value="1">
+  <Statements>
+    <!-- Multiple matches - needs manual selection -->
+    <Perform action="NotifyMultipleMatches"/>
+    <Suspend/>
+  </Statements>
 </If>
 ```
 
 ### STORE_SUCCEEDED
 
-Checks if a store action succeeded.
+Checks whether the **most recent** Store action succeeded. The flag is job-wide: it reflects the last `Store` that ran, so test it immediately after the store in question.
+
+**Valid Values:** `1`, `0`
 
 ```xml
-<Perform action="SendToPrimaryPACS"/>
+<Perform action="SendToPrimaryPACS" onError="Ignore"/>
 
-<If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="true">
-  <!-- Store succeeded -->
-  <Perform action="NotifySuccess"/>
-</If>
-
-<If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-  <!-- Store failed - try backup -->
-  <Perform action="SendToBackupPACS"/>
+<If field="STORE_SUCCEEDED" value="0">
+  <Statements>
+    <!-- Primary failed - try backup -->
+    <Perform action="SendToBackupPACS"/>
+  </Statements>
 </If>
 ```
 
-**Attributes:**
-- `tag` - Name of the Store action
-- `value` - `true` or `false`
+### TAG_VALUE
 
-Use cases:
-- Implement fallback destinations
-- Trigger notifications on failure
-- Conditional processing based on storage success
+Compares a DICOM tag value using **regular expression matching**.
+
+**Syntax:**
+- `field` - `TAG_VALUE(GGGG,EEEE)` or `TAG_VALUE(TagName)` — numeric tags use 1-4 hex digits for group and element; dictionary names such as `PatientID` also work
+- `value` - Regular expression pattern (Qt `QRegularExpression` / PCRE2 since 2.4.8)
+
+**Matching Behavior:**
+Unlike other field types, TAG_VALUE treats `value` as a regular expression and matches it anywhere in the tag's value (substring matching). Anchor with `^...$` for exact matches.
+
+**Absent tags match like empty values:** if the tag is not present in the dataset at all, the condition is evaluated against an empty string. `value="^$"` therefore detects "empty **or** never set" — the standard guard for routing unparsed jobs to manual matching.
+
+```xml
+<If field="TAG_VALUE(0010,0020)" value="^$">
+  <Statements>
+    <!-- No patient ID was captured -->
+    <Perform action="ManualMatch"/>
+  </Statements>
+</If>
+```
+
+**Examples:**
+
+Exact modality match:
+```xml
+<If field="TAG_VALUE(0008,0060)" value="^CT$">
+  <Statements>
+    <Perform action="ProcessCT"/>
+  </Statements>
+</If>
+```
+
+Non-empty patient ID:
+```xml
+<If field="TAG_VALUE(0010,0020)" value=".+">
+  <Statements>
+    <Perform action="ProcessWithID"/>
+  </Statements>
+</If>
+```
+
+Alternation:
+```xml
+<If field="TAG_VALUE(0008,0060)" value="^(CT|MR)$">
+  <Statements>
+    <Perform action="ProcessCrossSectional"/>
+  </Statements>
+</If>
+```
+
+Case-insensitive institution check *(2.4.8+)*:
+```xml
+<If field="TAG_VALUE(0008,0080)" value="general hospital" caseSensitive="false">
+  <Statements>
+    <Perform action="ProcessGeneralHospital"/>
+  </Statements>
+</If>
+```
+
+Since 2.4.8 the pattern is a full PCRE2 regular expression, so lookahead/lookbehind and inline options such as `(?i)` are available. Escape `<` as `&lt;` inside the XML attribute.
+
+**Private Tags:**
+Tags with odd group numbers are automatically treated as private tags and the private creator ID is set automatically.
 
 ## Multiple If Nodes
 
@@ -226,15 +206,15 @@ Multiple If nodes can be used for multi-way branching:
 
 ```xml
 <If field="TAG_VALUE(0008,0060)" value="^CT$">
-  <Perform action="ProcessCT"/>
+  <Statements>
+    <Perform action="ProcessCT"/>
+  </Statements>
 </If>
 
 <If field="TAG_VALUE(0008,0060)" value="^MR$">
-  <Perform action="ProcessMR"/>
-</If>
-
-<If field="TAG_VALUE(0008,0060)" value="^CR$">
-  <Perform action="ProcessCR"/>
+  <Statements>
+    <Perform action="ProcessMR"/>
+  </Statements>
 </If>
 ```
 
@@ -242,24 +222,23 @@ Multiple If nodes can be used for multi-way branching:
 
 ## Nested If Nodes
 
-If nodes can be nested for complex conditions:
+If nodes can be nested for compound conditions:
 
 ```xml
-<If field="QUERY_FOUND" value="true">
-  <!-- Patient found -->
-  <If field="TAG_VALUE(0010,0040)" value="^M$">
-    <!-- Male patient -->
-    <If field="TAG_VALUE(0008,0060)" value="^CT$">
-      <!-- Male CT patient -->
-      <Perform action="ProcessMaleCT"/>
+<If field="QUERY_FOUND" value="1">
+  <Statements>
+    <If field="TAG_VALUE(0010,0040)" value="^M$">
+      <Statements>
+        <Perform action="ProcessMalePatient"/>
+      </Statements>
     </If>
-  </If>
+  </Statements>
 </If>
 ```
 
 ## Switch Nodes
 
-Switch nodes provide multi-way branching where only the first matching case executes.
+Switch nodes provide multi-way branching where exactly one branch executes: the matching `<Case>`, or `<Default>` when no case matches.
 
 ### Supported Field Types
 
@@ -267,58 +246,62 @@ Switch nodes provide multi-way branching where only the first matching case exec
 - `CLIENT_HOST_NAME`
 - `PRINTED_FILE_NAME`
 
-Switch does NOT support `QUERY_FOUND`, `QUERY_PARTIAL`, `TAG_VALUE`, or `STORE_SUCCEEDED`. Use multiple If nodes for those field types.
+Switch does NOT support `QUERY_FOUND`, `QUERY_PARTIAL`, `TAG_VALUE`, or `STORE_SUCCEEDED`. Use If nodes for those.
 
 ### Basic Syntax
 
 ```xml
-<Switch field="FieldType">
+<Switch field="FIELD_TYPE">
   <Case value="Value1">
     <!-- Execute if field equals Value1 -->
   </Case>
   <Case value="Value2">
     <!-- Execute if field equals Value2 -->
   </Case>
-  <!-- Default case (optional) -->
-  <Case value="">
-    <!-- Execute if no other case matches -->
-  </Case>
+  <Default>
+    <!-- Optional: execute if no case matches -->
+  </Default>
 </Switch>
 ```
+
+`Case` values are compared exactly. Each `Case` requires a non-empty `value`; the fallback branch is the `<Default>` element.
+
+### Attributes
+
+#### `field` (Required)
+`CLIENT_HOST_NAME` or `PRINTED_FILE_NAME`.
+
+#### `caseSensitive` (Optional, 2.4.8+)
+**Valid Values:** `true` (default), `false`
+
+When `false`, case lookup ignores case. If two `Case` values differ only by case, the first one declared wins.
 
 ### Switch Example: Hostname Routing
 
 ```xml
-<Switch field="CLIENT_HOST_NAME">
+<Switch field="CLIENT_HOST_NAME" caseSensitive="false">
   <Case value="CT-WORKSTATION">
     <Perform action="SendToCTPACS"/>
   </Case>
   <Case value="MR-WORKSTATION">
     <Perform action="SendToMRPACS"/>
   </Case>
-  <Case value="CR-WORKSTATION">
-    <Perform action="SendToCRPACS"/>
-  </Case>
-  <Case value="">
-    <!-- Default case -->
+  <Default>
     <Perform action="SendToGeneralPACS"/>
-  </Case>
+  </Default>
 </Switch>
 ```
-
-Only the first matching case executes. If none match, the default case (empty value) executes if present.
 
 ### Switch vs Multiple If Nodes
 
 **Switch nodes:**
-- Only first match executes
-- More efficient for mutually exclusive conditions
-- Cleaner syntax for multi-way branching
+- Exactly one branch executes
+- Cleaner syntax for mutually exclusive routing
 
 **Multiple If nodes:**
 - All matching conditions execute
-- Better for non-exclusive conditions
-- More flexible for complex logic
+- Support regex (`TAG_VALUE`) and query/store outcome fields
+- Support an `<Else>` branch per condition
 
 ## Common Patterns
 
@@ -327,118 +310,65 @@ Only the first matching case executes. If none match, the default case (empty va
 ```xml
 <Perform action="QueryWorklist"/>
 
-<If field="QUERY_FOUND" value="true">
-  <!-- Single match found -->
-  <Perform action="AddMetadata"/>
-  <Perform action="SendToPACS"/>
+<If field="QUERY_PARTIAL" value="1">
+  <Statements>
+    <Perform action="NotifyAmbiguous"/>
+    <Suspend/>
+  </Statements>
 </If>
 
-<If field="QUERY_PARTIAL" value="true">
-  <!-- Multiple matches -->
-  <Perform action="NotifyAmbiguous"/>
-  <Suspend/>
-</If>
-
-<If field="QUERY_FOUND" value="false">
-  <!-- No match -->
-  <Perform action="NotifyNoMatch"/>
-  <Suspend/>
-</If>
-```
-
-### Modality-Based Processing
-
-```xml
-<If field="TAG_VALUE(0008,0060)" value="^CT$">
-  <Perform action="CompressCT"/>
-  <Perform action="SendToCTPACS"/>
-</If>
-
-<If field="TAG_VALUE(0008,0060)" value="^MR$">
-  <Perform action="CompressMR"/>
-  <Perform action="SendToMRPACS"/>
-</If>
-
-<If field="TAG_VALUE(0008,0060)" value="^US$">
-  <Perform action="ConvertToStandardFormat"/>
-  <Perform action="SendToUSPACS"/>
+<If field="QUERY_FOUND" value="1">
+  <Statements>
+    <Perform action="AddMetadata"/>
+    <Perform action="SendToPACS"/>
+  </Statements>
+  <Else>
+    <Perform action="NotifyNoMatch"/>
+    <Suspend/>
+  </Else>
 </If>
 ```
 
-**Note:** Use multiple If nodes for TAG_VALUE matching since Switch doesn't support TAG_VALUE field type.
-
-### Filename-Based Routing
+### Route Unparsed Jobs to Manual Matching
 
 ```xml
-<If field="CLIENT_HOST_NAME" value="STAT-WORKSTATION">
-  <!-- STAT priority workstation -->
-  <Perform action="SendToStatPACS"/>
-  <Perform action="NotifyStatJob"/>
-  <Perform action="PrintToFilm"/>
-</If>
+<Perform action="ParsePatientId"/>
 
-<If field="CLIENT_HOST_NAME" value="ROUTINE-WORKSTATION">
-  <!-- Routine priority workstation -->
-  <Perform action="SendToPACS"/>
+<If field="TAG_VALUE(0010,0020)" value="^$">
+  <Statements>
+    <!-- Nothing captured (tag empty or absent) -->
+    <Perform action="ManualMatch"/>
+  </Statements>
 </If>
 ```
 
-### Workstation-Specific Workflows
+### Store Fallback
 
 ```xml
-<If field="CLIENT_HOST_NAME" value="ER-WORKSTATION">
-  <!-- Emergency department -->
-  <Perform action="HighPriorityProcessing"/>
-  <Perform action="SendToERPACS"/>
-  <Perform action="NotifyERStaff"/>
-</If>
+<Perform action="SendToPrimaryPACS" onError="Ignore"/>
 
-<If field="CLIENT_HOST_NAME" value="RADIOLOGY-01">
-  <!-- Radiology department -->
-  <Perform action="StandardProcessing"/>
-  <Perform action="SendToRadiologyPACS"/>
-</If>
-```
-
-### Error Handling with Fallback
-
-```xml
-<Perform action="SendToPrimaryPACS"/>
-
-<If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-  <!-- Primary failed - try backup -->
-  <Perform action="SendToBackupPACS"/>
-
-  <If field="STORE_SUCCEEDED" tag="SendToBackupPACS" value="false">
-    <!-- Both failed - try tertiary -->
-    <Perform action="SendToTertiaryPACS"/>
-
-    <If field="STORE_SUCCEEDED" tag="SendToTertiaryPACS" value="false">
-      <!-- All failed - suspend -->
-      <Perform action="NotifyAllFailed"/>
-      <Suspend/>
+<If field="STORE_SUCCEEDED" value="0">
+  <Statements>
+    <Perform action="SendToBackupPACS"/>
+    <If field="STORE_SUCCEEDED" value="0">
+      <Statements>
+        <Perform action="NotifyAllFailed"/>
+        <Suspend/>
+      </Statements>
     </If>
-  </If>
+  </Statements>
 </If>
 ```
 
-### Patient Demographics Check
+`STORE_SUCCEEDED` always reflects the most recent Store action, which is why the inner check refers to `SendToBackupPACS`.
+
+### Demographics Guard
 
 ```xml
 <If field="TAG_VALUE(0010,0010)" value="^$">
-  <!-- Empty patient name -->
-  <Suspend/>
-</If>
-
-<If field="TAG_VALUE(0010,0020)" value="^$">
-  <!-- Empty patient ID -->
-  <Suspend/>
-</If>
-
-<If field="TAG_VALUE(0010,0030)" value="^$">
-  <!-- Empty birth date -->
-  <Perform action="NotifyMissingBirthDate"/>
-  <!-- Continue processing -->
+  <Statements>
+    <Suspend/>
+  </Statements>
 </If>
 ```
 
@@ -450,89 +380,68 @@ Only the first matching case executes. If none match, the default case (empty va
 <DicomPrinter>
   <Actions>
     <ParseJobFileName name="ExtractPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">^(\d+)_.*\.pdf$</DcmTag>
     </ParseJobFileName>
 
-    <Query name="FindWorklist" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER"
-           host="192.168.1.200" port="104">
-      <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
+    <Query name="FindWorklist" type="Worklist">
+      <ConnectionParameters>
+        <PeerAETitle>RIS</PeerAETitle>
+        <MyAETitle>PRINTER</MyAETitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+      <DcmTag tag="0010,0020" />
     </Query>
 
-    <SetTag name="AddMetadata">
-      <DcmTag tag="0008,0020" value="#{Date}"/>
-    </SetTag>
+    <Store name="SendToCTPACS">
+      <ConnectionParameters>
+        <PeerAETitle>CT_PACS</PeerAETitle>
+        <MyAETitle>PRINTER</MyAETitle>
+        <Host>192.168.1.101</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
-    <Store name="SendToCTPACS"
-           calledAE="CT_PACS" callingAE="PRINTER"
-           host="192.168.1.101" port="104"/>
+    <Store name="SendToGeneralPACS">
+      <ConnectionParameters>
+        <PeerAETitle>GENERAL_PACS</PeerAETitle>
+        <MyAETitle>PRINTER</MyAETitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
-    <Store name="SendToMRPACS"
-           calledAE="MR_PACS" callingAE="PRINTER"
-           host="192.168.1.102" port="104"/>
-
-    <Store name="SendToGeneralPACS"
-           calledAE="GENERAL_PACS" callingAE="PRINTER"
-           host="192.168.1.100" port="104"/>
-
-    <Store name="SendToBackupPACS"
-           calledAE="BACKUP_PACS" callingAE="PRINTER"
-           host="192.168.1.200" port="104"/>
-
-    <Notify name="NotifyNoMatch" mandatory="false" onError="Ignore"/>
-    <Notify name="NotifyMultipleMatches" mandatory="false" onError="Ignore"/>
+    <Notify name="NotifyNoMatch"/>
   </Actions>
 
   <Workflow>
-    <!-- Extract patient ID -->
     <Perform action="ExtractPatientID"/>
 
-    <!-- Validate patient ID exists -->
+    <!-- Validate patient ID exists (empty or absent) -->
     <If field="TAG_VALUE(0010,0020)" value="^$">
-      <Discard/>
+      <Statements>
+        <Discard/>
+      </Statements>
     </If>
 
-    <!-- Query worklist -->
     <Perform action="FindWorklist"/>
 
-    <!-- Handle query results -->
-    <If field="QUERY_PARTIAL" value="true">
-      <!-- Multiple matches - need manual selection -->
-      <Perform action="NotifyMultipleMatches"/>
-      <Suspend/>
-    </If>
-
-    <If field="QUERY_FOUND" value="false">
-      <!-- No match - suspend for review -->
-      <Perform action="NotifyNoMatch"/>
-      <Suspend/>
-    </If>
-
-    <If field="QUERY_FOUND" value="true">
-      <!-- Single match - process normally -->
-      <Perform action="AddMetadata"/>
-
-      <!-- Route by modality using If nodes -->
-      <If field="TAG_VALUE(0008,0060)" value="^CT$">
-        <Perform action="SendToCTPACS"/>
-      </If>
-
-      <If field="TAG_VALUE(0008,0060)" value="^MR$">
-        <Perform action="SendToMRPACS"/>
-      </If>
-
-      <!-- Default: send to general PACS if not CT or MR -->
-      <If field="STORE_SUCCEEDED" tag="SendToCTPACS" value="false">
-        <If field="STORE_SUCCEEDED" tag="SendToMRPACS" value="false">
-          <Perform action="SendToGeneralPACS"/>
-
-          <If field="STORE_SUCCEEDED" tag="SendToGeneralPACS" value="false">
-            <!-- All stores failed - try backup -->
-            <Perform action="SendToBackupPACS"/>
-          </If>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Route CT to the CT archive, everything else to general PACS -->
+        <If field="TAG_VALUE(0008,0060)" value="^CT$">
+          <Statements>
+            <Perform action="SendToCTPACS"/>
+          </Statements>
+          <Else>
+            <Perform action="SendToGeneralPACS"/>
+          </Else>
         </If>
-      </If>
+      </Statements>
+      <Else>
+        <Perform action="NotifyNoMatch"/>
+        <Suspend/>
+      </Else>
     </If>
   </Workflow>
 </DicomPrinter>
@@ -543,5 +452,6 @@ Only the first matching case executes. If none match, the default case (empty va
 - [Workflow Overview](index.md)
 - [Control Nodes](control-nodes.md)
 - [Actions Overview](../actions/index.md)
+- [Parse Actions](../actions/parse.md)
 - [Query Actions](../actions/query.md)
 - [Store Actions](../actions/store.md)

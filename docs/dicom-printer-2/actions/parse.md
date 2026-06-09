@@ -9,50 +9,133 @@ DICOM Printer 2 supports two parse action types:
 - **ParseJobFileName** - Extract data from the print job filename
 - **ParseJobTextFile** - Extract data from a text file associated with the print job
 
-## ParseJobFileName
+Both share the same configuration schema: the action element contains one or more `<DcmTag>` children, and **each `<DcmTag>` carries its own regular expression as element text**.
 
-Extracts data from the filename of the print job using regular expressions.
-
-### Basic Syntax
+## Basic Syntax
 
 ```xml
 <ParseJobFileName name="ActionName">
-  <Pattern>regular_expression</Pattern>
-  <DcmTag tag="GGGG,EEEE" group="1"/>
-  <!-- Additional tag mappings -->
+  <DcmTag tag="GGGG,EEEE">regular_expression</DcmTag>
+  <!-- Additional expressions -->
 </ParseJobFileName>
+```
+
+```xml
+<ParseJobTextFile name="ActionName">
+  <DcmTag tag="GGGG,EEEE">regular_expression</DcmTag>
+  <!-- Additional expressions -->
+</ParseJobTextFile>
 ```
 
 **Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition. See [Actions Overview](index.md#error-handling-workflow-level) for details.
 
-### Elements
+### How matching works
 
-#### `<Pattern>`
-The regular expression pattern to match against the filename. Use capturing groups `()` to extract values.
+- `ParseJobFileName` applies every `<DcmTag>` expression to the print job filename.
+- `ParseJobTextFile` applies every `<DcmTag>` expression to **each line** of the text file, one line at a time. An expression can never match across lines.
+- When an expression matches, the matched portion of the line is rewritten using `replacePattern` (default `\1`, the first capture group), trimmed, optionally transformed, and written to the configured DICOM tag.
+- By default (`matchPolicy="lastMatch"`), every later match overwrites the previous value — later entries beat earlier entries, and later lines beat earlier lines. See [Match Policy](#match-policy) for the alternative.
 
-#### `<DcmTag>`
-Maps a captured group to a DICOM tag.
+## Action Attributes
 
-**Attributes:**
-- `tag` - The DICOM tag to populate (format: `GGGG,EEEE`)
-- `group` - The regex capture group number (1-based)
-- `mandatory` (optional) - Whether this tag must be successfully extracted
-  - **Valid Values:** `true`, `false`
-  - **Default:** `false` (tag is optional)
-  - When `true`, the parse action fails if the tag cannot be extracted
-  - When `false`, processing continues even if the tag is not found
-- `replacePattern` (optional) - Pattern to construct the final tag value from captured groups
-  - Uses backreferences: `\1`, `\2`, `\3`, etc. for captured groups
-  - **Default:** `\1` (first captured group)
-  - Allows reformatting and combining multiple captured groups
+| Attribute | Default | Description |
+|---|---|---|
+| `name` | (required) | Action name referenced by `<Perform>` |
+| `defaultReplacePattern` | `\1` | Default `replacePattern` for all child `DcmTag` entries |
+| `defaultTransformation` | `None` | Default `transform` for all child `DcmTag` entries |
+| `defaultCaseSensitive` | `true` | Default case sensitivity for all child `DcmTag` expressions *(2.4.8+)* |
+| `matchPolicy` | `lastMatch` | `lastMatch` or `firstMatch` — see [Match Policy](#match-policy) *(2.4.8+)* |
 
-### Example: Extract Patient ID from Filename
+## DcmTag Attributes
+
+| Attribute | Default | Description |
+|---|---|---|
+| `tag` | (required) | DICOM tag to populate: `GGGG,EEEE`, `(GGGG,EEEE)`, or a dictionary name such as `PatientID` |
+| `mandatory` | `false` | When `true`, the action fails if this tag was not extracted |
+| `replacePattern` | `\1` | Rewrites the matched text using backreferences (`\1`, `\2`, ...) |
+| `transform` | `None` | `None`, `ToUpper`, or `ToLower` — applied to the final value |
+| `caseSensitive` | `true` | `false` makes this expression match case-insensitively *(2.4.8+)* |
+| `allowEmpty` | `false` | `true` allows a matched-but-empty value to be written *(2.4.8+)* |
+
+Tags with odd group numbers are automatically treated as private tags and the private creator ID is set automatically.
+
+## Regular Expression Engine
+
+Since version 2.4.8 the parse engine uses Qt `QRegularExpression` (PCRE2). In addition to the usual character classes, quantifiers, anchors, and capture groups, configurations can use:
+
+- **Lookahead and lookbehind**: `(?<!HRI )ID` matches `ID` not preceded by `HRI `
+- **Inline options**: `(?i)` for case-insensitive matching inside the pattern itself
+- **Lazy quantifiers**: `.*?`
+- **Named groups**: `(?<id>\d+)`
+
+**XML escaping:** patterns are written inside XML, so `<` must be escaped as `&lt;`. A lookbehind is written as:
+
+```xml
+<DcmTag tag="0010,0020">(?&lt;!HRI )ID\s*:?\s*(\d{2,10})</DcmTag>
+```
+
+Invalid regular expressions are rejected when the configuration is loaded; the service will not start, and the log names the offending pattern.
+
+## Case-Insensitive Matching
+
+Real-world report labels vary (`MRN:`, `mrn`, `Patient Id`, `PATIENT ID:`). Instead of encoding every case variant (`[Pp][Aa][Tt]...`), mark the expression case-insensitive:
+
+```xml
+<ParseJobTextFile name="ParsePatientId">
+  <DcmTag tag="0010,0020" caseSensitive="false">MRN\s*:?\s*(\d{2,10})</DcmTag>
+</ParseJobTextFile>
+```
+
+Or set the default for the whole action and override per entry where needed:
+
+```xml
+<ParseJobTextFile name="ParsePatientId" defaultCaseSensitive="false">
+  <DcmTag tag="0010,0020">MRN\s*:?\s*(\d{2,10})</DcmTag>
+  <DcmTag tag="0010,0020" caseSensitive="true">\bW(\d{2,8})\b</DcmTag>
+</ParseJobTextFile>
+```
+
+## Match Policy
+
+When several expressions target the same DICOM tag — for example a strong labeled match plus a weaker fallback — the default `lastMatch` policy means **whatever matches last wins**, including a weak fallback that happens to match later in the document.
+
+`matchPolicy="firstMatch"` *(2.4.8+)* makes the **configured entry order the priority order**:
+
+- List expressions **strongest first**.
+- The first-listed entry that matches anywhere in the document wins for its tag, even if a weaker (later-listed) entry matched earlier in the text.
+- An entry never overwrites its own first match (the first occurrence in the document is kept).
+
+```xml
+<ParseJobTextFile name="ParsePatientId" matchPolicy="firstMatch" defaultCaseSensitive="false">
+  <!-- Strongest: explicit label -->
+  <DcmTag tag="0010,0020">MRN\s*:?\s*(\d{2,10})</DcmTag>
+  <!-- Fallback: bare legacy W-number -->
+  <DcmTag tag="0010,0020">\b[Ww](\d{2,8})\b</DcmTag>
+</ParseJobTextFile>
+```
+
+With this configuration a document containing a stray `W4444` in the header and `MRN: 12345` in the footer stores `12345` — under the legacy policy it would depend on document order.
+
+**Note:** configurations written for the legacy behavior often list expressions weakest-first (so later, stronger entries overwrite). When opting into `firstMatch`, re-order the entries strongest-first.
+
+## Empty Values
+
+Since 2.4.8, a match whose rewritten value is empty (for example, an optional capture group that did not participate: `MRN:\s*(\d+)?` against the line `MRN:`) is **skipped**: nothing is written, and the entry does not count as found for `mandatory` validation. Previously an empty string was written and satisfied `mandatory`.
+
+If writing a blank value is intentional, opt in per entry:
+
+```xml
+<DcmTag tag="0010,0020" allowEmpty="true">MRN:\s*(\d+)?</DcmTag>
+```
+
+## ParseJobFileName Examples
+
+### Extract Patient ID from Filename
 
 ```xml
 <ParseJobFileName name="ExtractPatientID">
   <!-- Filename pattern: PatientID_12345.pdf -->
-  <Pattern>PatientID_(\d+)\.pdf</Pattern>
-  <DcmTag tag="0010,0020" group="1"/>
+  <DcmTag tag="0010,0020">PatientID_(\d+)\.pdf</DcmTag>
 </ParseJobFileName>
 ```
 
@@ -63,125 +146,65 @@ Use in workflow with error handling:
 
 If the filename is `PatientID_12345.pdf`, this extracts `12345` and sets tag (0010,0020) to that value.
 
-### Example: Extract Multiple Fields
+### Extract Multiple Fields
 
-```xml
-<ParseJobFileName name="ExtractPatientData">
-  <!-- Filename pattern: John_Doe_19800515_M.pdf -->
-  <Pattern>(\w+)_(\w+)_(\d{8})_([MF])\.pdf</Pattern>
-  <DcmTag tag="0010,0010" group="1,2"/>  <!-- Patient Name: last^first -->
-  <DcmTag tag="0010,0030" group="3"/>     <!-- Birth Date -->
-  <DcmTag tag="0010,0040" group="4"/>     <!-- Sex -->
-</ParseJobFileName>
-```
-
-For filename `John_Doe_19800515_M.pdf`:
-- Patient Name (0010,0010) = `Doe^John`
-- Birth Date (0010,0030) = `19800515`
-- Sex (0010,0040) = `M`
-
-### Example: Extract Study Information
+Each `<DcmTag>` entry has its own expression; capture what each tag needs:
 
 ```xml
 <ParseJobFileName name="ExtractStudyInfo">
   <!-- Filename pattern: PATID12345_CT_20240315_ACC9876.pdf -->
-  <Pattern>PATID(\d+)_([A-Z]+)_(\d{8})_ACC(\d+)\.pdf</Pattern>
-  <DcmTag tag="0010,0020" group="1"/>  <!-- Patient ID -->
-  <DcmTag tag="0008,0060" group="2"/>  <!-- Modality -->
-  <DcmTag tag="0008,0020" group="3"/>  <!-- Study Date -->
-  <DcmTag tag="0008,0050" group="4"/>  <!-- Accession Number -->
+  <DcmTag tag="0010,0020">PATID(\d+)</DcmTag>                <!-- Patient ID -->
+  <DcmTag tag="0008,0060">PATID\d+_([A-Z]+)_</DcmTag>        <!-- Modality -->
+  <DcmTag tag="0008,0020">_(\d{8})_</DcmTag>                 <!-- Study Date -->
+  <DcmTag tag="0008,0050">_ACC(\w+)\.pdf</DcmTag>            <!-- Accession -->
 </ParseJobFileName>
 ```
 
-### Example: Mandatory vs Optional Tags
+### Reformat with replacePattern
 
-Use the `mandatory` attribute to control parse failure behavior:
+`replacePattern` rewrites the matched text using backreferences, which allows reordering and combining capture groups:
+
+```xml
+<ParseJobFileName name="FormatPatientName">
+  <!-- Filename pattern: FirstName_LastName_12345.pdf -->
+  <!-- Format as DICOM PN: Last^First -->
+  <DcmTag tag="0010,0010" replacePattern="\2^\1">(\w+)_(\w+)_\d+\.pdf</DcmTag>
+  <DcmTag tag="0010,0020" replacePattern="PAT\1">\w+_\w+_(\d+)\.pdf</DcmTag>
+</ParseJobFileName>
+```
+
+For filename `John_Doe_12345.pdf`:
+- Patient Name (0010,0010) = `Doe^John`
+- Patient ID (0010,0020) = `PAT12345`
+
+### Mandatory vs Optional Tags
 
 ```xml
 <ParseJobFileName name="ExtractWithValidation">
-  <!-- Filename pattern: ID12345_optional_data.pdf -->
-  <Pattern>ID(\d+)(?:_([A-Z]+))?\.pdf</Pattern>
-
   <!-- Patient ID is mandatory - action fails if not found -->
-  <DcmTag tag="0010,0020" group="1" mandatory="true"/>
-
+  <DcmTag tag="0010,0020" mandatory="true">ID(\d+)</DcmTag>
   <!-- Modality is optional - action succeeds even if not found -->
-  <DcmTag tag="0008,0060" group="2" mandatory="false"/>
+  <DcmTag tag="0008,0060">_([A-Z]{2})\.pdf</DcmTag>
 </ParseJobFileName>
 ```
 
-Use in workflow with error handling:
 ```xml
 <Perform action="ExtractWithValidation" onError="Discard"/>
 ```
 
 **Behavior:**
-- Filename `ID12345.pdf`: **Success** - Patient ID extracted, Modality empty
+- Filename `ID12345.pdf`: **Success** - Patient ID extracted, Modality left unset
 - Filename `ID12345_CT.pdf`: **Success** - Both extracted
 - Filename `report.pdf`: **Failure** - Patient ID (mandatory) not found, job discarded
 
-### Example: Using replacePattern to Format Data
+Mandatory validation is evaluated per job: a tag found while parsing one job never satisfies validation for a later job *(fixed in 2.4.8)*.
 
-The `replacePattern` attribute allows you to reformat captured data:
+## ParseJobTextFile Examples
 
-```xml
-<ParseJobFileName name="FormatPatientName">
-  <!-- Filename pattern: FirstName_LastName_12345.pdf -->
-  <Pattern>(\w+)_(\w+)_(\d+)\.pdf</Pattern>
+The text file is the `.txt` contents file the printer driver writes alongside the print job (same base name as the job). Expressions are applied to each line in turn.
 
-  <!-- Format as DICOM PN: Last^First -->
-  <DcmTag tag="0010,0010" replacePattern="\2^\1"/>
+For a print job with this associated text file:
 
-  <!-- Patient ID from third group -->
-  <DcmTag tag="0010,0020" replacePattern="\3"/>
-</ParseJobFileName>
-```
-
-For filename `John_Doe_12345.pdf`:
-- Patient Name (0010,0010) = `Doe^John` (reformatted)
-- Patient ID (0010,0020) = `12345`
-
-**Advanced Formatting:**
-
-```xml
-<ParseJobFileName name="FormatComplexData">
-  <Pattern>(\d{4})(\d{2})(\d{2})_ID(\d+)\.pdf</Pattern>
-
-  <!-- Reformat date from YYYYMMDD to YYYY-MM-DD format (or keep as YYYYMMDD for DICOM) -->
-  <DcmTag tag="0008,0020" replacePattern="\1\2\3"/>
-
-  <!-- Add prefix to ID -->
-  <DcmTag tag="0010,0020" replacePattern="PAT\4"/>
-</ParseJobFileName>
-```
-
-For filename `20240315_ID00123.pdf`:
-- Study Date (0008,0020) = `20240315`
-- Patient ID (0010,0020) = `PAT00123`
-
-## ParseJobTextFile
-
-Extracts data from a text file using regular expressions.
-
-### Basic Syntax
-
-```xml
-<ParseJobTextFile name="ActionName">
-  <Pattern>regular_expression</Pattern>
-  <DcmTag tag="GGGG,EEEE" group="1"/>
-  <!-- Additional tag mappings -->
-</ParseJobTextFile>
-```
-
-**Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition.
-
-The text file must have the same name as the print job with a `.txt` extension.
-
-### Example: Parse Text File
-
-For a print job file `report_12345.pdf` with associated `report_12345.txt`:
-
-**Text file content (`report_12345.txt`):**
 ```
 Patient: John Doe
 ID: 12345
@@ -189,144 +212,49 @@ Date: 2024-03-15
 Accession: ACC9876
 ```
 
-**Parse configuration:**
 ```xml
 <ParseJobTextFile name="ParseReportData">
-  <Pattern>Patient:\s*(.+)</Pattern>
-  <DcmTag tag="0010,0010" group="1"/>
-</ParseJobTextFile>
-
-<ParseJobTextFile name="ParsePatientID">
-  <Pattern>ID:\s*(\d+)</Pattern>
-  <DcmTag tag="0010,0020" group="1"/>
-</ParseJobTextFile>
-
-<ParseJobTextFile name="ParseStudyDate">
-  <Pattern>Date:\s*(\d{4}-\d{2}-\d{2})</Pattern>
-  <DcmTag tag="0008,0020" group="1"/>
+  <DcmTag tag="0010,0010">Patient:\s*(.+)</DcmTag>
+  <DcmTag tag="0010,0020">^ID:\s*(\d+)</DcmTag>
+  <DcmTag tag="0008,0050">Accession:\s*(\w+)</DcmTag>
 </ParseJobTextFile>
 ```
 
-### Multiline Patterns
+**Line-by-line matching:** because the file is processed one line at a time, multi-line constructs such as `(?s)` have no effect — an expression only ever sees a single line.
 
-Use the `(?s)` flag to enable multiline matching:
+### Robust Patient ID capture
+
+A realistic labeled-ID matcher that survives label variants and excludes unwanted labels:
 
 ```xml
-<ParseJobTextFile name="ParseMultiline">
-  <Pattern>(?s)Patient Information:.*?Name:\s*(.+?)\s*ID:\s*(\d+)</Pattern>
-  <DcmTag tag="0010,0010" group="1"/>
-  <DcmTag tag="0010,0020" group="2"/>
+<ParseJobTextFile name="ParsePatientId" matchPolicy="firstMatch" defaultCaseSensitive="false">
+  <!-- Strong labels anywhere in the line; HRI ID is excluded by lookbehind -->
+  <DcmTag tag="0010,0020">(?&lt;!HRI )\b(?:Patient\s*ID|MRN|Hospital\s*(?:No\.?|ID))\s*:?\s*(\d{2,10}|[A-Za-z]\d{2,8})\b</DcmTag>
+  <!-- Fallback: bare legacy W-number -->
+  <DcmTag tag="0010,0020">\b[Ww](\d{2,8})(?![0-9A-Za-z./:-])</DcmTag>
 </ParseJobTextFile>
-```
-
-## Regular Expression Syntax
-
-DICOM Printer 2 uses standard regular expression syntax:
-
-### Common Patterns
-
-- `\d` - Digit (0-9)
-- `\w` - Word character (a-z, A-Z, 0-9, _)
-- `\s` - Whitespace
-- `.` - Any character
-- `+` - One or more
-- `*` - Zero or more
-- `?` - Zero or one
-- `()` - Capturing group
-- `[]` - Character class
-- `|` - Alternation (OR)
-
-### Examples
-
-```regex
-\d{5}              # Exactly 5 digits
-[A-Z]{2,4}         # 2 to 4 uppercase letters
-\w+@\w+\.\w+       # Simple email pattern
-\d{4}-\d{2}-\d{2}  # Date: YYYY-MM-DD
-[MF]               # M or F (sex)
-```
-
-## Combining Multiple Parse Actions
-
-```xml
-<Actions>
-  <!-- Parse patient ID from filename -->
-  <ParseJobFileName name="GetPatientID">
-    <Pattern>(\d{6})_\w+\.pdf</Pattern>
-    <DcmTag tag="0010,0020" group="1"/>
-  </ParseJobFileName>
-
-  <!-- Parse additional data from text file -->
-  <ParseJobTextFile name="GetPatientName">
-    <Pattern>Name:\s*(.+)</Pattern>
-    <DcmTag tag="0010,0010" group="1"/>
-  </ParseJobTextFile>
-
-  <ParseJobTextFile name="GetAccession">
-    <Pattern>Accession:\s*(\w+)</Pattern>
-    <DcmTag tag="0008,0050" group="1"/>
-  </ParseJobTextFile>
-</Actions>
-
-<Workflow>
-  <Perform action="GetPatientID"/>
-  <Perform action="GetPatientName"/>
-  <Perform action="GetAccession"/>
-  <Perform action="QueryWorklist"/>
-</Workflow>
 ```
 
 ## Error Handling
 
-Parse actions can fail in two ways:
-1. **Pattern doesn't match** - The regular expression doesn't match the filename/text
-2. **Mandatory tag not extracted** - A tag marked `mandatory="true"` was not found
+Parse actions fail when a tag marked `mandatory="true"` was not extracted by the end of the action. Configure the failure response in the workflow using the `onError` attribute on `<Perform>` nodes:
 
-Configure error handling in the workflow using the `onError` attribute on `<Perform>` nodes:
 - `onError="Discard"` - Job is discarded on failure
-- `onError="Ignore"` - Processing continues with empty tag values
+- `onError="Ignore"` - Processing continues
 - `onError="Hold"` - Job is held and retried later
 - `onError="Suspend"` - Job is suspended for manual review
 
-### Example: Mandatory Tags with Error Handling
+An alternative to `mandatory` is validating afterwards in the workflow — for example routing jobs with no captured Patient ID to manual matching:
 
-Action definition:
 ```xml
-<ParseJobFileName name="ExtractRequiredData">
-  <Pattern>(\d+)_(.+)\.pdf</Pattern>
-  <!-- Patient ID is mandatory -->
-  <DcmTag tag="0010,0020" group="1" mandatory="true"/>
-  <!-- Patient Name is optional -->
-  <DcmTag tag="0010,0010" group="2" mandatory="false"/>
-</ParseJobFileName>
+<If field="TAG_VALUE(0010,0020)" value="^$">
+  <Statements>
+    <Perform action="ManualMatch"/>
+  </Statements>
+</If>
 ```
 
-Workflow with discard on failure:
-```xml
-<Perform action="ExtractRequiredData" onError="Discard"/>
-```
-
-**Behavior:**
-- If Patient ID cannot be extracted, the action fails and job is discarded
-- If only Patient Name is missing, the action succeeds with empty Patient Name
-
-### Example: All Tags Optional
-
-Action definition:
-```xml
-<ParseJobFileName name="OptionalParsing">
-  <Pattern>(?:ACC)?(\w+)?</Pattern>
-  <!-- All tags are optional (default behavior) -->
-  <DcmTag tag="0008,0050" group="1"/>
-</ParseJobFileName>
-```
-
-Workflow:
-```xml
-<Perform action="OptionalParsing" onError="Ignore"/>
-```
-
-Processing continues even if the pattern doesn't match or no data is extracted.
+An absent tag matches `^$` exactly like an empty one.
 
 ## Complete Example
 
@@ -338,18 +266,15 @@ Processing continues even if the pattern doesn't match or no data is extracted.
     <!-- Parse patient ID and accession from filename -->
     <!-- Expected format: 12345_ACC9876_Report.pdf -->
     <ParseJobFileName name="ParseFilename">
-      <Pattern>(\d+)_ACC(\w+)_\w+\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>  <!-- Patient ID -->
-      <DcmTag tag="0008,0050" group="2"/>  <!-- Accession Number -->
+      <DcmTag tag="0010,0020">^(\d+)_ACC\w+_\w+\.pdf$</DcmTag>
+      <DcmTag tag="0008,0050">^\d+_ACC(\w+)_\w+\.pdf$</DcmTag>
     </ParseJobFileName>
 
-    <!-- Parse patient name from text file -->
+    <!-- Parse patient name from the job text file -->
     <ParseJobTextFile name="ParsePatientName">
-      <Pattern>Patient Name:\s*(.+)</Pattern>
-      <DcmTag tag="0010,0010" group="1"/>
+      <DcmTag tag="0010,0010" caseSensitive="false">Patient Name:\s*(.+)</DcmTag>
     </ParseJobTextFile>
 
-    <!-- Query worklist with parsed data -->
     <Query name="FindWorklist" type="Worklist">
       <ConnectionParameters>
         <PeerAETitle>RIS</PeerAETitle>
@@ -357,11 +282,10 @@ Processing continues even if the pattern doesn't match or no data is extracted.
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
-      <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
-      <DcmTag tag="0008,0050">#{AccessionNumber}</DcmTag>
+      <DcmTag tag="0010,0020" />
+      <DcmTag tag="0008,0050" />
     </Query>
 
-    <!-- Store to PACS -->
     <Store name="SendToPACS">
       <ConnectionParameters>
         <PeerAETitle>PACS</PeerAETitle>
@@ -373,14 +297,13 @@ Processing continues even if the pattern doesn't match or no data is extracted.
   </Actions>
 
   <Workflow>
-    <!-- Parse data first -->
-    <Perform action="ParseFilename"/>
+    <Perform action="ParseFilename" onError="Discard"/>
     <Perform action="ParsePatientName"/>
-
-    <!-- Then query and store -->
     <Perform action="FindWorklist"/>
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
   </Workflow>
 </DicomPrinter>
@@ -388,15 +311,14 @@ Processing continues even if the pattern doesn't match or no data is extracted.
 
 ## Best Practices
 
-1. **Test patterns thoroughly** with representative filenames
-2. **Use specific patterns** to avoid false matches
-3. **Use `mandatory="true"` for critical tags** (e.g., Patient ID, Accession Number) to ensure data quality
-4. **Mark optional tags with `mandatory="false"`** explicitly for clarity in configuration
-5. **Use `replacePattern` to format data** according to DICOM standards (e.g., Patient Name as `Last^First`)
-6. **Validate extracted data** using workflow conditionals
-7. **Document expected filename formats** in comments
-8. **Use `onError="Discard"` for invalid formats** to avoid processing corrupt data
-9. **Combine with Query actions** to validate extracted patient data against authoritative sources
+1. **Test patterns thoroughly** with representative filenames and report text
+2. **Use specific patterns** to avoid false matches — never capture bare numbers as patient IDs (phone numbers and dates will match)
+3. **Use `caseSensitive="false"`** instead of `[Pp][Aa][Tt]...` character-class encoding
+4. **Use `matchPolicy="firstMatch"` with strongest-first ordering** when combining labeled expressions with fallbacks
+5. **Use `mandatory="true"` for critical tags**, or validate afterwards with `TAG_VALUE(...) value="^$"` and route to manual matching
+6. **Use `replacePattern` to format data** according to DICOM standards (e.g., Patient Name as `Last^First`)
+7. **Escape `<` as `&lt;`** in lookbehind patterns — the configuration is XML
+8. **Document expected filename/report formats** in comments
 
 ## Related Topics
 
