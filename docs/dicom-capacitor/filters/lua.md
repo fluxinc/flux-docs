@@ -287,7 +287,7 @@ Item fields:
 
 Query scripts run inside a proxied C-FIND session. One Lua VM is created per incoming proxied request; it survives from the request phase through all result rows for that query.
 
-Available globals: `dataset`, `query`, `session`, `request` (result phase only), `response` (result phase only), `queue`, `node`, `log`, `print`, `uid`, `include`.
+Available globals: `dataset`, `query`, `session`, `find`, `request` (result phase only), `response` (result phase only), `queue`, `node`, `log`, `print`, `uid`, `include`.
 
 `route`, `file`, `study`, and `series` are not available in query contexts.
 
@@ -348,6 +348,32 @@ if dataset:Get('AccessionNumber') == 'HIDE' then
     response:drop()
 end
 ```
+
+### find
+
+Bounded C-FIND helpers available in query hooks:
+
+- `find.worklist(aeTitle, keys[, timeoutSeconds])`
+- `find.patient_root(aeTitle, keys[, timeoutSeconds])`
+- `find.study_root(aeTitle, keys[, timeoutSeconds])`
+
+`keys` is a Lua table of DICOM tags to values. Numeric tags (`"0010,0020"`) and keywords (`"PatientID"`) are accepted. Returned rows are normal Lua tables keyed by numeric `gggg,eeee` tags, with `rows.truncated`, `rows.timed_out`, and `rows.error` metadata. Operational failures (node unreachable, network errors) return an empty result with `rows.error` set instead of raising a Lua error, so scripts can forward unchanged.
+
+```lua
+local rows = find.worklist('WORKLIST_AE', {
+    ['0010,0020'] = dataset:Get('PatientID'),
+    ['0008,0060'] = 'MG'
+})
+
+for _, row in ipairs(rows) do
+    if row['0010,0020'] == dataset:Get('PatientID') then
+        dataset:Set('PatientName', row['0010,0010'])
+        break
+    end
+end
+```
+
+Lookup calls are cached for the lifetime of the proxied query session. The row cap is 1024. Default timeout is 15 seconds; explicit timeouts are clamped to 60 seconds. Lookup result datasets are not written to INFO logs.
 
 ### Example: Worklist request and result hooks
 

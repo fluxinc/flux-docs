@@ -127,6 +127,46 @@ Result row control. Result hooks only.
 
 ---
 
+## find
+
+Bounded C-FIND helpers for query hooks. Available in query contexts. Each call blocks the current script until the lookup returns, times out, or reaches the hard row cap.
+
+| Method | Target node role | Notes |
+|--------|------------------|-------|
+| `find.worklist(aeTitle, keys[, timeoutSeconds])` | Worklist | Issues a Modality Worklist C-FIND. |
+| `find.patient_root(aeTitle, keys[, timeoutSeconds])` | QueryRetrieve | Issues a Patient Root C-FIND. Defaults `QueryRetrieveLevel` to `PATIENT` unless `keys["0008,0052"]` overrides it. |
+| `find.study_root(aeTitle, keys[, timeoutSeconds])` | QueryRetrieve | Issues a Study Root C-FIND. Defaults `QueryRetrieveLevel` to `STUDY` unless `keys["0008,0052"]` overrides it. |
+
+`keys` is a Lua table of DICOM tag references to string values. Numeric tags such as `"0010,0020"` and DICOM keywords such as `"PatientID"` are accepted. Returned rows are ordinary Lua tables keyed by numeric `gggg,eeee` tags, so `ipairs()` works.
+
+```lua
+local rows = find.worklist('WORKLIST_AE', {
+  ['0010,0020'] = dataset:Get('PatientID'),
+  ['0008,0060'] = 'MG'
+})
+
+if rows.error then
+  log:warn('Lookup unavailable:', rows.error)
+end
+
+if rows.truncated or rows.timed_out then
+  log:warn('Lookup returned a bounded partial result')
+end
+
+for _, row in ipairs(rows) do
+  if row['0010,0020'] == dataset:Get('PatientID') then
+    dataset:Set('PatientName', row['0010,0010'])
+    break
+  end
+end
+```
+
+Operational failures (lookup node unreachable, association rejected, network errors) do not raise a Lua error: the call returns an empty result with `rows.error` set to the failure message, so scripts can forward unchanged. Configuration mistakes (unknown node, unrecognized tag key) still raise Lua errors. Sequence contents are not included in returned rows; only top-level attributes are.
+
+Lookups are cached for the lifetime of the proxied query session using method, AE title, timeout, and sorted keys; failed lookups are not cached. The row cap is 1024. The default timeout is 15 seconds, and explicit timeouts are clamped to 60 seconds. Main logs record target AE, key count, row count, cache hit, timeout, and truncation status only; result datasets are not written to INFO logs. Each issued lookup is recorded in the HMAC-secured audit log with the target AE title and the requested tag keys.
+
+---
+
 ## session
 
 Key-value state shared across the entire proxied query (request phase and all result rows). Query hooks only. Not persisted to disk.
