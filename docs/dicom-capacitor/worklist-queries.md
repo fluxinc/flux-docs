@@ -157,3 +157,17 @@ The **Worklist** page in the web dashboard shows each managed query with:
 | GET | `/api/worklist/managed-queries` | List all queries with current status |
 | GET | `/api/worklist/managed-queries/{id}` | Single query detail |
 | POST | `/api/worklist/managed-queries/{id}/refresh` | Force immediate refresh (requires auth) |
+
+The refresh endpoint is synchronous — the cache is already updated when the
+response returns. Failures map to distinct HTTP statuses so operators can tell
+a bad request from an upstream problem:
+
+| Condition | HTTP status |
+|-----------|-------------|
+| Refresh succeeded | 200 |
+| Unknown query id | 404 |
+| Scheduler not running | 503 |
+| Refresh cancelled (e.g. shutdown) | 503 |
+| Upstream worklist node unreachable | 502 |
+| Upstream protocol error / reject | 502 |
+| Upstream timeout | 504 |
