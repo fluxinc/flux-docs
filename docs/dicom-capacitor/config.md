@@ -73,6 +73,13 @@ The path to the cache directory that DICOM Capacitor will use to store DICOM dat
 
 The number of seconds that DICOM Capacitor will wait for a client to connect before timing out.
 
+## connectTimeoutSeconds
+
+- Type: `number`
+- Default: `30`
+
+The number of seconds that DICOM Capacitor will wait for an outbound TCP connection to a destination node to be established before giving up. Bounds connect-phase hangs for all outbound DICOM operations (storage, worklist, query/retrieve, storage commitment, echo). Set to `0` to use the operating system default.
+
 ## ctoConvert
 
 - Type: `boolean`
@@ -355,6 +362,22 @@ Determines whether DICOM Capacitor should remove orphaned incoming files from th
 
 The port that DICOM Capacitor will listen on for Store SCP requests. Set to `0` to disable the Store SCP service.
 
+## sendAbandonGraceSeconds
+
+- Type: `number`
+- Default: `30`
+
+After a hung storage send has been cancelled and its network streams force-closed, the number of seconds DICOM Capacitor waits for the send task to finish before abandoning it and returning its items to the queue. Part of the hung-send recovery ladder; see also `stallThresholdSeconds`.
+
+## stallThresholdSeconds
+
+- Type: `number`
+- Default: `90`
+
+The number of seconds of **zero socket activity in either direction** after which an in-flight storage send is declared stalled and aborted (the association is force-closed and the items are returned for retry). Because liveness is measured in bytes moved rather than wall-clock time, a slow-but-progressing transfer is never aborted, regardless of this value.
+
+Set to `0` to disable stall detection globally. For cellular or otherwise intermittent links where multi-minute dead zones are normal, raise this value or override it per destination with the `StallThreshold` node setting in `nodes.yml` — an aborted send is re-sent from the beginning, which matters on metered links.
+
 ## storageAssociationHoldExpectedTtlSeconds
 
 - Type: `number`
@@ -390,6 +413,13 @@ The port that DICOM Capacitor will use to listen for Storage Commitment SCP requ
 
 The number of milliseconds that DICOM Capacitor will use to determine whether a Storage Commitment request has timed out.
 
+## storageTimeoutFloorSeconds
+
+- Type: `number`
+- Default: `900`
+
+The minimum hard deadline, in seconds, for a single storage batch send. The actual deadline scales up from this floor with batch size and the node's `MinimumLineSpeed`. When the deadline passes, the send is cancelled, its network streams are force-closed, and after `sendAbandonGraceSeconds` the task is abandoned so the queue keeps being serviced. Lower values make hung-send recovery faster but must leave room for legitimate slow transfers.
+
 ## storageInterval
 
 - Type: `number`
@@ -403,6 +433,13 @@ The number of milliseconds that DICOM Capacitor will wait between storage operat
 - Default: `8`
 
 The number of hours that DICOM Capacitor will use to determine whether a [storage receipt](logs.md#storage-receipts) has expired. Expired receipts will be deleted from the `cache/receipts/` directory.
+
+## supervisionFloorMinutes
+
+- Type: `number`
+- Default: `15`
+
+The number of minutes a node's delivery job may run without reporting any progress before the task manager declares it hung, reclaims the node's checked-out items, and respawns delivery in-process. This is a backstop behind the per-send deadline and stall detector: while a send is in flight its own published deadline takes precedence, so slow links are never falsely respawned. Respawns are rate-limited to one per node per minute.
 
 ## suppressLogAeTitles
 

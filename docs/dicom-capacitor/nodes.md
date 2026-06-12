@@ -185,6 +185,23 @@ This is different from other ordering controls:
     - 1.2.840.10008.5.1.4.1.1.104.1  # Encapsulated PDF Storage
 ```
 
+## StallThreshold
+
+- Type: `number`
+- Default: `""` (inherits from config.yml)
+- Optional
+
+Per-node override of `config.yml/stallThresholdSeconds`: the number of seconds of zero socket activity after which an in-flight send to this destination is aborted and retried. Set to `0` to disable stall detection for this node only.
+
+Use this for destinations reached over cellular or other intermittent links, where dead zones of several minutes are normal and an aborted transfer must be re-sent from the beginning:
+
+```yaml
+- AeTitle: REMOTE_PACS
+  HostName: 10.0.0.50
+  Port: 104
+  StallThreshold: 600  # tolerate up to 10 minutes of silence before aborting
+```
+
 ## ProcessDelay
 
 - Type: `number`
