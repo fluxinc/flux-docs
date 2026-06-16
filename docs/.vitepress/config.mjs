@@ -148,6 +148,14 @@ export default defineConfig({
                 link: "/dicom-capacitor/logs",
               },
               {
+                text: "Redacted C-FIND Logging",
+                link: "/dicom-capacitor/redacted-cfind-logging",
+              },
+              {
+                text: "C-FIND Failure Policy",
+                link: "/dicom-capacitor/cfind-failure-policy",
+              },
+              {
                 text: "Uninstallation",
                 link: "/dicom-capacitor/uninstallation",
               },
