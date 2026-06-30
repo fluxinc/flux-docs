@@ -258,8 +258,9 @@ job if that tag never matches. Avoid `SetTag type="Unique"` — it's not parsed
 See `references/plugins.md` for the full contract — this is the summary. The
 engine passes input tag **values on stdin, one line per `<Input>`, in order**, and
 reads output tag **values from stdout, one line per `<Output>`, in order**
-(`type="Unique"` consumes one line *per image*). It is positional, **not**
-`key=value`. Exit `0` ok, `-1` fail, `-2` discard, `-3` suspend.
+(`type="Unique"` consumes one line *per image* after the one plugin run). It is
+positional, **not** `key=value`. Exit `0` ok, `-1` fail, `-2` discard, `-3`
+suspend.
 `<Arguments>` are literal pipe-separated argv entries; they do not expand DICOM
 tag/date/file placeholders. Do not invent input-file or output-file placeholders
 for `Run`: pass DICOM values with `<Input>`/`<Output>`, and use Console plugin
@@ -270,8 +271,8 @@ environment variables for job artifact paths.
   <Command>plugins\GetUids.exe</Command>
   <Arguments>--mode|prod</Arguments>            <!-- PIPE-separated argv, not spaces -->
   <Input  tag="(0010,0020)" />                  <!-- PatientID  -> stdin line 1 -->
-  <Output tag="(0010,0010)" type="Global" />    <!-- stdout line 1 -> PatientName -->
-  <Output tag="(0020,000D)" type="Global" />    <!-- stdout line 2 -> StudyInstanceUID -->
+  <Output tag="(0010,0010)" />                  <!-- stdout line 1 -> PatientName -->
+  <Output tag="(0020,000D)" />                  <!-- stdout line 2 -> StudyInstanceUID -->
   <Timeout>3000</Timeout>
 </Run>
 ```

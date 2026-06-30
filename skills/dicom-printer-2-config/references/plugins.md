@@ -1,7 +1,8 @@
 # Reference: Run / Notify — external script & plugin I/O contract
 
-`<Run>` launches an external program and exchanges DICOM tag values with it. `<Notify>`
-shows the user a message. Both live in `<ActionsList>` and are invoked by `<Perform>`.
+`<Run>` launches an external program once and exchanges DICOM tag values with it.
+`<Notify>` shows the user a message. Both live in `<ActionsList>` and are invoked
+by `<Perform>`.
 
 This is the contract any external script (in any language) must follow.
 
@@ -16,7 +17,7 @@ This is the contract any external script (in any language) must follow.
 | `<Arguments>` | string | "" | **literal pipe `\|`-separated** argv; no placeholder expansion |
 | `<Timeout>` | int ms | 3000 | per phase (start / write / finish) |
 | `<Input tag="(gggg,eeee)"/>` | tag ref | — | **order-significant**; one stdin line each |
-| `<Output tag="…" type="Global\|Unique"/>` | tag ref | type=Global | **order-significant**; one stdout line each (Unique = one *per image*) |
+| `<Output tag="…" type="Global\|Unique"/>` | tag ref | type=Global | **order-significant**; one stdout line each (Unique = one *per image* after the one plugin run) |
 | `<LauncherPortNumber>` | int | — | **ignored by the engine** — omit it |
 
 ### Console contract (the common case)
@@ -45,7 +46,7 @@ It is purely **positional** — the Nth line sets the Nth `<Output>` tag. **Not*
 **not** `tag=value`. `\r` is stripped (CRLF-safe).
 
 - `type="Global"` (default): consumes **one** line; sets the tag on the whole job.
-- `type="Unique"`: consumes **`NOFILES` lines** (one per image); sets the tag per-image.
+- `type="Unique"`: consumes **`NOFILES` lines** (one per image); sets the tag per-image. It does not run the plugin once per image.
 
 **Exit code drives job control:**
 
@@ -67,7 +68,7 @@ Outputs are read **only on exit 0**.
   <Input  tag="(0020,000D)" />                  <!-- StudyInstanceUID → stdin line 1 -->
   <Input  tag="(0008,0050)" />                  <!-- AccessionNumber  → stdin line 2 -->
   <Output tag="(0020,000E)" type="Unique" />    <!-- SeriesInstanceUID, one line PER IMAGE -->
-  <Output tag="(0008,103E)" type="Global" />    <!-- SeriesDescription, one line -->
+  <Output tag="(0008,103E)" />                  <!-- SeriesDescription, one line (default Global) -->
   <Timeout>3000</Timeout>
 </Run>
 ```

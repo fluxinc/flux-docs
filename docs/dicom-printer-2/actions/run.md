@@ -21,7 +21,7 @@ and DICOM Printer 2 does not adopt an output file path produced by a plugin.
   <Command>C:\Tools\Plugin.exe</Command>
   <Arguments>--mode|prod</Arguments>
   <Input tag="(0010,0020)" />
-  <Output tag="(0010,0010)" type="Global" />
+  <Output tag="(0010,0010)" />
   <Timeout>30000</Timeout>
 </Run>
 ```
@@ -163,16 +163,17 @@ stdout. DICOM Printer 2 reads plain stdout lines in declaration order. It does
 not parse `key=value`, `tag=value`, JSON, XML, or filenames.
 
 ```xml
-<Output tag="(0010,0010)" type="Global" />
+<Output tag="(0010,0010)" />
 <Output tag="(0020,000E)" type="Unique" />
 ```
 
-`type` controls how many stdout lines are consumed:
+`Run` launches the plugin once. The output `type` only controls how stdout lines
+are mapped after that one process exits:
 
 | Type | Behavior |
 |---|---|
 | `Global` | Consumes one stdout line and sets the value on the job-level dataset. This is the default. |
-| `Unique` | Consumes one stdout line per image and sets the value on each per-image dataset. |
+| `Unique` | Consumes one stdout line per image in the job and sets the value on each per-image dataset. It does not run the plugin once per image. |
 
 Outputs are read only when the plugin exits with code `0`. Carriage returns from
 CRLF output are stripped.
@@ -185,8 +186,8 @@ CRLF output are stripped.
   <Arguments>--database|prod</Arguments>
   <Input tag="(0010,0020)" />
   <Input tag="(0008,0050)" />
-  <Output tag="(0010,0010)" type="Global" />
-  <Output tag="(0020,000D)" type="Global" />
+  <Output tag="(0010,0010)" />
+  <Output tag="(0020,000D)" />
   <Timeout>30000</Timeout>
 </Run>
 ```
@@ -210,14 +211,14 @@ from stdout line 2.
 
 ### Unique Output Example
 
-For a two-image job:
+The plugin is still launched once. For a two-image job:
 
 ```xml
 <Run name="AssignSeries" type="Console">
   <Command>C:\DP2\plugins\AssignSeries.exe</Command>
   <Input tag="(0020,000D)" />
   <Output tag="(0020,000E)" type="Unique" />
-  <Output tag="(0008,103E)" type="Global" />
+  <Output tag="(0008,103E)" />
 </Run>
 ```
 
@@ -267,8 +268,8 @@ Matching configuration:
 <Run name="LookupFromArtifact" type="Console">
   <Command>C:\DP2\plugins\LookupFromArtifact.exe</Command>
   <Input tag="(0010,0020)" />
-  <Output tag="(0010,0010)" type="Global" />
-  <Output tag="(0020,000D)" type="Global" />
+  <Output tag="(0010,0010)" />
+  <Output tag="(0020,000D)" />
 </Run>
 ```
 
@@ -284,7 +285,7 @@ GUI can appear in a user session.
   <Arguments>--mode|review</Arguments>
   <Input tag="(0010,0020)" />
   <Input tag="(0010,0010)" />
-  <Output tag="(0009,1001)" type="Global" />
+  <Output tag="(0009,1001)" />
   <Timeout>600000</Timeout>
 </Run>
 ```
@@ -314,9 +315,9 @@ for exit code `0`.
 <Run name="LookupAccession" type="Console">
   <Command>C:\DP2\plugins\LookupAccession.exe</Command>
   <Input tag="(0008,0050)" />
-  <Output tag="(0010,0010)" type="Global" />
-  <Output tag="(0010,0020)" type="Global" />
-  <Output tag="(0020,000D)" type="Global" />
+  <Output tag="(0010,0010)" />
+  <Output tag="(0010,0020)" />
+  <Output tag="(0020,000D)" />
   <Timeout>30000</Timeout>
 </Run>
 ```
@@ -329,7 +330,7 @@ for exit code `0`.
   <Arguments>--ruleset|prod</Arguments>
   <Input tag="(0010,0020)" />
   <Input tag="(0008,0050)" />
-  <Output tag="(0009,1001)" type="Global" />
+  <Output tag="(0009,1001)" />
   <Timeout>30000</Timeout>
 </Run>
 ```
