@@ -114,6 +114,9 @@ Always Interactive. Children: `<Message>` (**required**), `<Timeout>` (ms, defau
 **Rule:** the message uses `%1 %2 …` placeholders, and the count of `%N` tokens **must equal**
 the number of `<Input>` tags, or the action fails to load. Input values fill the placeholders.
 No `<Output>`, `<Command>`, or `<Arguments>`.
+Do not describe `<Notify>` as an email, webhook, database, or file notification
+transport. Use `<Run>` for those external integrations and pass DICOM values through
+`<Input>`/stdin.
 
 ```xml
 <Notify name="WarnUser">

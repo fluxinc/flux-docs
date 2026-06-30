@@ -1,209 +1,101 @@
 # Notify Actions
 
-Notify actions send notifications to external systems, enabling integration with alerting, monitoring, and workflow management systems.
+`Notify` displays an interactive message through DICOM Printer 2's plugin launcher.
+Use it for operator-visible alerts, confirmations, and status messages inside a
+workflow. It does not send email, post webhooks, write files, update databases, or
+return DICOM tag values.
+
+For external integrations, use a [`Run`](run.md) action and pass DICOM values to
+the script through `<Input>`/stdin.
 
 ## Supported Elements
 
-A `Notify` action accepts **only** the following child elements:
+A `Notify` action accepts only these child elements:
 
-- `<Message>` (required) - The notification message content
-- `<Timeout>` - Notification timeout in milliseconds
-- `<Input>` - DICOM tag values substituted into the message placeholders
+| Element | Required | Purpose |
+|---|---:|---|
+| `<Message>` | Yes | Message text shown to the user |
+| `<Input>` | No | DICOM tag values substituted into `%1`, `%2`, and later placeholders |
+| `<Timeout>` | No | Message expiration in milliseconds |
 
-Notify does **not** support `<Command>`, `<Arguments>`, `<Output>`, or `<LauncherPortNumber>`, and it has no `type` or `resolveHostNameAutomatically` choice. Adding any unsupported element causes the action to be rejected at config load time.
+`Notify` does not support `<Command>`, `<Arguments>`, `<Output>`, or
+`<LauncherPortNumber>`. Adding unsupported elements causes the action to be
+rejected when the configuration loads.
 
-A Notify action is **always Interactive**: it is routed through the PluginsLauncher to display a tray/dialog message in the user's desktop session, and it never returns DICOM tag values.
+Do not set `type` or `resolveHostNameAutomatically` on `Notify`. Runtime behavior
+is fixed: `Notify` is an interactive launcher message and does not have a console
+mode or output channel.
 
 ## Basic Syntax
 
 ```xml
-<Notify name="ActionName">
-  <Message>Notification message with %1 placeholders</Message>
-  <Input tag="0010,0020"/> <!-- Patient ID -->
-  <Timeout>30000</Timeout> <!-- Optional, milliseconds -->
+<Notify name="WarnNoMatch">
+  <Message>No worklist match for patient %1, accession %2.</Message>
+  <Input tag="0010,0020"/>
+  <Input tag="0008,0050"/>
+  <Timeout>30000</Timeout>
 </Notify>
 ```
 
-**Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition. See [Actions Overview](index.md#error-handling-workflow-level) for details.
+Error handling is configured on `<Perform>` nodes in the workflow, not on the
+action definition. See [Actions Overview](index.md#error-handling-workflow-level)
+for details.
 
-## Required Attributes
+## Attributes
 
 ### `name`
-Unique identifier for this action.
 
-## Required Elements
+Unique identifier used by `<Perform action="..."/>`.
 
-### `<Message>`
-The notification message content. Supports placeholder substitution using `%1`, `%2`, etc., which are replaced with values from corresponding `<Input>` tags.
+## Message
 
-**Type:** String
-**Format:** Text with optional placeholders (`%1`, `%2`, ...)
+`<Message>` is required. It may include positional placeholders:
 
 ```xml
-<Message>Patient %1 processed successfully at %2</Message>
-<Input tag="0010,0020"/> <!-- %1 = Patient ID -->
-<Input tag="0008,0020"/> <!-- %2 = Study Date -->
+<Message>Patient %1 processed successfully at %2.</Message>
+<Input tag="0010,0020"/>
+<Input tag="0008,0030"/>
 ```
 
-**Validation:** The number of placeholders in the Message must match the number of `<Input>` tags, otherwise the action is considered invalid.
+The number of `%N` placeholders must equal the number of `<Input>` elements. If
+the counts differ, the action is invalid and the configuration fails to load.
 
-## Optional Elements
+Placeholders are positional:
 
-### `<Timeout>`
-Maximum time in milliseconds the notification waits before timing out.
+| Placeholder | Filled from |
+|---|---|
+| `%1` | First `<Input>` |
+| `%2` | Second `<Input>` |
+| `%3` | Third `<Input>` |
 
-**Type:** Integer
-**Default:** 3000 (3 seconds)
+## Input
+
+Each `<Input>` reads one DICOM tag from the current job and supplies it to the
+matching message placeholder.
+
+```xml
+<Input tag="0010,0020"/>
+<Input tag="0010,0010"/>
+```
+
+The `tag` attribute accepts normal DICOM tag references such as `0010,0020` or
+`(0010,0020)`.
+
+## Timeout
+
+`<Timeout>` is optional and is specified in milliseconds. If omitted, the default
+timeout is 3000 ms.
 
 ```xml
 <Timeout>30000</Timeout>
 ```
 
-### `<Input>`
-DICOM tags whose values will be substituted into the Message placeholders.
-
-**Attributes:**
-- `tag` (Required) - DICOM tag in format `(group,element)` or `group,element`
-
-```xml
-<Input tag="0010,0020"/> <!-- Patient ID -->
-<Input tag="0010,0010"/> <!-- Patient Name -->
-```
-
-Input tags are processed in order and replace `%1`, `%2`, etc. in the Message.
-
-## Common Attributes
-
-## Error Handling Recommendations
-
-Notifications are typically non-critical operations. When using Notify actions in workflows, consider:
-
-```xml
-<Perform action="SendAlert" onError="Ignore"/>
-```
-
-Setting `onError="Ignore"` ensures that notification failures don't stop critical workflow operations. The failure will be logged but processing continues.
-
-## Use Cases
-
-### Success Notifications
-
-Notify when a job completes successfully:
-
-```xml
-<ActionsList>
-  <Store name="SendToPACS">
-    <ConnectionParameters>
-      <PeerAeTitle>PACS</PeerAeTitle>
-      <MyAeTitle>PRINTER</MyAeTitle>
-      <Host>192.168.1.100</Host>
-      <Port>104</Port>
-    </ConnectionParameters>
-  </Store>
-
-  <Notify name="NotifySuccess">
-    <Message>Patient %1 successfully stored to PACS</Message>
-    <Input tag="0010,0020"/> <!-- Patient ID -->
-  </Notify>
-</ActionsList>
-
-<Workflow>
-  <Perform action="SendToPACS"/>
-
-  <If field="STORE_SUCCEEDED" value="1">
-    <Statements>
-      <Perform action="NotifySuccess"/>
-    </Statements>
-  </If>
-</Workflow>
-```
-
-### Failure Notifications
-
-Notify when a critical operation fails:
-
-```xml
-<Workflow>
-  <Perform action="QueryWorklist"/>
-
-  <If field="QUERY_FOUND" value="0">
-    <Statements>
-      <!-- No patient match - send alert -->
-      <Perform action="NotifyNoMatch"/>
-      <Suspend resumeAction="QueryWorklist"/>
-    </Statements>
-  </If>
-</Workflow>
-```
-
-### Status Notifications
-
-Notify at various workflow stages:
-
-```xml
-<Workflow>
-  <Perform action="NotifyJobStarted"/>
-
-  <Perform action="ProcessImage"/>
-  <Perform action="SendToPACS"/>
-
-  <Perform action="NotifyJobCompleted"/>
-</Workflow>
-```
-
-## Integration Patterns
-
-### Email Notifications
-
-Send email alerts for important events:
-
-```xml
-<Notify name="EmailAlert">
-  <!-- Email notification configuration -->
-</Notify>
-```
-
-### HTTP Webhooks
-
-POST notifications to web services:
-
-```xml
-<Notify name="WebhookNotify">
-  <!-- Webhook URL and payload configuration -->
-</Notify>
-```
-
-### Database Logging
-
-Log events to a database:
-
-```xml
-<Notify name="LogToDatabase">
-  <!-- Database connection and query configuration -->
-</Notify>
-```
-
-### File-Based Notifications
-
-Write notification data to files:
-
-```xml
-<Notify name="WriteStatusFile">
-  <!-- File path and content configuration -->
-</Notify>
-```
-
 ## Workflow Examples
 
-### Comprehensive Notification Strategy
+### Alert When a Query Finds No Match
 
 ```xml
 <ActionsList>
-  <!-- Parse and query -->
-  <ParseJobFileName name="GetPatientID">
-    <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
-  </ParseJobFileName>
-
   <Query name="FindPatient" type="Worklist">
     <ConnectionParameters>
       <PeerAeTitle>RIS</PeerAeTitle>
@@ -214,7 +106,29 @@ Write notification data to files:
     <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
   </Query>
 
-  <!-- Store to PACS -->
+  <Notify name="WarnNoMatch">
+    <Message>No worklist match for patient %1.</Message>
+    <Input tag="0010,0020"/>
+    <Timeout>30000</Timeout>
+  </Notify>
+</ActionsList>
+
+<Workflow>
+  <Perform action="FindPatient"/>
+
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <Perform action="WarnNoMatch" onError="Ignore"/>
+      <Suspend resumeAction="FindPatient"/>
+    </Statements>
+  </If>
+</Workflow>
+```
+
+### Status Message After Store
+
+```xml
+<ActionsList>
   <Store name="SendToPACS">
     <ConnectionParameters>
       <PeerAeTitle>PACS</PeerAeTitle>
@@ -224,236 +138,59 @@ Write notification data to files:
     </ConnectionParameters>
   </Store>
 
-  <!-- Notifications -->
-  <Notify name="NotifyStart">
-    <Message>Processing job for patient %1</Message>
-    <Input tag="0010,0020"/> <!-- Patient ID -->
-  </Notify>
-
-  <Notify name="NotifyNoMatch">
-    <Message>Patient %1 not found in worklist</Message>
-    <Input tag="0010,0020"/> <!-- Patient ID -->
-  </Notify>
-
-  <Notify name="NotifySuccess">
-    <Message>Patient %1 successfully processed and stored</Message>
-    <Input tag="0010,0020"/> <!-- Patient ID -->
-  </Notify>
-
-  <Notify name="NotifyFailure">
-    <Message>Failed to process patient %1</Message>
-    <Input tag="0010,0020"/> <!-- Patient ID -->
+  <Notify name="StoreComplete">
+    <Message>Stored patient %1 to PACS.</Message>
+    <Input tag="0010,0020"/>
   </Notify>
 </ActionsList>
 
 <Workflow>
-  <!-- Notify job started -->
-  <Perform action="NotifyStart"/>
-
-  <Perform action="GetPatientID"/>
-  <Perform action="FindPatient"/>
-
-  <If field="QUERY_FOUND" value="0">
-    <Statements>
-      <!-- Patient not found -->
-      <Perform action="NotifyNoMatch"/>
-      <Suspend resumeAction="FindPatient"/>
-    </Statements>
-  </If>
-
-  <If field="QUERY_FOUND" value="1">
-    <Statements>
-      <!-- Process and store -->
-      <Perform action="SendToPACS"/>
-
-      <If field="STORE_SUCCEEDED" value="1">
-        <Statements>
-          <!-- Success -->
-          <Perform action="NotifySuccess"/>
-        </Statements>
-      </If>
-
-      <If field="STORE_SUCCEEDED" value="0">
-        <Statements>
-          <!-- Failure -->
-          <Perform action="NotifyFailure"/>
-        </Statements>
-      </If>
-    </Statements>
-  </If>
-</Workflow>
-```
-
-### Alert on Exceptions
-
-```xml
-<Workflow>
-  <Perform action="StoreToPACS" onError="Ignore"/>
-
-  <!-- STORE_SUCCEEDED reflects the most recent Store; notify + retry on failure -->
-  <If field="STORE_SUCCEEDED" value="0">
-    <Statements>
-      <Perform action="NotifyException"/>
-      <Suspend resumeAction="StoreToPACS"/>
-    </Statements>
-  </If>
-</Workflow>
-```
-
-### Periodic Status Updates
-
-```xml
-<Workflow>
-  <Perform action="NotifyProcessingStarted"/>
-  <Perform action="QueryWorklist"/>
-  <Perform action="NotifyQueryComplete"/>
   <Perform action="SendToPACS"/>
-  <Perform action="NotifyStoreComplete"/>
+
+  <If field="STORE_SUCCEEDED" value="1">
+    <Statements>
+      <Perform action="StoreComplete" onError="Ignore"/>
+    </Statements>
+  </If>
 </Workflow>
 ```
 
-## Best Practices
+## External Notifications
 
-### Non-Critical Notifications
-
-Always configure notifications with `onError="Ignore"` in the workflow:
-
-Action definition:
-```xml
-<Notify name="SendAlert">
-  <!-- Configuration -->
-</Notify>
-```
-
-Workflow with error handling:
-```xml
-<Perform action="SendAlert" onError="Ignore"/>
-```
-
-This ensures that notification failures don't disrupt critical workflow operations.
-
-### Meaningful Notification Content
-
-Include relevant context in notifications:
-
-- Patient ID
-- Study date
-- Action being performed
-- Success/failure status
-- Error messages (for failures)
-
-### Rate Limiting
-
-Be mindful of notification frequency in high-volume environments to avoid overwhelming notification systems.
-
-### Notification Filtering
-
-Only send notifications for significant events:
-- Critical failures
-- Exceptional conditions requiring attention
-- Important milestones
-- Completion of long-running operations
-
-## Alternative Notification Methods
-
-If Notify actions don't meet your requirements, consider:
-
-### Run Actions with Scripts
-
-Use Run actions to execute custom notification scripts:
+Use `Run` for email, webhook, database, or file-based integrations. `Run` launches
+a script once, writes each `<Input>` value to stdin in declaration order, and can
+read tag values back from stdout through `<Output>` if needed.
 
 ```xml
-<Run name="CustomNotify" type="Console">
-  <Command>C:\Scripts\notify.bat</Command>
-  <Arguments>
-    --patient "#{PatientID}"
-    --status "success"
-    --message "Job completed successfully"
-  </Arguments>
+<Run name="PostNoMatchWebhook" type="Console">
+  <Command>C:\Scripts\post-no-match-webhook.exe</Command>
+  <Arguments>--event|no-match</Arguments>
+  <Input tag="0010,0020"/>
+  <Input tag="0008,0050"/>
+  <Timeout>30000</Timeout>
 </Run>
 ```
 
-### Log File Monitoring
+The script should read patient ID from stdin line 1 and accession number from
+stdin line 2. Do not put DICOM placeholders in `<Arguments>`; arguments are
+literal.
 
-Configure external tools to monitor DICOM Printer 2 log files for specific patterns and trigger notifications.
+## Recommendations
 
-### Database Triggers
+- Use `onError="Ignore"` for non-critical operator alerts so a failed message
+  does not stop the main workflow.
+- Keep messages short and actionable.
+- Include only the DICOM identifiers an operator needs to understand the alert.
+- Avoid noisy progress messages in high-volume workflows.
 
-Use Run actions to update database records, then configure database triggers to send notifications.
+## Troubleshooting
 
-## Example: Multi-Channel Notification
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
-<DicomPrinterConfig>
-  <ActionsList>
-    <!-- Processing actions -->
-    <Query name="FindPatient" type="Worklist">
-      <ConnectionParameters>
-        <PeerAeTitle>RIS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
-        <Host>192.168.1.200</Host>
-        <Port>104</Port>
-      </ConnectionParameters>
-      <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
-    </Query>
-
-    <Store name="SendToPACS">
-      <ConnectionParameters>
-        <PeerAeTitle>PACS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
-        <Host>192.168.1.100</Host>
-        <Port>104</Port>
-      </ConnectionParameters>
-    </Store>
-
-    <!-- Notification actions -->
-    <Notify name="EmailNotifyNoMatch">
-      <!-- Email configuration for no patient match -->
-    </Notify>
-
-    <Notify name="WebhookNotifySuccess">
-      <!-- Webhook configuration for success -->
-    </Notify>
-
-    <Run name="LogToDatabase" type="Console">
-      <Command>C:\Scripts\log_event.exe</Command>
-      <Arguments>
-        --patient "#{PatientID}"
-        --event "job_completed"
-        --timestamp "#{Date}"
-      </Arguments>
-    </Run>
-  </ActionsList>
-
-  <Workflow>
-    <Perform action="FindPatient"/>
-
-    <If field="QUERY_FOUND" value="0">
-      <Statements>
-        <!-- No match - notify via email -->
-        <Perform action="EmailNotifyNoMatch"/>
-        <Suspend resumeAction="FindPatient"/>
-      </Statements>
-    </If>
-
-    <If field="QUERY_FOUND" value="1">
-      <Statements>
-        <Perform action="SendToPACS"/>
-
-        <If field="STORE_SUCCEEDED" value="1">
-          <Statements>
-            <!-- Success - notify via webhook and database -->
-            <Perform action="WebhookNotifySuccess"/>
-            <Perform action="LogToDatabase"/>
-          </Statements>
-        </If>
-      </Statements>
-    </If>
-  </Workflow>
-</DicomPrinterConfig>
-```
+| Symptom | Check |
+|---|---|
+| Configuration fails to load | The number of `%N` placeholders must match the number of `<Input>` elements |
+| Unsupported element error | Remove `<Command>`, `<Arguments>`, `<Output>`, or `<LauncherPortNumber>` from the `Notify` action |
+| No message appears | Confirm the plugin launcher is running in the user's desktop session |
+| Need email/webhook/database/file output | Use a `Run` action instead of `Notify` |
 
 ## Related Topics
 
@@ -461,4 +198,3 @@ Use Run actions to update database records, then configure database triggers to 
 - [Run Actions (Plugins)](run.md)
 - [Workflow Conditional Nodes](../workflow/conditional-nodes.md)
 - [Workflow Control Nodes](../workflow/control-nodes.md)
-- [Logging](../logs.md)
