@@ -11,8 +11,8 @@ Run does not use input-file or output-file placeholders. The plugin contract is:
 - `<Output>` reads stdout lines back into selected DICOM attributes.
 - Console plugins can read current job artifact paths from environment variables.
 
-There is no `#{InputFile}`, `#{OutputFile}`, or `#{OutputPath}` placeholder, and
-DICOM Printer 2 does not adopt an output file path produced by a plugin.
+There are no Run-specific input-file, output-file, or output-path placeholders,
+and DICOM Printer 2 does not adopt an output file path produced by a plugin.
 
 ## Basic Syntax
 
