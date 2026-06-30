@@ -38,7 +38,7 @@ api:
   token: "your-api-token"
 ```
 
-If neither credential is configured, write endpoints are open (backward-compatible).
+If `servicePassword` is omitted, the service falls back to a built-in default; set your own for production installs. Write endpoints are never open anonymously.
 
 ## Pages
 

@@ -26,15 +26,17 @@ Configures the built-in HTTP management API. See [HTTP API](./api) for the full 
 ```yaml
 api:
   enabled: true
-  port: 1080       # binds to localhost only; auto-increments if busy
-  token: "secret"  # required for write endpoints
+  port: 1080                    # binds to localhost only; auto-increments if busy
+  servicePassword: "password"   # browser UI cookie credential
+  token: "secret"               # optional bearer token for scripts
 ```
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable the API server |
 | `port` | number | `1080` | Starting port. If busy, the service tries the next port (up to 10 attempts) |
-| `token` | string | — | Bearer token required for write endpoints. Omit to make writes return 403 |
+| `servicePassword` | string | _built-in_ | Browser UI password sent as a `capacitor_session` cookie. Set your own; protected endpoints are never anonymous |
+| `token` | string | — | Optional bearer token for scripted access to protected endpoints |
 
 ## autoAdjustLineSpeed
 

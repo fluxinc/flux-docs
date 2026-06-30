@@ -228,7 +228,7 @@ The **Prefetch** page in the web dashboard shows:
 |--------|----------|-------------|
 | GET | `/api/prefetch/status` | Service state, telemetry, startup diagnostics |
 | GET | `/api/prefetch/rules` | Loaded rule summaries |
-| GET | `/api/prefetch/activity?limit=25` | Recent journal entries |
+| GET | `/api/prefetch/activity?limit=25` | Recent journal entries (requires API authentication) |
 
 ## Troubleshooting
 

@@ -9,8 +9,9 @@ Enable the API in `config.yml`:
 ```yaml
 api:
   enabled: true
-  port: 1080       # auto-increments if busy
-  token: "secret"  # required for write endpoints
+  port: 1080                    # auto-increments if busy
+  servicePassword: "password"   # browser UI cookie credential
+  token: "secret"               # optional bearer token for scripts
 ```
 
 The actual bound port is logged at startup:
@@ -21,7 +22,8 @@ INFO: API listening on http://127.0.0.1:1080
 
 ## Authentication
 
-Read endpoints are open. Write endpoints (marked 🔒) accept either credential:
+Most read endpoints are open. Write endpoints and PHI-bearing reads (marked 🔒)
+accept either credential:
 
 - **Service password** (browser UI): Set `api.servicePassword` in `config.yml`. Sent as a `capacitor_session` cookie.
 - **Bearer token** (programmatic): Set `api.token` in `config.yml`. Sent as `Authorization: Bearer <token>` header.
@@ -32,7 +34,7 @@ api:
   token: "your-api-token"            # for scripted access
 ```
 
-Missing or wrong credentials → `403 Forbidden`. If neither is configured, write endpoints are open (backward-compatible).
+Missing or wrong credentials → `403 Forbidden`. Protected endpoints are never open anonymously: even with neither `servicePassword` nor `token` set, the service still requires a built-in default service password, so configure your own for production installs.
 
 ## Response Envelope
 
@@ -144,7 +146,7 @@ Clears the schedule override, returning the node to its configured schedule.
 
 ### Queue
 
-#### `GET /api/queue/items`
+#### `GET /api/queue/items` 🔒
 
 Returns a paginated list of queue items. Supports query filters:
 
@@ -170,7 +172,7 @@ Returns a paginated list of queue items. Supports query filters:
 }
 ```
 
-#### `GET /api/queue/items/{id}`
+#### `GET /api/queue/items/{id}` 🔒
 
 Returns full detail for a single item including DICOM tags. `404` if not found.
 
