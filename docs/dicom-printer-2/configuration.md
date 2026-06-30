@@ -21,7 +21,8 @@ General settings control the overall behavior of the DICOM Printer 2 service, in
 - Job checking intervals
 - Suspension time for failed jobs
 - Logging verbosity and rotation
-- License registration
+
+> Note: Licensing is handled by the machine activation system, not `config.xml`. A `<RegistrationKey>` element in the configuration is legacy and has no effect.
 
 See [Settings Reference](config.md) for a complete list of general settings.
 
@@ -58,30 +59,32 @@ Here's a basic configuration structure:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
   <General>
-    <CheckingInterval>1000</CheckingInterval>
+    <CheckingInterval>1</CheckingInterval>   <!-- seconds -->
     <SuspensionTime>15</SuspensionTime>
     <Verbosity>35</Verbosity>
   </General>
 
-  <Actions>
+  <ActionsList>
     <Query name="FindPatient">
       <!-- Query configuration -->
     </Query>
     <Store name="SendToPACS">
       <!-- Store configuration -->
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="FindPatient"/>
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## XML Validation

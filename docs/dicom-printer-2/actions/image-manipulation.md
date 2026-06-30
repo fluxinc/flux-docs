@@ -11,6 +11,7 @@ DICOM Printer 2 supports the following image manipulation operations:
 - **AutoRotateText** - Automatically orient pages so the dominant parseable text is upright
 - **Resize** - Change image dimensions
 - **AddInstance** - Create additional image instances
+- **MergeJob** - Combine adjacent queue jobs into one so a multi-job study shares a single Study Instance UID
 
 ## Trim Action
 
@@ -85,8 +86,6 @@ The Trim action supports automatic trim detection. When you specify `auto` inste
 
 This feature automatically detects and removes white space or uniform borders from image edges.
 
-**Source:** `src/DicomPrinter/Trim.hpp:37` (findAutoSize method)
-
 ### Trim Examples
 
 #### Remove Header and Footer
@@ -138,6 +137,8 @@ The Rotate action rotates an image by a specified angle.
 
 #### `<Angle>` (Required)
 The rotation angle in degrees. Positive values rotate clockwise, negative values rotate counter-clockwise.
+
+**The angle must be an integer multiple of 90.** Any other value (e.g. `45`, `30`) is rejected at parse time and the configuration fails to load. Negative angles and angles greater than 360 are normalized (e.g. `-90` becomes `270` clockwise, `450` becomes `90`). For content-aware or non-90° orientation needs, use [AutoRotateText](#autorotatetext-action) instead.
 
 **Common Values:**
 - `90` - Rotate 90° clockwise
@@ -410,9 +411,9 @@ Both raster pages and PDF pages are supported. `FailOnUnsupported` controls what
 The PDF path uses two bundled command-line tools, discovered from an environment override, the packaged install location, a development path, then `PATH` (the same scheme as other DP2 tools):
 
 - **QPDF** — applies the lossless per-page `/Rotate` (already packaged for the `MergeJob` action).
-- **poppler `pdftopng`** — rasterizes each PDF page for *analysis only* (ships with the Drop Monitor component).
+- **poppler `pdftopng` or `pdftoppm`** — either tool rasterizes each PDF page for *analysis only* (ships with the Drop Monitor component).
 
-If either tool is missing, PDF pages are left unchanged unless `FailOnUnsupported` is `true`. No configuration is needed for normal installs.
+If QPDF or a poppler rasterizer (`pdftopng`/`pdftoppm`) is missing, PDF pages are left unchanged unless `FailOnUnsupported` is `true`. No configuration is needed for normal installs.
 
 ### Orientation hints (Drop Monitor)
 
@@ -470,12 +471,60 @@ If you only want landscape↔portrait correction and never an upside-down flip, 
 </AutoRotateText>
 ```
 
+## MergeJob Action
+
+The MergeJob action combines the **immediately next** sorted `.dxi` queue job(s) into the current (lead) job, so a study that was split across multiple spool jobs ends up under a single Study Instance UID. Run it **before** Query/Store so the merged job is queried and stored as one study.
+
+Adjacency is **positional**: only the *next* `.dxi` file in `QDir::Name` (alphabetical) sort order is considered. If that sibling is ineligible, the scan stops — it does not skip ahead. A sibling is eligible only when the host/user match checks pass and its creation time is within `TimeThreshold` of the lead job.
+
+### Basic Syntax
+
+All elements are optional. The minimal form uses all defaults (2-second window, match host and user, merge PDF and text):
+
+```xml
+<MergeJob name="MergeStudy"/>
+```
+
+A fully specified example:
+
+```xml
+<MergeJob name="MergeStudy">
+  <Timeout>5000</Timeout>
+  <TimeThreshold>3000</TimeThreshold>
+  <MaxJobs>20</MaxJobs>
+</MergeJob>
+```
+
+**Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition.
+
+### Elements
+
+Tag names are matched case-insensitively. Integer values must be non-negative (negatives are rejected at parse time); booleans accept `true`/`1`/`yes` and `false`/`0`/`no` (case-insensitive).
+
+| Element | Type | Default | Description |
+|---|---|---|---|
+| `<Timeout>` | int ms (≥0) | `2000` | Polling wait window for a late-arriving sibling. Resets after each successful merge. |
+| `<PollInterval>` | int ms (>0) | `100` | Sleep between queue scans. |
+| `<TimeThreshold>` | int ms (≥0) | `2000` | Maximum creation-time gap between the lead job and a sibling for it to be eligible. |
+| `<MatchHost>` | bool | `true` | Require the same printer host and client host. |
+| `<MatchUser>` | bool | `true` | Require the same printer user and client user. |
+| `<MaxJobs>` | int (>0) | `10` | Cap on how many siblings can be absorbed in one run. |
+| `<MergePdf>` | bool | `true` | Concatenate PDFs (page-level via qpdf) rather than keeping separate PDF files. |
+| `<MergeText>` | bool | `true` | Append each sibling's contents/text file to the lead's. |
+| `<PdfMergeCommand>` | string | (empty → auto-discover qpdf) | External merge backend executable path. |
+| `<PdfMergeArguments>` | string | `--empty --pages {inputs} -- {output}` | Argument template; `{inputs}` expands to all input PDF paths, `{output}` to the staged output. |
+| `<PdfMergeTimeout>` | int ms (>0) | `120000` | Timeout for the PDF-merge subprocess. |
+
+- The lead `.dxi` is rewritten and the in-memory job reloaded; sibling `.dxi` files are deleted **only after** a safe staged update.
+- **PDF safety:** if `MergePdf` is enabled and qpdf cannot be found or the merge fails, the action fails **without deleting** any sibling data.
+- Hitting `MaxJobs` logs a warning but is not an error.
+
 ## Combining Image Manipulations
 
 Multiple image manipulations can be performed in sequence:
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Trim margins -->
   <Trim name="TrimMargins">
     <Top>50</Top>
@@ -495,7 +544,7 @@ Multiple image manipulations can be performed in sequence:
     <Height>1024</Height>
     <Aspect>keep</Aspect>
   </Resize>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <Perform action="TrimMargins"/>
@@ -510,7 +559,7 @@ Multiple image manipulations can be performed in sequence:
 ### Prepare Images for Film Printing
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Remove document margins -->
   <Trim name="RemoveMargins">
     <Top>100</Top>
@@ -534,26 +583,26 @@ Multiple image manipulations can be performed in sequence:
     <BasicFilmBoxAttributes>
       <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
       <FilmOrientation>PORTRAIT</FilmOrientation>
-      <FilmSizeID>14INX17IN</FilmSizeID>
+      <FilmSizeId>14INX17IN</FilmSizeId>
     </BasicFilmBoxAttributes>
     <BasicImageBoxAttributes>
       <Polarity>NORMAL</Polarity>
     </BasicImageBoxAttributes>
     <PrintMode>Grayscale8</PrintMode>
     <ConnectionParameters>
-      <PeerAETitle>FILM_PRINTER</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.50</Host>
       <Port>104</Port>
     </ConnectionParameters>
   </Print>
-</Actions>
+</ActionsList>
 ```
 
 ### Standardize Image Sizes
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Resize all images to standard size -->
   <Resize name="StandardizeSize">
     <Width>2048</Width>
@@ -564,13 +613,13 @@ Multiple image manipulations can be performed in sequence:
   <!-- Store to PACS -->
   <Store name="SendToPACS">
     <ConnectionParameters>
-      <PeerAETitle>PACS</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>PACS</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.100</Host>
       <Port>104</Port>
     </ConnectionParameters>
   </Store>
-</Actions>
+</ActionsList>
 ```
 
 ### Correct Orientation
@@ -578,17 +627,19 @@ Multiple image manipulations can be performed in sequence:
 When every page needs the *same* fixed correction, use `Rotate` gated on a tag:
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Rotate landscape documents to portrait -->
   <Rotate name="CorrectOrientation">
     <Angle>-90</Angle>
   </Rotate>
-</Actions>
+</ActionsList>
 
 <Workflow>
-  <If field="TAG_VALUE" tag="0028,0011" value="2480">
-    <!-- Width is 2480, likely landscape -->
-    <Perform action="CorrectOrientation"/>
+  <If field="TAG_VALUE(0028,0011)" value="2480">
+    <Statements>
+      <!-- Width is 2480, likely landscape -->
+      <Perform action="CorrectOrientation"/>
+    </Statements>
   </If>
   <Perform action="SendToPACS"/>
 </Workflow>
@@ -597,9 +648,9 @@ When every page needs the *same* fixed correction, use `Rotate` gated on a tag:
 When pages arrive in **mixed** orientations (some landscape, some portrait, some upside-down), let [AutoRotateText](#autorotatetext-action) decide per page instead of branching on aspect ratio:
 
 ```xml
-<Actions>
+<ActionsList>
   <AutoRotateText name="AutoOrient"/>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <Perform action="AutoOrient"/>
@@ -631,20 +682,19 @@ For high-volume workflows, consider:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Parse patient ID -->
     <ParseJobFileName name="GetPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
     </ParseJobFileName>
 
     <!-- Query worklist -->
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -686,36 +736,38 @@ For high-volume workflows, consider:
     <!-- Store to PACS -->
     <Store name="SendToPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
       <Compression type="JPEG_Lossless"/>
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="GetPatientID"/>
     <Perform action="FindPatient"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <!-- Save original before processing -->
-      <Perform action="SaveOriginal"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Save original before processing -->
+        <Perform action="SaveOriginal"/>
 
-      <!-- Process image -->
-      <Perform action="RemoveDocumentMargins"/>
-      <Perform action="ToPortrait"/>
-      <Perform action="StandardSize"/>
+        <!-- Process image -->
+        <Perform action="RemoveDocumentMargins"/>
+        <Perform action="ToPortrait"/>
+        <Perform action="StandardSize"/>
 
-      <!-- Save processed version -->
-      <Perform action="SaveProcessed"/>
+        <!-- Save processed version -->
+        <Perform action="SaveProcessed"/>
 
-      <!-- Send to PACS -->
-      <Perform action="SendToPACS"/>
+        <!-- Send to PACS -->
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

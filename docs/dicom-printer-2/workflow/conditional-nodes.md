@@ -113,7 +113,7 @@ Checks whether the most recent query returned multiple matches (ambiguous result
   <Statements>
     <!-- Multiple matches - needs manual selection -->
     <Perform action="NotifyMultipleMatches"/>
-    <Suspend/>
+    <Suspend resumeAction="QueryWorklist"/>
   </Statements>
 </If>
 ```
@@ -313,7 +313,7 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
 <If field="QUERY_PARTIAL" value="1">
   <Statements>
     <Perform action="NotifyAmbiguous"/>
-    <Suspend/>
+    <Suspend resumeAction="QueryWorklist"/>
   </Statements>
 </If>
 
@@ -324,7 +324,7 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
   </Statements>
   <Else>
     <Perform action="NotifyNoMatch"/>
-    <Suspend/>
+    <Suspend resumeAction="QueryWorklist"/>
   </Else>
 </If>
 ```
@@ -353,7 +353,7 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
     <If field="STORE_SUCCEEDED" value="0">
       <Statements>
         <Perform action="NotifyAllFailed"/>
-        <Suspend/>
+        <Suspend resumeAction="SendToPrimaryPACS"/>
       </Statements>
     </If>
   </Statements>
@@ -367,7 +367,7 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
 ```xml
 <If field="TAG_VALUE(0010,0010)" value="^$">
   <Statements>
-    <Suspend/>
+    <Suspend resumeAction="QueryWorklist"/>
   </Statements>
 </If>
 ```
@@ -376,17 +376,17 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <ParseJobFileName name="ExtractPatientID">
       <DcmTag tag="0010,0020">^(\d+)_.*\.pdf$</DcmTag>
     </ParseJobFileName>
 
     <Query name="FindWorklist" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -395,8 +395,8 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
 
     <Store name="SendToCTPACS">
       <ConnectionParameters>
-        <PeerAETitle>CT_PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>CT_PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.101</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -404,15 +404,15 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
 
     <Store name="SendToGeneralPACS">
       <ConnectionParameters>
-        <PeerAETitle>GENERAL_PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>GENERAL_PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
     </Store>
 
     <Notify name="NotifyNoMatch"/>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="ExtractPatientID"/>
@@ -440,11 +440,11 @@ When `false`, case lookup ignores case. If two `Case` values differ only by case
       </Statements>
       <Else>
         <Perform action="NotifyNoMatch"/>
-        <Suspend/>
+        <Suspend resumeAction="FindWorklist"/>
       </Else>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

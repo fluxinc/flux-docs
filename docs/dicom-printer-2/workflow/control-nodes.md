@@ -8,11 +8,10 @@ Control flow nodes manage job execution and state within workflows.
 - **Suspend** - Suspend job for manual intervention
 - **Discard** - Discard job and remove from queue
 - **Update** - Update workflow state
-- **Resume** - Resume suspended jobs
 
 ## Perform Nodes
 
-Perform nodes execute actions defined in the `<Actions>` section.
+Perform nodes execute actions defined in the `<ActionsList>` section.
 
 ### Basic Syntax
 
@@ -89,9 +88,11 @@ Actions execute in the order specified.
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <Perform action="SetMetadata"/>
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <Perform action="SetMetadata"/>
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -116,14 +117,18 @@ Actions inside conditionals only execute when the condition is true.
 Perform nodes can contain nested Query elements to override action parameters for specific workflow executions. This allows reusing a Query action with different parameters.
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Define base query action -->
-  <Query name="QueryWorklist" type="Worklist"
-         calledAE="RIS" callingAE="PRINTER"
-         host="192.168.1.200" port="104">
+  <Query name="QueryWorklist" type="Worklist">
+    <ConnectionParameters>
+      <PeerAeTitle>RIS</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
+      <Host>192.168.1.200</Host>
+      <Port>104</Port>
+    </ConnectionParameters>
     <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
   </Query>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <!-- Use base query with additional parameter -->
@@ -149,8 +154,10 @@ Suspend nodes pause job processing, requiring manual intervention to resume.
 ### Basic Syntax
 
 ```xml
-<Suspend/>
+<Suspend resumeAction="QueryWorklist"/>
 ```
+
+The `resumeAction` attribute is required; a `<Suspend>` without it is rejected when the configuration loads.
 
 ### When to Use Suspend
 
@@ -167,8 +174,8 @@ The `maxRetries` attribute limits how many times a job can be suspended before f
 
 | Attribute | Required | Description |
 |---|---|---|
-| `resumeAction` | No | Action to re-execute when the job is resumed |
-| `maxRetries` | No | Maximum number of suspend/resume cycles. Default: unlimited (`-1`). When exhausted, the node falls through instead of suspending. |
+| `resumeAction` | Yes | Action to re-execute when the job is resumed. A `<Suspend>` without `resumeAction` is rejected at config load. |
+| `maxRetries` | No | Maximum number of suspend/resume cycles. Default: unlimited (omit the attribute). When exhausted, the node falls through instead of suspending. |
 
 Example:
 ```xml
@@ -195,9 +202,11 @@ The `.meta` file is:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- No patient match - manual review needed -->
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- No patient match - manual review needed -->
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -208,10 +217,12 @@ The `.meta` file is:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_PARTIAL" value="true">
-    <!-- Multiple matches - user must select -->
-    <Perform action="NotifyMultipleMatches"/>
-    <Suspend/>
+  <If field="QUERY_PARTIAL" value="1">
+    <Statements>
+      <!-- Multiple matches - user must select -->
+      <Perform action="NotifyMultipleMatches"/>
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -223,8 +234,10 @@ The `.meta` file is:
   <Perform action="ParseFilename"/>
 
   <If field="TAG_VALUE(0010,0020)" value="^$">
-    <!-- No patient ID - cannot process -->
-    <Suspend/>
+    <Statements>
+      <!-- No patient ID - cannot process -->
+      <Suspend resumeAction="ParseFilename"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -233,12 +246,15 @@ The `.meta` file is:
 
 ```xml
 <Workflow>
-  <Perform action="ValidateData"/>
+  <Perform action="ParseFilename"/>
 
-  <If field="VALIDATION_FAILED" value="true">
-    <!-- Data validation failed -->
-    <Perform action="NotifyValidationFailure"/>
-    <Suspend/>
+  <!-- Accession Number is missing or empty -->
+  <If field="TAG_VALUE(0008,0050)" value="^$">
+    <Statements>
+      <!-- Required data missing -->
+      <Perform action="NotifyValidationFailure"/>
+      <Suspend resumeAction="ParseFilename"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -264,19 +280,21 @@ When a job is resumed, the workflow execution follows these steps:
 **Example with resume flow:**
 
 ```xml
-<Actions>
+<ActionsList>
   <ParseJobFileName name="ParseID"><!-- config --></ParseJobFileName>
   <Query name="QueryWorklist"><!-- config --></Query>
   <SetTag name="AddMetadata"><!-- config --></SetTag>
   <Store name="SendToPACS"><!-- config --></Store>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <Perform action="ParseID"/>           <!-- Step 1: Executes on first run, skipped on resume -->
   <Perform action="QueryWorklist"/>     <!-- Step 2: Executes on first run, THIS IS RESUME POINT -->
 
-  <If field="QUERY_FOUND" value="false">
-    <Suspend resumeAction="QueryWorklist"/>  <!-- Suspends here, sets resume to QueryWorklist -->
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <Suspend resumeAction="QueryWorklist"/>  <!-- Suspends here, sets resume to QueryWorklist -->
+    </Statements>
   </If>
 
   <Perform action="AddMetadata"/>       <!-- Step 3: Only executes after successful resume -->
@@ -324,8 +342,10 @@ Use discard nodes when:
   <Perform action="ParseFilename"/>
 
   <If field="TAG_VALUE(0010,0020)" value="^$">
-    <!-- No patient ID - cannot process -->
-    <Discard/>
+    <Statements>
+      <!-- No patient ID - cannot process -->
+      <Discard/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -335,8 +355,10 @@ Use discard nodes when:
 ```xml
 <Workflow>
   <If field="PRINTED_FILE_NAME" value=".txt">
-    <!-- Text files not supported -->
-    <Discard/>
+    <Statements>
+      <!-- Text files not supported -->
+      <Discard/>
+    </Statements>
   </If>
 
   <Perform action="ProcessDocument"/>
@@ -348,8 +370,10 @@ Use discard nodes when:
 ```xml
 <Workflow>
   <If field="TAG_VALUE(0010,0010)" value="^TEST\^PATIENT$">
-    <!-- Test patient - discard -->
-    <Discard/>
+    <Statements>
+      <!-- Test patient - discard -->
+      <Discard/>
+    </Statements>
   </If>
 
   <Perform action="SendToPACS"/>
@@ -390,24 +414,30 @@ Update nodes modify action configuration during workflow execution.
 ### Example: Update Print Settings
 
 ```xml
-<Actions>
-  <Print name="PrintToFilm"
-         calledAE="FILM_PRINTER" callingAE="PRINTER"
-         host="192.168.1.50" port="104">
+<ActionsList>
+  <Print name="PrintToFilm">
+    <ConnectionParameters>
+      <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
+      <Host>192.168.1.50</Host>
+      <Port>104</Port>
+    </ConnectionParameters>
     <BasicFilmSessionAttributes>
       <NumberOfCopies>1</NumberOfCopies>
     </BasicFilmSessionAttributes>
   </Print>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <!-- Update print action to print 3 copies for STAT jobs -->
   <If field="CLIENT_HOST_NAME" value="STAT-WORKSTATION">
-    <Update action="PrintToFilm" type="print">
-      <BasicFilmSessionAttributes>
-        <NumberOfCopies>3</NumberOfCopies>
-      </BasicFilmSessionAttributes>
-    </Update>
+    <Statements>
+      <Update action="PrintToFilm" type="print">
+        <BasicFilmSessionAttributes>
+          <NumberOfCopies>3</NumberOfCopies>
+        </BasicFilmSessionAttributes>
+      </Update>
+    </Statements>
   </If>
 
   <Perform action="PrintToFilm"/>
@@ -416,24 +446,7 @@ Update nodes modify action configuration during workflow execution.
 
 Update nodes allow dynamic action configuration changes that are applied during workflow execution.
 
-## Resume Actions
-
-Resume actions are special actions that can resume suspended jobs programmatically.
-
-### Example: Automatic Resume After Time
-
-```xml
-<Actions>
-  <!-- This action might be triggered externally -->
-  <Resume name="ResumeAfterDelay"/>
-</Actions>
-```
-
-Resume actions are typically triggered:
-- By external systems
-- After scheduled tasks complete
-- When data becomes available
-- Through API calls
+Resumption is not driven by a dedicated action or node. A suspended job is automatically re-queued after `SuspensionTime` and re-enters the workflow at the action named in the `resumeAction` attribute of its `<Suspend>` node.
 
 ## Common Control Flow Patterns
 
@@ -444,13 +457,17 @@ Resume actions are typically triggered:
   <!-- Validate -->
   <Perform action="ParseFilename"/>
   <If field="TAG_VALUE(0010,0020)" value="^$">
-    <Discard/>
+    <Statements>
+      <Discard/>
+    </Statements>
   </If>
 
   <!-- Process -->
   <Perform action="QueryWorklist"/>
-  <If field="QUERY_FOUND" value="false">
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 
   <!-- Route -->
@@ -461,41 +478,47 @@ Resume actions are typically triggered:
 
 ### Try-Fallback-Suspend
 
+`STORE_SUCCEEDED` is a single job-wide flag that reflects only the **most recent** Store action, so each check must immediately follow the store it refers to.
+
 ```xml
 <Workflow>
   <!-- Try primary -->
   <Perform action="SendToPrimaryPACS"/>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-    <!-- Try fallback -->
-    <Perform action="SendToBackupPACS"/>
+  <If field="STORE_SUCCEEDED" value="0">
+    <Statements>
+      <!-- Primary failed - try fallback -->
+      <Perform action="SendToBackupPACS"/>
 
-    <If field="STORE_SUCCEEDED" tag="SendToBackupPACS" value="false">
-      <!-- Both failed - suspend -->
-      <Perform action="NotifyFailure"/>
-      <Suspend/>
-    </If>
+      <If field="STORE_SUCCEEDED" value="0">
+        <Statements>
+          <!-- Both failed - suspend -->
+          <Perform action="NotifyFailure"/>
+          <Suspend resumeAction="SendToPrimaryPACS"/>
+        </Statements>
+      </If>
+    </Statements>
   </If>
 </Workflow>
 ```
 
 ### Process-Validate-Retry
 
+Retry capping is driven by the `maxRetries` attribute on `<Suspend>`, not by a counter you maintain. Validation guards use `TAG_VALUE(...)` regex checks against the dataset.
+
 ```xml
 <Workflow>
   <Perform action="ProcessData"/>
-  <Perform action="ValidateResult"/>
 
-  <If field="VALIDATION_PASSED" value="false">
-    <Update field="RETRY_COUNT" value="1"/>
+  <!-- Validate: require a non-empty Accession Number -->
+  <If field="TAG_VALUE(0008,0050)" value="^$">
+    <Statements>
+      <!-- Suspend and retry up to 3 times, then fall through -->
+      <Suspend resumeAction="ProcessData" maxRetries="3"/>
 
-    <If field="RETRY_COUNT" value="3">
-      <!-- Max retries - suspend -->
-      <Suspend/>
-    </If>
-
-    <!-- Retry processing -->
-    <Perform action="ProcessData"/>
+      <!-- Reached only after the retry budget is exhausted -->
+      <Perform action="NotifyValidationFailure"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -504,10 +527,12 @@ Resume actions are typically triggered:
 
 ```xml
 <Perform action="AutoWorklist" onError="Ignore"/>
-<If field="QUERY_FOUND" value="false">
-  <Suspend resumeAction="RetryWorklist" maxRetries="3"/>
-  <!-- Falls through here after 3 failed retries -->
-  <Perform action="ParkForManualMatch"/>
+<If field="QUERY_FOUND" value="0">
+  <Statements>
+    <Suspend resumeAction="RetryWorklist" maxRetries="3"/>
+    <!-- Falls through here after 3 failed retries -->
+    <Perform action="ParkForManualMatch"/>
+  </Statements>
 </If>
 ```
 
@@ -519,44 +544,58 @@ Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queu
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Normal path -->
-    <Perform action="SendToModalityPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Normal path -->
+      <Perform action="SendToModalityPACS"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- Check if test patient -->
-    <If field="TAG_VALUE(0010,0020)" value="^TEST">
-      <!-- Discard test -->
-      <Discard/>
-    </If>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- Check if test patient -->
+      <If field="TAG_VALUE(0010,0020)" value="^TEST">
+        <Statements>
+          <!-- Discard test -->
+          <Discard/>
+        </Statements>
+      </If>
 
-    <!-- Not test - suspend for review -->
-    <Suspend resumeAction="QueryWorklist"/>
+      <!-- Not test - suspend for review -->
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
 
 ### Multi-Destination with Error Handling
 
+Because `STORE_SUCCEEDED` only reflects the most recent Store, check it immediately after the primary store, and only attempt the backup when the primary failed.
+
 ```xml
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Send to multiple destinations -->
-    <Perform action="SendToPrimaryPACS"/>
-    <Perform action="SendToBackupPACS"/>
-    <Perform action="SaveToArchive"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Try primary -->
+      <Perform action="SendToPrimaryPACS"/>
 
-    <!-- Check if at least one succeeded -->
-    <If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-      <If field="STORE_SUCCEEDED" tag="SendToBackupPACS" value="false">
-        <!-- Both stores failed - suspend -->
-        <Perform action="NotifyStorageFailure"/>
-        <Suspend/>
+      <If field="STORE_SUCCEEDED" value="0">
+        <Statements>
+          <!-- Primary failed - try backup -->
+          <Perform action="SendToBackupPACS"/>
+
+          <If field="STORE_SUCCEEDED" value="0">
+            <Statements>
+              <!-- Both stores failed - suspend -->
+              <Perform action="NotifyStorageFailure"/>
+              <Suspend resumeAction="SendToPrimaryPACS"/>
+            </Statements>
+          </If>
+        </Statements>
       </If>
-    </If>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -574,19 +613,22 @@ Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queu
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Data extraction -->
     <ParseJobFileName name="ExtractPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
     </ParseJobFileName>
 
     <!-- Patient lookup -->
-    <Query name="FindWorklist" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER"
-           host="192.168.1.200" port="104">
+    <Query name="FindWorklist" type="Worklist">
+      <ConnectionParameters>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
@@ -597,13 +639,23 @@ Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queu
     </SetTag>
 
     <!-- Storage -->
-    <Store name="SendToPrimaryPACS"
-           calledAE="PRIMARY_PACS" callingAE="PRINTER"
-           host="192.168.1.100" port="104"/>
+    <Store name="SendToPrimaryPACS">
+      <ConnectionParameters>
+        <PeerAeTitle>PRIMARY_PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
-    <Store name="SendToBackupPACS"
-           calledAE="BACKUP_PACS" callingAE="PRINTER"
-           host="192.168.1.200" port="104"/>
+    <Store name="SendToBackupPACS">
+      <ConnectionParameters>
+        <PeerAeTitle>BACKUP_PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
     <Save name="SaveToArchive">
       <Directory>E:\Archive\#{PatientID}\#{StudyDate}</Directory>
@@ -614,7 +666,7 @@ Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queu
     <Notify name="NotifyNoMatch"/>
     <Notify name="NotifyMultipleMatches"/>
     <Notify name="NotifyAllStoreFailed"/>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <!-- Step 1: Extract patient ID -->
@@ -622,51 +674,63 @@ Where `ParkForManualMatch` is a `ManualQuery` action that moves the job to `queu
 
     <!-- Step 2: Validate patient ID exists -->
     <If field="TAG_VALUE(0010,0020)" value="^$">
-      <!-- No patient ID - cannot process -->
-      <Discard/>
+      <Statements>
+        <!-- No patient ID - cannot process -->
+        <Discard/>
+      </Statements>
     </If>
 
     <!-- Step 3: Query worklist -->
     <Perform action="FindWorklist" onError="Suspend"/>
 
     <!-- Step 4: Handle query results -->
-    <If field="QUERY_PARTIAL" value="true">
-      <!-- Multiple matches - needs manual selection -->
-      <Perform action="NotifyMultipleMatches" onError="Ignore"/>
-      <Suspend resumeAction="FindWorklist"/>
+    <If field="QUERY_PARTIAL" value="1">
+      <Statements>
+        <!-- Multiple matches - needs manual selection -->
+        <Perform action="NotifyMultipleMatches" onError="Ignore"/>
+        <Suspend resumeAction="FindWorklist"/>
+      </Statements>
     </If>
 
-    <If field="QUERY_FOUND" value="false">
-      <!-- No match - suspend for manual review -->
-      <Perform action="NotifyNoMatch" onError="Ignore"/>
-      <Suspend resumeAction="FindWorklist"/>
+    <If field="QUERY_FOUND" value="0">
+      <Statements>
+        <!-- No match - suspend for manual review -->
+        <Perform action="NotifyNoMatch" onError="Ignore"/>
+        <Suspend resumeAction="FindWorklist"/>
+      </Statements>
     </If>
 
     <!-- Step 5: Process matched patient -->
-    <If field="QUERY_FOUND" value="true">
-      <!-- Add metadata -->
-      <Perform action="AddMetadata"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Add metadata -->
+        <Perform action="AddMetadata"/>
 
-      <!-- Send to primary PACS -->
-      <Perform action="SendToPrimaryPACS" onError="Hold"/>
+        <!-- Send to primary PACS -->
+        <Perform action="SendToPrimaryPACS" onError="Ignore"/>
 
-      <!-- Send to backup PACS -->
-      <Perform action="SendToBackupPACS" onError="Ignore"/>
+        <!-- STORE_SUCCEEDED reflects the most recent store, so check it here -->
+        <If field="STORE_SUCCEEDED" value="0">
+          <Statements>
+            <!-- Primary failed - try backup -->
+            <Perform action="SendToBackupPACS" onError="Ignore"/>
 
-      <!-- Save to local archive -->
-      <Perform action="SaveToArchive" onError="Ignore"/>
-
-      <!-- Check if at least one store succeeded -->
-      <If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-        <If field="STORE_SUCCEEDED" tag="SendToBackupPACS" value="false">
-          <!-- Both stores failed - critical error -->
-          <Perform action="NotifyAllStoreFailed" onError="Ignore"/>
-          <Suspend resumeAction="SendToPrimaryPACS"/>
+            <If field="STORE_SUCCEEDED" value="0">
+              <Statements>
+                <!-- Both stores failed - critical error -->
+                <Perform action="NotifyAllStoreFailed" onError="Ignore"/>
+                <Suspend resumeAction="SendToPrimaryPACS"/>
+              </Statements>
+            </If>
+          </Statements>
         </If>
-      </If>
+
+        <!-- Save to local archive -->
+        <Perform action="SaveToArchive" onError="Ignore"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

@@ -89,7 +89,7 @@ Drop Monitor use the same resolver.
 
 # Chapter 2: Config File Elements
 
-All actions and parameters that are to be performed by DICOM Printer must be specified in the `config.xml` file structure described in the listing below. (See `config_conformation.xml` for the structure.)
+All actions and parameters that are to be performed by DICOM Printer must be specified in the `config.xml` file structure described in the listing below. (The structure is validated against `config.dtd`; this reference describes each element in detail.)
 
 ## Section: `<General>`
 
@@ -101,7 +101,6 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
   - `<SuspensionTime>` element.
   - `<ValidityPeriod>` element.
   - `<Verbosity>` element.
-  - `<RegistrationKey>` element.
   - `<MaximumLogFileSize>` element.
   - `<MaximumLogFileCount>` element.
   - `<RedactSensitiveLogValues>` element.
@@ -141,15 +140,15 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 
 ### Subsection: `<RegistrationKey>`
 
-- **Description**: Your personal, computer-specific registration key.
-- **Occurrence**: One.
+- **Description**: Legacy, inert element. This element is **not read by the engine** and has no effect. Licensing is handled entirely by the machine activation system, not by `config.xml`. After the activation flow contacts the activation server, the resulting activation code is written to a `.activation` file in the **same directory as `config.xml`** — it is not stored in the Windows registry and not in `config.xml`. The `<RegistrationKey>` element is retained only for backward compatibility; the application starts normally whether or not it is present, and any value is ignored.
+- **Occurrence**: Zero or one (ignored).
 - **Attributes**: None
-- **Content**: String value.
+- **Content**: String value (ignored).
 - **Default Value**: None
 
 ### Subsection: `<MaximumLogFileSize>`
 
-- **Description**: Maximum size of the active log file before rotation occurs. Accepts values with `KB`, `MB`, or `GB` suffixes (case-insensitive); a bare integer is treated as bytes. The minimum enforced size is 1 MB.
+- **Description**: Maximum size of the active log file before rotation occurs. Accepts values with `KB`, `MB`, or `GB` suffixes (case-insensitive); a bare integer (no suffix) is treated as megabytes. The minimum enforced size is 1 MB.
 - **Occurrence**: Zero or one (optional).
 - **Attributes**: None
 - **Content**: Size value.
@@ -213,10 +212,10 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 **Paragraph: `<MyAeTitle>`**
 
 - **Description**: Calling Application Entity title.
-- **Occurrence**: One.
+- **Occurrence**: Zero or one.
 - **Attributes**: None
 - **Content**: Constant character value.
-- **Default Value**: None
+- **Default Value**: `DICOM_PRINTER`
 
 **Paragraph: `<PeerAeTitle>`**
 
@@ -266,7 +265,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Occurrence**: Zero or one.
 - **Attributes**: None
 - **Content**: Number of seconds or -1 for infinity.
-- **Default Value**: 1.
+- **Default Value**: 30.
 
 **Paragraph: `<DimseTimeout>`**
 
@@ -274,7 +273,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Occurrence**: Zero or one.
 - **Attributes**: None
 - **Content**: Number of seconds or -1 for infinity.
-- **Default Value**: 1.
+- **Default Value**: -1 (infinity / no timeout).
 
 #### Subsubsection: `<PrintMode>`
 
@@ -421,6 +420,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Attributes**: None
 - **Content**: The definition of the annotation display formats and the annotation box position sequence are defined in the Conformance Statement.
 - **Default Value**: None
+- **Note**: The engine never sends this attribute. Annotation support is disabled in the print SCU, so any configured value is discarded (a warning is logged) and configuring it has no effect.
 
 **Paragraph: `<FilmOrientation>`**
 
@@ -535,6 +535,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Attributes**: None
 - **Content**: Expressed as L0, in candelas per square meter (cd/m2).
 - **Default Value**: None
+- **Note**: The engine never sends this attribute. Presentation-LUT support is disabled in the print SCU, so any configured value is discarded (a warning is logged) and configuring it has no effect.
 
 **Paragraph: `<ReflectedAmbientLight>`**
 
@@ -543,6 +544,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
 - **Attributes**: None
 - **Content**: Expressed as La, in candelas per square meter (cd/m2).
 - **Default Value**: None
+- **Note**: The engine never sends this attribute. Presentation-LUT support is disabled in the print SCU, so any configured value is discarded (a warning is logged) and configuring it has no effect.
 
 **Paragraph: `<RequestedResolutionId>`**
 
@@ -633,7 +635,7 @@ All actions and parameters that are to be performed by DICOM Printer must be spe
   - `name` : a unique identifier by which this action can be referred to by other entities.
   - `type` : query type. Enumerated values: `Study`, `Worklist`, `Patient`, or `Manual`. `Manual` parks the job in `queue/manual/` for operator-driven matching via the [DICOM Printer Console](control-app.md); see [Manual Matching](queue-dashboard.md).
   - `level` (Optional, `Patient` and `Study` queries): Query/retrieve level. Enumerated values: `PATIENT`, `STUDY`, `SERIES`, `IMAGE`. Defaults to `PATIENT` for Patient queries and `STUDY` for Study queries.
-  - `forcePeerAe` (Optional, default `false`): When `true`, forces the use of the peer's AE Title in the response even if it differs from the called AE.
+  - `forcePeerAe` (Optional, default `false`): Applies to **Worklist queries only** — it has no effect on `Study`, `Patient`, or `Manual` queries. When `true`, the engine copies the current job's Scheduled Station AE Title into the Scheduled Station AE Title `(0040,0001)` element inside the Scheduled Procedure Step Sequence `(0040,0100)`, sending it as a matching key. When `false` (default), `(0040,0001)` is sent as an empty return key.
   - `select` (Optional): Reduces a multi-result, locally-filtered response to a single dataset for assignment. Enumerated values: `first`, `last`. When unset, the legacy "single match wins, multiple match warns and skips assignment" behavior is preserved. Added in 2.4.0.
   - `order-by` (Optional): SQL-like sort clause applied to the locally-filtered result list before `select` reduces it. Format: comma-separated `<tag> [asc|desc]` clauses where `<tag>` is a DCMTK dictionary name (e.g. `StudyDate`) or a numeric DICOM tag (e.g. `(0008,0020)`). Direction defaults to `asc`. Missing values sort after present values; ties preserve PACS response order. A warning is logged if a sort tag is missing from one or more returned datasets. Added in 2.4.0.
   - `forceAssignment` or `force-assignment` (Optional, legacy): A boolean value. Acts as an alias for `select="first"`. If both `force-assignment` and `select` are present, `select` wins; a warning is logged if they disagree. New configs should prefer `select`.
@@ -834,8 +836,8 @@ See section: Connection Parameters.
   - `tagName` (Optional): A name for the tag. Required when defining private tags (odd group number).
   - `vr` (Optional): Value Representation (VR) of the tag (e.g., `LO`, `PN`, `DT`). Required for private tags.
   - `replace` (Optional): A boolean value (`true` or `false`) indicating whether to replace an existing tag value. Defaults to `false` (append).
-  - `unique` (Optional): A boolean value (`true` or `false`) indicating if the tag should be set uniquely for each image in the job (`true`) or globally for the entire job (`false`). Defaults to `false` (global).
 - **Content**: The character string value to be assigned to the DICOM tag. This can include DICOM tag placeholders (e.g., `#{ 0010,0020 }`) which will be replaced with actual values from the job dataset.
+- **Note**: `SetTag` always applies its value globally to the whole job (job-level dataset); there is no per-image mode. A `unique` attribute is **not honored** by `SetTag`. If you need a per-image value, use [`<SetSequence>`](#subsection-setsequence) with `unique="true"`.
 - **Default Value**: Not applicable.
 
 ### Subsection: `<SetSequence>`
@@ -903,7 +905,7 @@ See [SetSequence Action](/dicom-printer-2/actions/setsequence) for full usage de
   - `resolveHostNameAutomatically` (Optional, only for `Interactive` type): If set to `"true"`, automatically resolves the client host name for the PluginsLauncher connection. Defaults to `false`.
 - **Content**:
   - `<Command>`: The path to the executable program or script to be run.
-  - `<Timeout>` (Optional): The maximum time in milliseconds to wait for the external process to start, finish, or for data to be written/read. Defaults to `10000` (10 seconds).
+  - `<Timeout>` (Optional): The maximum time in milliseconds to wait for the external process to start, finish, or for data to be written/read. Defaults to `3000` (3 seconds).
   - `<Arguments>` (Optional): Command-line arguments to pass to the external program. Multiple arguments should be separated by `|`.
   - `<Input>`: Specifies a DICOM tag whose value will be sent to the external program\'s standard input. Each `<Input>` element has a `tag` attribute.
     - **Attributes for `<Input>`**:
@@ -1045,6 +1047,7 @@ In the above example, `QueryAction` must be a Query action defined in `<ActionsL
 - **Occurrence**: Zero or more within workflow.
 - **Attributes**:
   - `resumeAction` (Optional): Specifies the action name to execute when the job is resumed from suspension.
+  - `maxRetries` (Optional, integer >= 0): Retry budget for this suspend point. If omitted, the job suspends and retries indefinitely, re-entering the workflow every `SuspensionTime`. Once the budget is reached, the suspend point is skipped and the workflow continues to the next node instead of suspending again (typically a fall-through to a manual-matching step). The retry count is tracked per job in a sidecar metadata file.
 - **Content**: None (empty element).
 - **Default Value**: Not applicable.
 
@@ -1058,15 +1061,23 @@ In the above example, `QueryAction` must be a Query action defined in `<ActionsL
 
 ### Subsection: `<Update>`
 
-- **Description**: Dynamically creates and configures workflow actions at runtime. Enables runtime action instantiation with parameter injection based on job context.
+- **Description**: Mutates an existing named action's attributes at runtime, for the remainder of the current job. The referenced action is updated in place; the change persists for the rest of this job only. Only `Print` actions can be updated.
 - **Occurrence**: Zero or more within workflow.
 - **Attributes**:
-  - `name` : a unique identifier for this workflow node.
-- **Content**:
-  - `<ActionName>`: The name to assign to the dynamically created action.
-  - `<ActionType>`: The type of action to create (e.g., `Store`, `Query`, `Print`).
-  - `<ActionConfiguration>`: Configuration elements specific to the action type being created.
+  - `action` (Required): The `name` of an existing action defined in `<ActionsList>` to update (an IDREF to that action).
+  - `type` (Required): The type of the referenced action. Only `Print` is supported; any other value is a parse error.
+- **Content**: A `<Print>` action body whose elements are merged into the referenced Print action. Supported child elements: `<BasicFilmSessionAttributes>`, `<BasicFilmBoxAttributes>`, `<BasicImageBoxAttributes>`, `<PrintMode>`, `<ConnectionParameters>`, `<Resolution>`, and `<Debug>`.
 - **Default Value**: Not applicable.
+
+**Example — override the printer host for a Print action mid-job:**
+
+```xml
+<Update action="PrintToFilm" type="Print">
+    <ConnectionParameters>
+        <Host>192.168.1.200</Host>
+    </ConnectionParameters>
+</Update>
+```
 
 ### Subsection: `<If>`
 

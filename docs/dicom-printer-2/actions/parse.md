@@ -260,9 +260,9 @@ An absent tag matches `^$` exactly like an empty one.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Parse patient ID and accession from filename -->
     <!-- Expected format: 12345_ACC9876_Report.pdf -->
     <ParseJobFileName name="ParseFilename">
@@ -277,8 +277,8 @@ An absent tag matches `^$` exactly like an empty one.
 
     <Query name="FindWorklist" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -288,13 +288,13 @@ An absent tag matches `^$` exactly like an empty one.
 
     <Store name="SendToPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="ParseFilename" onError="Discard"/>
@@ -306,7 +306,7 @@ An absent tag matches `^$` exactly like an empty one.
       </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Best Practices

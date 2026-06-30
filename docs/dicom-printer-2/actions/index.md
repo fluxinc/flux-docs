@@ -12,7 +12,7 @@ Actions define the processing steps applied to each job. Common action types inc
 - Saving files to local directories
 - Transforming images
 
-Actions are defined in the `<Actions>` section of the configuration file and referenced by name in the `<Workflow>` section.
+Actions are defined in the `<ActionsList>` section of the configuration file and referenced by name in the `<Workflow>` section.
 
 ## Action Types
 
@@ -27,8 +27,10 @@ DICOM Printer 2 supports the following action types:
 
 ### Data Manipulation Actions
 
-- **[Parse](parse.md)** - Extract data from filenames or text files using regular expressions
+- **[ParseJobFileName](parse.md)** - Extract data from the spooler job name via regular expressions
+- **[ParseJobTextFile](parse.md)** - Extract data from the job's text/contents file (per line) via regular expressions
 - **[SetTag](settag.md)** - Add, modify, or delete DICOM tags and attributes
+- **[SetSequence](settag.md)** - Build a DICOM sequence (SQ) attribute from nested DcmItem/DcmTag/DcmSequence elements; supports per-image (unique) and replace semantics
 - **[Save](save.md)** - Save DICOM files to local directories with custom naming
 
 ### Image Processing Actions
@@ -36,6 +38,12 @@ DICOM Printer 2 supports the following action types:
 - **[Image Manipulation](image-manipulation.md)** - Trim, rotate, resize images
 - **[AutoRotateText](image-manipulation.md#autorotatetext-action)** - Automatically orient pages so the dominant parseable text is upright (conservative; no-ops when ambiguous)
 - **[AddInstance](image-manipulation.md#addinstance)** - Adds a new image instance to the job from an image file or blank canvas
+- **PrintText** - Overlay/burn text onto every image in the job within a specified rectangle (x, y, width, height) and color
+- **PrintImage** - Overlay an image (e.g. watermark or logo) onto every image in the job at a given position/size with a configurable aspect-ratio mode
+
+### Job Actions
+
+- **[MergeJob](image-manipulation.md#mergejob)** - Combine adjacent queue jobs (the next sorted `.dxi` sibling) into the current job so a multi-job study shares one Study Instance UID. Matches on host/user and creation-time gap; merges PDFs and text. Defaults: Timeout 2000ms, TimeThreshold 2000ms, MatchHost/MatchUser true, MaxJobs 10
 
 ### Integration Actions
 
@@ -117,11 +125,11 @@ Specifies the action to take when the performed action fails.
 
 ## Action Configuration
 
-Actions are defined in the `<Actions>` section of `config.xml`:
+Actions are defined in the `<ActionsList>` section of `config.xml`:
 
 ```xml
-<DicomPrinter>
-  <Actions>
+<DicomPrinterConfig>
+  <ActionsList>
     <Query name="FindPatient" type="Worklist" ...>
       <!-- Query configuration -->
     </Query>
@@ -133,8 +141,8 @@ Actions are defined in the `<Actions>` section of `config.xml`:
     <SetTag name="AddMetadata">
       <!-- SetTag configuration -->
     </SetTag>
-  </Actions>
-</DicomPrinter>
+  </ActionsList>
+</DicomPrinterConfig>
 ```
 
 ## Using Actions in Workflows
@@ -144,9 +152,11 @@ Actions are executed through workflow nodes, primarily using the `<Perform>` nod
 ```xml
 <Workflow>
   <Perform action="FindPatient"/>
-  <If field="QUERY_FOUND" value="true">
-    <Perform action="AddMetadata"/>
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <Perform action="AddMetadata"/>
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -155,9 +165,9 @@ See [Workflow Reference](../workflow/index.md) for complete workflow documentati
 
 ## Action Execution Order
 
-Actions are executed in the order specified in the workflow, not the order they appear in the `<Actions>` section.
+Actions are executed in the order specified in the workflow, not the order they appear in the `<ActionsList>` section.
 
-The `<Actions>` section is a declaration area where all available actions are defined. The `<Workflow>` section determines the execution order and conditional logic.
+The `<ActionsList>` section is a declaration area where all available actions are defined. The `<Workflow>` section determines the execution order and conditional logic.
 
 ## Example Configuration
 
@@ -165,14 +175,14 @@ Complete example showing multiple actions:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Query worklist for patient data -->
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -186,23 +196,25 @@ Complete example showing multiple actions:
     <!-- Send to PACS -->
     <Store name="SendToPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="FindPatient" onError="Hold"/>
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SetStudyDate"/>
-      <Perform action="SetInstitution"/>
-      <Perform action="SendToPACS" onError="Hold"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SetStudyDate"/>
+        <Perform action="SetInstitution"/>
+        <Perform action="SendToPACS" onError="Hold"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

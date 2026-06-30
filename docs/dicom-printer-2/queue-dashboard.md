@@ -121,9 +121,11 @@ A typical workflow chains it with `ManualMatch`:
 ```xml
 <Workflow>
   <Perform action="FindWorklistEntry"/>
-  <If field="QUERY_FOUND" value="false">
-    <Perform action="ParkForManualMatch"/>
-    <Perform action="ManualMatch"/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <Perform action="ParkForManualMatch"/>
+      <Perform action="ManualMatch"/>
+    </Statements>
   </If>
   <Perform action="SendToPACS"/>
 </Workflow>

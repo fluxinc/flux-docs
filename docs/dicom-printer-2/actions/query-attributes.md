@@ -11,6 +11,7 @@ This guide covers all available options and their proper configuration.
 1. **WorklistQuery** - Interfaces with Modality Worklist SCP for retrieving scheduled procedures
 2. **StudyQuery** - Performs queries at the study root level for study-centric operations
 3. **PatientQuery** - Executes queries at the patient root level for patient-centric workflows
+4. **ManualQuery** (`type="Manual"`) - Parks the job in the `manual/` queue for operator-driven worklist matching via the DICOM Printer Console; does not perform a network C-FIND
 
 
 ### Attribute Processing Lifecycle
@@ -58,7 +59,7 @@ If the query returns no matches, or if a specific tag was requested but the SCP 
 
 - The job dataset is **not** overwritten with empty or null values from the query response.
 - Existing values in the job dataset (from the original print job or earlier actions) are preserved.
-- The `QUERY_FOUND` workflow condition evaluates to false, and the `<Perform>` node's `onError` logic will be triggered.
+- The `QUERY_FOUND` workflow condition evaluates to false, and the action still completes **successfully**. A query that matches nothing is not an error and does **not** trigger `onError`; branch on `QUERY_FOUND` in the workflow to handle the no-match case.
 
 ## Configuration Reference
 
@@ -86,7 +87,7 @@ All query types share this fundamental configuration structure:
 - `select` — `first` or `last` to reduce a multi-result response deterministically (added in 2.4.0)
 - `order-by` — comma-separated sort clauses applied before `select` (added in 2.4.0)
 - `force-assignment` — legacy alias for `select="first"`. If both are present, `select` wins
-- `forcePeerAe` — forces the peer AE title in the response (Worklist)
+- `forcePeerAe` — when `1`, inserts the job's Scheduled Station AE Title into Scheduled Station AE Title `(0040,0001)` in the SPS sequence as a match key (Worklist only; default `0`)
 - `ConnectionParameters` — network connection settings (optional on `type="Manual"`)
 
 See [Query Actions § Optional Attributes](query.md#optional-attributes) for full attribute reference including `select`, `order-by`, and `match="local"`.
@@ -111,7 +112,7 @@ Specialized for workflow management and procedure scheduling:
 
 Specific attributes:
 
-- forcePeerAe - Forces use of peer AE title in scheduled station
+- `forcePeerAe` — Worklist queries only (default `0`); when `1`, the engine copies the job's Scheduled Station AE Title into Scheduled Station AE Title `(0040,0001)` within the Scheduled Procedure Step Sequence `(0040,0100)` as a matching key; when `0` that tag is sent as an empty return key. No effect on Study, Patient, or Manual queries
 - Supports Scheduled Procedure Step sequences
 - Root `StudyDate` `(0008,0020)` and root `Modality` `(0008,0060)` are accepted
   as aliases for Scheduled Procedure Step Start Date and SPS Modality inside

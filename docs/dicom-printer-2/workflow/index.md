@@ -7,7 +7,7 @@ The workflow defines the sequence of operations and conditional logic applied to
 A workflow is a series of nodes that execute in order. Each node represents an operation:
 - Performing an action
 - Making a decision based on data
-- Controlling job flow (suspend, discard, resume)
+- Controlling job flow (suspend, discard); a suspended job is automatically re-queued and resumes at its `<Suspend resumeAction="...">` target after the SuspensionTime elapses
 
 Workflows enable:
 - Sequential processing
@@ -20,15 +20,15 @@ Workflows enable:
 Workflows are defined in the `<Workflow>` section of `config.xml`:
 
 ```xml
-<DicomPrinter>
-  <Actions>
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Action definitions -->
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <!-- Workflow nodes -->
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Workflow Node Types
@@ -71,15 +71,19 @@ Workflow with conditional branching:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Patient matched -->
-    <Perform action="SetMetadata"/>
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Patient matched -->
+      <Perform action="SetMetadata"/>
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- No patient match -->
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- No patient match -->
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -104,20 +108,26 @@ Conditional nodes can be nested:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <Perform action="SetMetadata"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <Perform action="SetMetadata"/>
 
-    <If field="TAG_VALUE" tag="0010,0040" value="M">
-      <!-- Male patient -->
-      <Perform action="ProcessMalePatient"/>
-    </If>
+      <If field="TAG_VALUE(0010,0040)" value="^M$">
+        <Statements>
+          <!-- Male patient -->
+          <Perform action="ProcessMalePatient"/>
+        </Statements>
+      </If>
 
-    <If field="TAG_VALUE" tag="0010,0040" value="F">
-      <!-- Female patient -->
-      <Perform action="ProcessFemalePatient"/>
-    </If>
+      <If field="TAG_VALUE(0010,0040)" value="^F$">
+        <Statements>
+          <!-- Female patient -->
+          <Perform action="ProcessFemalePatient"/>
+        </Statements>
+      </If>
 
-    <Perform action="SendToPACS"/>
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -134,15 +144,19 @@ Conditional nodes can be nested:
   <!-- Query worklist for patient data -->
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Patient found - add metadata and send to PACS -->
-    <Perform action="SetMetadata"/>
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Patient found - add metadata and send to PACS -->
+      <Perform action="SetMetadata"/>
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- Patient not found - suspend for manual review -->
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- Patient not found - suspend for manual review -->
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -153,18 +167,22 @@ Conditional nodes can be nested:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Send to primary PACS -->
-    <Perform action="SendToPrimaryPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Send to primary PACS -->
+      <Perform action="SendToPrimaryPACS"/>
 
-    <!-- Send to backup -->
-    <Perform action="SendToBackup"/>
+      <!-- Send to backup -->
+      <Perform action="SendToBackup"/>
 
-    <!-- Conditionally print -->
-    <If field="TAG_VALUE" tag="0008,0060" value="CR">
-      <!-- Print CR modality images -->
-      <Perform action="PrintToFilm"/>
-    </If>
+      <!-- Conditionally print -->
+      <If field="TAG_VALUE(0008,0060)" value="^CR$">
+        <Statements>
+          <!-- Print CR modality images -->
+          <Perform action="PrintToFilm"/>
+        </Statements>
+      </If>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -175,14 +193,18 @@ Conditional nodes can be nested:
 <Workflow>
   <Perform action="SendToPrimaryPACS"/>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPrimaryPACS" value="false">
-    <!-- Primary failed - try backup -->
-    <Perform action="SendToBackupPACS"/>
+  <If field="STORE_SUCCEEDED" value="0">
+    <Statements>
+      <!-- Primary failed - try backup -->
+      <Perform action="SendToBackupPACS"/>
+    </Statements>
   </If>
 
-  <If field="STORE_SUCCEEDED" tag="SendToBackupPACS" value="false">
-    <!-- Both failed - suspend -->
-    <Suspend/>
+  <If field="STORE_SUCCEEDED" value="0">
+    <Statements>
+      <!-- Both failed - suspend -->
+      <Suspend resumeAction="SendToPrimaryPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -214,23 +236,29 @@ Conditional nodes can be nested:
   <!-- Parse data -->
   <Perform action="ParseFilename"/>
 
-  <If field="TAG_VALUE" tag="0010,0020" value="">
-    <!-- No patient ID - discard -->
-    <Discard/>
+  <If field="TAG_VALUE(0010,0020)" value="^$">
+    <Statements>
+      <!-- No patient ID - discard -->
+      <Discard/>
+    </Statements>
   </If>
 
   <!-- Query worklist -->
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_PARTIAL" value="true">
-    <!-- Multiple matches - manual review needed -->
-    <Perform action="NotifyMultipleMatches"/>
-    <Suspend/>
+  <If field="QUERY_PARTIAL" value="1">
+    <Statements>
+      <!-- Multiple matches - manual review needed -->
+      <Perform action="NotifyMultipleMatches"/>
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Single match - continue -->
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Single match - continue -->
+      <Perform action="SendToPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -246,10 +274,12 @@ Use the workflow to log progress at key points:
   <Perform action="QueryWorklist"/>
   <Perform action="LogQueryResult"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <Perform action="LogProcessingPatient"/>
-    <Perform action="SendToPACS"/>
-    <Perform action="LogStoreResult"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <Perform action="LogProcessingPatient"/>
+      <Perform action="SendToPACS"/>
+      <Perform action="LogStoreResult"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -270,17 +300,20 @@ Check log files to see which nodes executed and their results.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <ParseJobFileName name="ExtractPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
     </ParseJobFileName>
 
-    <Query name="FindWorklist" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER"
-           host="192.168.1.200" port="104">
+    <Query name="FindWorklist" type="Worklist">
+      <ConnectionParameters>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
@@ -295,9 +328,14 @@ Check log files to see which nodes executed and their results.
     </Trim>
 
     <Store name="SendToPACS"
-           calledAE="PACS" callingAE="PRINTER"
-           host="192.168.1.100" port="104"
-           compression="JPEG_Lossless"/>
+           compression="JPEG_Lossless">
+      <ConnectionParameters>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
     <Save name="SaveToArchive">
       <Directory>E:\Archive\#{PatientID}\#{StudyDate}</Directory>
@@ -305,36 +343,42 @@ Check log files to see which nodes executed and their results.
     </Save>
 
     <Notify name="AlertNoMatch" mandatory="false" onError="Ignore"/>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <!-- Extract patient ID from filename -->
     <Perform action="ExtractPatientID"/>
 
     <!-- Validate patient ID exists -->
-    <If field="TAG_VALUE" tag="0010,0020" value="">
-      <!-- No patient ID - cannot process -->
-      <Discard/>
+    <If field="TAG_VALUE(0010,0020)" value="^$">
+      <Statements>
+        <!-- No patient ID - cannot process -->
+        <Discard/>
+      </Statements>
     </If>
 
     <!-- Query worklist for patient data -->
     <Perform action="FindWorklist"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <!-- Patient matched - process normally -->
-      <Perform action="AddMetadata"/>
-      <Perform action="RemoveMargins"/>
-      <Perform action="SendToPACS"/>
-      <Perform action="SaveToArchive"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Patient matched - process normally -->
+        <Perform action="AddMetadata"/>
+        <Perform action="RemoveMargins"/>
+        <Perform action="SendToPACS"/>
+        <Perform action="SaveToArchive"/>
+      </Statements>
     </If>
 
-    <If field="QUERY_FOUND" value="false">
-      <!-- No patient match - alert and suspend -->
-      <Perform action="AlertNoMatch"/>
-      <Suspend/>
+    <If field="QUERY_FOUND" value="0">
+      <Statements>
+        <!-- No patient match - alert and suspend -->
+        <Perform action="AlertNoMatch"/>
+        <Suspend resumeAction="FindWorklist"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

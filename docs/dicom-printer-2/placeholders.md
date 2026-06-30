@@ -83,7 +83,7 @@ Returns the current date offset by `N` days. Negative values go backward.
 ```
 
 Returns two dates separated by a hyphen: `(today + offset - range)-(today + offset + range)`.
-Useful for DICOM date range queries. Only applies when `range > 1`.
+Useful for DICOM date range queries. Only applies when a non-zero `range` is given (`range >= 1`); a range of `0` or an omitted range yields a single date.
 
 ```xml
 <!-- Query for studies within ±7 days of a week ago -->
@@ -153,8 +153,8 @@ Worklist scheduled dates live inside `(0040,0100)` Scheduled Procedure Step Sequ
 ```xml
 <Query name="TodayWorklist" type="Worklist">
   <ConnectionParameters>
-    <PeerAETitle>RIS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>RIS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.200</Host>
     <Port>104</Port>
   </ConnectionParameters>

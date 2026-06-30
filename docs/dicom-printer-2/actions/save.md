@@ -8,7 +8,7 @@ Save actions write DICOM files to local directories with customizable naming and
 <Save name="ActionName">
   <Directory>path</Directory>
   <Filename>filename</Filename>
-  <Format>DICOM|DXI</Format>
+  <Format>dxi</Format>
 </Save>
 ```
 
@@ -31,17 +31,16 @@ The filename pattern for saved files. Supports placeholders for dynamic naming.
 ```
 
 ### `<Format>` (Optional)
-The file format to use.
+The output format to use. The value is matched case-insensitively, and the only special value is `dxi`. Any other value — or omitting `<Format>` entirely — produces the default DICOM File Set.
 
-**Valid Values:** `DICOM`, `DXI`
-**Default:** `DICOM`
+**Default:** DICOM File Set (omit `<Format>`, or use any value other than `dxi`)
 
 ```xml
-<Format>DICOM</Format>
+<Format>dxi</Format>
 ```
 
-- **DICOM** - Standard DICOM format (.dcm)
-- **DXI** - DICOM XML Interchange format
+- **DICOM File Set (default)** - Writes Secondary Capture `.dcm` files into the target directory together with a generated `DICOMDIR` index file (FileSet ID `DICOM_PRINTER_2`). This is the behaviour for an absent `<Format>` or any value that is not `dxi`.
+- **DXI** - Copies the original captured job file (`.dxi`) and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion. Use this to archive the raw print-capture job rather than generating DICOM.
 
 ## Using Placeholders
 
@@ -137,10 +136,10 @@ Example: `1.2.840.113619.2.55.3.123456789.dcm`
 ### With Timestamp
 
 ```xml
-<Filename>#{Date}_#{Time}_#{PatientID}.dcm</Filename>
+<Filename>#{Date}_#{PatientID}.dcm</Filename>
 ```
 
-Example: `20240315_143022_12345.dcm`
+Example: `20240315_12345.dcm`
 
 ## Format Options
 
@@ -154,27 +153,27 @@ Example: `20240315_143022_12345.dcm`
 </Save>
 ```
 
-### DXI (DICOM XML Interchange) Format
+### DXI (Raw Job Archive) Format
 
 ```xml
 <Save name="SaveDXI">
-  <Directory>E:\Archive\XML</Directory>
-  <Filename>#{PatientID}.xml</Filename>
-  <Format>DXI</Format>
+  <Directory>E:\Archive\Raw</Directory>
+  <Filename>#{PatientID}</Filename>
+  <Format>dxi</Format>
 </Save>
 ```
 
-DXI format saves DICOM data as XML, useful for:
-- Human-readable DICOM data
-- Integration with XML-based systems
-- Debugging and analysis
+DXI format copies the original captured `.dxi` job file and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion. Use this to:
+- Archive the raw print-capture job exactly as it was captured
+- Retain the original page images, PDF, and text alongside the job file
+- Reprocess or troubleshoot a job later from its native source
 
 ## Multiple Save Actions
 
 Save to multiple locations with different organization:
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Save to primary archive -->
   <Save name="SaveToPrimary">
     <Directory>E:\Primary Archive\#{Modality}\#{PatientID}</Directory>
@@ -187,18 +186,18 @@ Save to multiple locations with different organization:
     <Filename>#{StudyInstanceUID}_#{InstanceNumber}.dcm</Filename>
   </Save>
 
-  <!-- Save XML version for analysis -->
-  <Save name="SaveXML">
-    <Directory>E:\Analysis\XML</Directory>
-    <Filename>#{PatientID}_#{Date}.xml</Filename>
-    <Format>DXI</Format>
+  <!-- Archive the raw captured job -->
+  <Save name="SaveRaw">
+    <Directory>E:\Archive\Raw\#{Date}</Directory>
+    <Filename>#{PatientID}</Filename>
+    <Format>dxi</Format>
   </Save>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <Perform action="SaveToPrimary"/>
   <Perform action="SaveToBackup"/>
-  <Perform action="SaveXML"/>
+  <Perform action="SaveRaw"/>
 </Workflow>
 ```
 
@@ -260,14 +259,18 @@ If the save fails, the error is logged but processing continues.
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Save to verified patients folder -->
-    <Perform action="SaveToVerified"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Save to verified patients folder -->
+      <Perform action="SaveToVerified"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- Save to unverified folder for review -->
-    <Perform action="SaveToUnverified"/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- Save to unverified folder for review -->
+      <Perform action="SaveToUnverified"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -316,19 +319,22 @@ If the save fails, the error is logged but processing continues.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Parse patient ID -->
     <ParseJobFileName name="GetPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
     </ParseJobFileName>
 
     <!-- Query worklist -->
-    <Query name="FindPatient" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER"
-           host="192.168.1.200" port="104">
+    <Query name="FindPatient" type="Worklist">
+      <ConnectionParameters>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
@@ -345,31 +351,38 @@ If the save fails, the error is logged but processing continues.
       <Format>DICOM</Format>
     </Save>
 
-    <!-- Save XML for analysis -->
-    <Save name="SaveXML">
-      <Directory>E:\Analysis\#{Date}</Directory>
-      <Filename>#{PatientID}_#{Time}.xml</Filename>
-      <Format>DXI</Format>
+    <!-- Archive the raw captured job -->
+    <Save name="SaveRaw">
+      <Directory>E:\Archive\Raw\#{Date}</Directory>
+      <Filename>#{PatientID}</Filename>
+      <Format>dxi</Format>
     </Save>
 
     <!-- Store to PACS -->
-    <Store name="SendToPACS"
-           calledAE="PACS" callingAE="PRINTER"
-           host="192.168.1.100" port="104"/>
-  </Actions>
+    <Store name="SendToPACS">
+      <ConnectionParameters>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
+  </ActionsList>
 
   <Workflow>
     <Perform action="GetPatientID"/>
     <Perform action="FindPatient"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SetMetadata"/>
-      <Perform action="SaveToArchive"/>
-      <Perform action="SaveXML"/>
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SetMetadata"/>
+        <Perform action="SaveToArchive"/>
+        <Perform action="SaveRaw"/>
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

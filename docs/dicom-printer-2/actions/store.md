@@ -7,8 +7,8 @@ Store actions send DICOM objects to remote PACS systems or storage nodes using t
 ```xml
 <Store name="ActionName">
   <ConnectionParameters>
-    <PeerAETitle>RemoteAE</PeerAETitle>
-    <MyAETitle>LocalAE</MyAETitle>
+    <PeerAeTitle>RemoteAE</PeerAeTitle>
+    <MyAeTitle>LocalAE</MyAeTitle>
     <Host>hostname</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -29,10 +29,10 @@ Unique identifier for this action.
 ### `ConnectionParameters`
 Network connection settings for the remote DICOM server. Must contain the following nested elements:
 
-#### `PeerAETitle`
+#### `PeerAeTitle`
 The AE Title of the remote DICOM storage server (PACS).
 
-#### `MyAETitle`
+#### `MyAeTitle`
 The AE Title of DICOM Printer 2 (this application).
 
 #### `Host`
@@ -104,7 +104,7 @@ Specifies the color mode for image conversion.
 
 **Attribute:** `mode`
 **Valid Values:** `RGB`, `Monochrome8`, `Monochrome12`
-**Default:** Preserves original color mode
+**Default:** `RGB` (omitting `<ColorMode>` sends images as RGB / PhotometricInterpretation RGB)
 
 ```xml
 <ColorMode mode="Monochrome8"/>
@@ -143,6 +143,8 @@ Best for:
 - CT, MR, CR, DR modalities
 - Maximum grayscale precision
 
+**Incompatible combination:** `Compression type="JPEG_Lossy"` together with `ColorMode mode="Monochrome12"` is not allowed and causes the configuration to fail to load. For 12-bit grayscale use `RLE` or `JPEG_Lossless` instead.
+
 ## Storage Classes
 
 Store actions automatically select the appropriate SOP Class based on the DICOM object type:
@@ -171,8 +173,8 @@ Send uncompressed images to a PACS:
 ```xml
 <Store name="SendToPACS">
   <ConnectionParameters>
-    <PeerAETitle>PACS_SERVER</PeerAETitle>
-    <MyAETitle>DICOM_PRINTER</MyAETitle>
+    <PeerAeTitle>PACS_SERVER</PeerAeTitle>
+    <MyAeTitle>DICOM_PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -191,8 +193,8 @@ Use in workflow with error handling:
 ```xml
 <Store name="SendCompressed">
   <ConnectionParameters>
-    <PeerAETitle>PACS_ARCHIVE</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS_ARCHIVE</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>pacs.hospital.local</Host>
     <Port>11112</Port>
   </ConnectionParameters>
@@ -205,8 +207,8 @@ Use in workflow with error handling:
 ```xml
 <Store name="SendGrayscaleRLE">
   <ConnectionParameters>
-    <PeerAETitle>PACS_SERVER</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS_SERVER</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -220,12 +222,12 @@ Use in workflow with error handling:
 You can define multiple Store actions to send to different destinations:
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Primary PACS -->
   <Store name="SendToPrimaryPACS">
     <ConnectionParameters>
-      <PeerAETitle>PACS_PRIMARY</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>PACS_PRIMARY</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.100</Host>
       <Port>104</Port>
     </ConnectionParameters>
@@ -235,8 +237,8 @@ You can define multiple Store actions to send to different destinations:
   <!-- Backup archive -->
   <Store name="SendToBackupArchive">
     <ConnectionParameters>
-      <PeerAETitle>PACS_BACKUP</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>PACS_BACKUP</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.200</Host>
       <Port>104</Port>
     </ConnectionParameters>
@@ -246,14 +248,14 @@ You can define multiple Store actions to send to different destinations:
   <!-- Film printer -->
   <Store name="SendToFilm">
     <ConnectionParameters>
-      <PeerAETitle>FILM_PRINTER</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.50</Host>
       <Port>104</Port>
     </ConnectionParameters>
     <ColorMode mode="Monochrome12"/>
   </Store>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <!-- Primary PACS - retry on failure -->
@@ -275,14 +277,18 @@ Use workflow conditionals to route to different destinations based on data:
 <Workflow>
   <Perform action="FindPatient"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Patient matched - send to primary PACS -->
-    <Perform action="SendToPrimaryPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Patient matched - send to primary PACS -->
+      <Perform action="SendToPrimaryPACS"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- No patient match - send to holding area -->
-    <Perform action="SendToHoldingPACS"/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- No patient match - send to holding area -->
+      <Perform action="SendToHoldingPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -297,8 +303,8 @@ Action definition:
 ```xml
 <Store name="SendWithRetry">
   <ConnectionParameters>
-    <PeerAETitle>PACS_SERVER</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS_SERVER</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -318,8 +324,8 @@ Action definition:
 ```xml
 <Store name="SendOrDiscard">
   <ConnectionParameters>
-    <PeerAETitle>OPTIONAL_ARCHIVE</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>OPTIONAL_ARCHIVE</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.200</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -337,8 +343,8 @@ Action definition:
 ```xml
 <Store name="SendOptional">
   <ConnectionParameters>
-    <PeerAETitle>OPTIONAL_PACS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>OPTIONAL_PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.150</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -358,14 +364,18 @@ Use workflow conditionals to check if a store operation succeeded:
 <Workflow>
   <Perform action="SendToPACS"/>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPACS" value="true">
-    <!-- Store succeeded -->
-    <Perform action="NotifySuccess"/>
+  <If field="STORE_SUCCEEDED" value="1">
+    <Statements>
+      <!-- Store succeeded -->
+      <Perform action="NotifySuccess"/>
+    </Statements>
   </If>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPACS" value="false">
-    <!-- Store failed -->
-    <Perform action="NotifyFailure"/>
+  <If field="STORE_SUCCEEDED" value="0">
+    <Statements>
+      <!-- Store failed -->
+      <Perform action="NotifyFailure"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -376,14 +386,14 @@ Complete configuration with query, tag setting, and multiple store destinations:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Query for patient data -->
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -399,8 +409,8 @@ Complete configuration with query, tag setting, and multiple store destinations:
     <!-- Primary PACS with compression -->
     <Store name="SendToPrimaryPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS_PRIMARY</PeerAETitle>
-        <MyAETitle>DICOM_PRINTER</MyAETitle>
+        <PeerAeTitle>PACS_PRIMARY</PeerAeTitle>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
         <Host>pacs.hospital.local</Host>
         <Port>11112</Port>
       </ConnectionParameters>
@@ -410,29 +420,31 @@ Complete configuration with query, tag setting, and multiple store destinations:
     <!-- Backup without compression -->
     <Store name="SendToBackup">
       <ConnectionParameters>
-        <PeerAETitle>PACS_BACKUP</PeerAETitle>
-        <MyAETitle>DICOM_PRINTER</MyAETitle>
+        <PeerAeTitle>PACS_BACKUP</PeerAeTitle>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
         <Host>backup.hospital.local</Host>
         <Port>11112</Port>
       </ConnectionParameters>
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <!-- Find patient with retry on failure -->
     <Perform action="FindPatient" onError="Hold"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SetMetadata"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SetMetadata"/>
 
-      <!-- Primary PACS - critical, retry on failure -->
-      <Perform action="SendToPrimaryPACS" onError="Hold"/>
+        <!-- Primary PACS - critical, retry on failure -->
+        <Perform action="SendToPrimaryPACS" onError="Hold"/>
 
-      <!-- Backup - optional, ignore failures -->
-      <Perform action="SendToBackup" onError="Ignore"/>
+        <!-- Backup - optional, ignore failures -->
+        <Perform action="SendToBackup" onError="Ignore"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Performance Considerations

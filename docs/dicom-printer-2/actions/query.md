@@ -16,8 +16,8 @@ DICOM Printer 2 supports four query types:
 ```xml
 <Query name="ActionName" type="QueryType">
   <ConnectionParameters>
-    <PeerAETitle>RemoteAE</PeerAETitle>
-    <MyAETitle>LocalAE</MyAETitle>
+    <PeerAeTitle>RemoteAE</PeerAeTitle>
+    <MyAeTitle>LocalAE</MyAeTitle>
     <Host>hostname</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -43,10 +43,10 @@ The type of query to perform.
 ### `ConnectionParameters`
 Network connection settings for the remote DICOM server. Must contain the following nested elements:
 
-#### `PeerAETitle`
+#### `PeerAeTitle`
 The AE Title of the remote DICOM server being queried.
 
-#### `MyAETitle`
+#### `MyAeTitle`
 The AE Title of DICOM Printer 2 (this application).
 
 #### `Host`
@@ -58,16 +58,15 @@ The TCP port number of the remote DICOM server (typically 104 or 11112).
 ## Optional Attributes
 
 ### `forcePeerAe`
-Forces the use of the peer's AE Title in the response, even if it differs from `calledAE`.
 
-**Type:** Boolean
-**Default:** `false`
+**Worklist only.** When set to `1`, DP2 inserts the current job's Scheduled Station AE Title value into Scheduled Station AE Title `(0040,0001)` within the `(0040,0100)` Scheduled Procedure Step Sequence, sending it as a matching key. When set to `0`, that tag is sent as an empty return key instead. It has no effect on Study, Patient, or Manual queries.
+
+**Type:** Boolean (`1`/`0`)
+**Default:** `0`
 
 ```xml
-<Query name="FindPatient" forcePeerAe="true" ...>
+<Query name="FindWorklistEntry" type="Worklist" forcePeerAe="1" ...>
 ```
-
-Useful when querying servers that respond with a different AE Title than they're configured with.
 
 ### `select`
 
@@ -175,8 +174,8 @@ Query a DICOM worklist for today's scheduled procedures for a specific patient:
 ```xml
 <Query name="FindWorklistEntry" type="Worklist">
   <ConnectionParameters>
-    <PeerAETitle>RIS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>RIS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.200</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -207,8 +206,8 @@ Query for studies from the last 7 days for a specific patient:
 ```xml
 <Query name="FindStudies" type="Study">
   <ConnectionParameters>
-    <PeerAETitle>PACS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -234,8 +233,8 @@ Patient queries use the Patient Root Information Model instead of the Study Root
 ```xml
 <Query name="FindPatient" type="Patient" level="PATIENT">
   <ConnectionParameters>
-    <PeerAETitle>PACS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -361,9 +360,11 @@ A typical workflow pairs Manual with `ManualMatch` to wait for the operator's `.
 ```xml
 <Workflow>
   <Perform action="FindWorklistEntry"/>
-  <If field="QUERY_FOUND" value="false">
-    <Perform action="ParkForManualMatch"/>
-    <Perform action="ManualMatch"/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <Perform action="ParkForManualMatch"/>
+      <Perform action="ManualMatch"/>
+    </Statements>
   </If>
   <Perform action="SendToPACS"/>
 </Workflow>
@@ -383,14 +384,18 @@ Use workflow conditional nodes to check if the query found results:
 <Workflow>
   <Perform action="FindWorklistEntry"/>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Query found matching entry -->
-    <Perform action="ProcessWithPatientData"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Query found matching entry -->
+      <Perform action="ProcessWithPatientData"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- Query found no matches -->
-    <Perform action="HandleMissingPatient"/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- Query found no matches -->
+      <Perform action="HandleMissingPatient"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -398,9 +403,11 @@ Use workflow conditional nodes to check if the query found results:
 ### Checking Partial Matches
 
 ```xml
-<If field="QUERY_PARTIAL" value="true">
-  <!-- Query returned multiple matches -->
-  <Suspend/>
+<If field="QUERY_PARTIAL" value="1">
+  <Statements>
+    <!-- Query returned multiple matches -->
+    <Suspend resumeAction="FindWorklistEntry"/>
+  </Statements>
 </If>
 ```
 
@@ -465,13 +472,13 @@ Complete worklist query with patient matching:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <Query name="FindPatientWorklist" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS_SERVER</PeerAETitle>
-        <MyAETitle>DICOM_PRINTER</MyAETitle>
+        <PeerAeTitle>RIS_SERVER</PeerAeTitle>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
         <Host>ris.hospital.local</Host>
         <Port>11112</Port>
       </ConnectionParameters>
@@ -493,22 +500,26 @@ Complete worklist query with patient matching:
       <!-- Request accession number -->
       <DcmTag tag="0008,0050"></DcmTag>
     </Query>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="FindPatientWorklist"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <!-- Patient matched - continue processing -->
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Patient matched - continue processing -->
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
 
-    <If field="QUERY_FOUND" value="false">
-      <!-- No match - suspend for manual review -->
-      <Suspend/>
+    <If field="QUERY_FOUND" value="0">
+      <Statements>
+        <!-- No match - suspend for manual review -->
+        <Suspend resumeAction="FindPatientWorklist"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Exclusion Filters
@@ -518,8 +529,8 @@ Prefix a `<DcmTag>` value with `!` to exclude matching results from the query re
 ```xml
 <Query name="FindStudies" type="Study">
   <ConnectionParameters>
-    <PeerAETitle>PACS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -553,8 +564,8 @@ By default, sequences returned from C-FIND responses are discarded after matchin
     </DcmItem>
   </DcmSequence>
   <ConnectionParameters>
-    <PeerAETitle>RIS</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>RIS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.200</Host>
     <Port>11112</Port>
   </ConnectionParameters>

@@ -2,22 +2,17 @@
 
 Notify actions send notifications to external systems, enabling integration with alerting, monitoring, and workflow management systems.
 
-## Relationship to Run Actions
+## Supported Elements
 
-**Important:** The `Notify` action extends the `Run` action class. This means that Notify actions inherit all configuration options available to Run actions, including:
+A `Notify` action accepts **only** the following child elements:
 
-- `<Command>` - The executable or script to run
-- `<Arguments>` - Command-line arguments
-- `<Timeout>` - Execution timeout in milliseconds
-- `<Input>` - DICOM tag values to pass as input
-- `<Output>` - DICOM tags to populate from output
-- `<LauncherPortNumber>` - Port for plugin launcher communication
-- `type` attribute - Execution type (`Console` or `Interactive`)
-- `resolveHostNameAutomatically` attribute - Automatic hostname resolution
+- `<Message>` (required) - The notification message content
+- `<Timeout>` - Notification timeout in milliseconds
+- `<Input>` - DICOM tag values substituted into the message placeholders
 
-The key difference is that Notify actions include an additional `<Message>` element for notification content.
+Notify does **not** support `<Command>`, `<Arguments>`, `<Output>`, or `<LauncherPortNumber>`, and it has no `type` or `resolveHostNameAutomatically` choice. Adding any unsupported element causes the action to be rejected at config load time.
 
-**Source:** `src/DicomPrinter/Notify.hpp:7` (class inheritance), `Notify.cpp:75-150` (parsing implementation)
+A Notify action is **always Interactive**: it is routed through the PluginsLauncher to display a tray/dialog message in the user's desktop session, and it never returns DICOM tag values.
 
 ## Basic Syntax
 
@@ -52,17 +47,13 @@ The notification message content. Supports placeholder substitution using `%1`, 
 
 **Validation:** The number of placeholders in the Message must match the number of `<Input>` tags, otherwise the action is considered invalid.
 
-**Source:** `src/DicomPrinter/Notify.cpp:94-97` (parsing), `Notify.cpp:53-73` (validation)
-
 ## Optional Elements
 
-All optional elements from [Run Actions](run.md) are supported, including:
-
 ### `<Timeout>`
-Maximum execution time in milliseconds.
+Maximum time in milliseconds the notification waits before timing out.
 
 **Type:** Integer
-**Default:** 60000 (60 seconds)
+**Default:** 3000 (3 seconds)
 
 ```xml
 <Timeout>30000</Timeout>
@@ -100,11 +91,11 @@ Setting `onError="Ignore"` ensures that notification failures don't stop critica
 Notify when a job completes successfully:
 
 ```xml
-<Actions>
+<ActionsList>
   <Store name="SendToPACS">
     <ConnectionParameters>
-      <PeerAETitle>PACS</PeerAETitle>
-      <MyAETitle>PRINTER</MyAETitle>
+      <PeerAeTitle>PACS</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
       <Host>192.168.1.100</Host>
       <Port>104</Port>
     </ConnectionParameters>
@@ -114,13 +105,15 @@ Notify when a job completes successfully:
     <Message>Patient %1 successfully stored to PACS</Message>
     <Input tag="0010,0020"/> <!-- Patient ID -->
   </Notify>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <Perform action="SendToPACS"/>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPACS" value="true">
-    <Perform action="NotifySuccess"/>
+  <If field="STORE_SUCCEEDED" value="1">
+    <Statements>
+      <Perform action="NotifySuccess"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -133,10 +126,12 @@ Notify when a critical operation fails:
 <Workflow>
   <Perform action="QueryWorklist"/>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- No patient match - send alert -->
-    <Perform action="NotifyNoMatch"/>
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- No patient match - send alert -->
+      <Perform action="NotifyNoMatch"/>
+      <Suspend resumeAction="QueryWorklist"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -203,23 +198,31 @@ Write notification data to files:
 ### Comprehensive Notification Strategy
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Parse and query -->
   <ParseJobFileName name="GetPatientID">
-    <Pattern>(\d+)_.*\.pdf</Pattern>
-    <DcmTag tag="0010,0020" group="1"/>
+    <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
   </ParseJobFileName>
 
-  <Query name="FindPatient" type="Worklist"
-         calledAE="RIS" callingAE="PRINTER"
-         host="192.168.1.200" port="104">
+  <Query name="FindPatient" type="Worklist">
+    <ConnectionParameters>
+      <PeerAeTitle>RIS</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
+      <Host>192.168.1.200</Host>
+      <Port>104</Port>
+    </ConnectionParameters>
     <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
   </Query>
 
   <!-- Store to PACS -->
-  <Store name="SendToPACS"
-         calledAE="PACS" callingAE="PRINTER"
-         host="192.168.1.100" port="104"/>
+  <Store name="SendToPACS">
+    <ConnectionParameters>
+      <PeerAeTitle>PACS</PeerAeTitle>
+      <MyAeTitle>PRINTER</MyAeTitle>
+      <Host>192.168.1.100</Host>
+      <Port>104</Port>
+    </ConnectionParameters>
+  </Store>
 
   <!-- Notifications -->
   <Notify name="NotifyStart">
@@ -241,7 +244,7 @@ Write notification data to files:
     <Message>Failed to process patient %1</Message>
     <Input tag="0010,0020"/> <!-- Patient ID -->
   </Notify>
-</Actions>
+</ActionsList>
 
 <Workflow>
   <!-- Notify job started -->
@@ -250,25 +253,33 @@ Write notification data to files:
   <Perform action="GetPatientID"/>
   <Perform action="FindPatient"/>
 
-  <If field="QUERY_FOUND" value="false">
-    <!-- Patient not found -->
-    <Perform action="NotifyNoMatch"/>
-    <Suspend/>
+  <If field="QUERY_FOUND" value="0">
+    <Statements>
+      <!-- Patient not found -->
+      <Perform action="NotifyNoMatch"/>
+      <Suspend resumeAction="FindPatient"/>
+    </Statements>
   </If>
 
-  <If field="QUERY_FOUND" value="true">
-    <!-- Process and store -->
-    <Perform action="SendToPACS"/>
+  <If field="QUERY_FOUND" value="1">
+    <Statements>
+      <!-- Process and store -->
+      <Perform action="SendToPACS"/>
 
-    <If field="STORE_SUCCEEDED" tag="SendToPACS" value="true">
-      <!-- Success -->
-      <Perform action="NotifySuccess"/>
-    </If>
+      <If field="STORE_SUCCEEDED" value="1">
+        <Statements>
+          <!-- Success -->
+          <Perform action="NotifySuccess"/>
+        </Statements>
+      </If>
 
-    <If field="STORE_SUCCEEDED" tag="SendToPACS" value="false">
-      <!-- Failure -->
-      <Perform action="NotifyFailure"/>
-    </If>
+      <If field="STORE_SUCCEEDED" value="0">
+        <Statements>
+          <!-- Failure -->
+          <Perform action="NotifyFailure"/>
+        </Statements>
+      </If>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -277,11 +288,14 @@ Write notification data to files:
 
 ```xml
 <Workflow>
-  <Perform action="ProcessNormally"/>
+  <Perform action="StoreToPACS" onError="Ignore"/>
 
-  <If field="EXCEPTION_OCCURRED" value="true">
-    <Perform action="NotifyException"/>
-    <Suspend/>
+  <!-- STORE_SUCCEEDED reflects the most recent Store; notify + retry on failure -->
+  <If field="STORE_SUCCEEDED" value="0">
+    <Statements>
+      <Perform action="NotifyException"/>
+      <Suspend resumeAction="StoreToPACS"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -371,19 +385,28 @@ Use Run actions to update database records, then configure database triggers to 
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Processing actions -->
-    <Query name="FindPatient" type="Worklist"
-           calledAE="RIS" callingAE="PRINTER"
-           host="192.168.1.200" port="104">
+    <Query name="FindPatient" type="Worklist">
+      <ConnectionParameters>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.200</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
-    <Store name="SendToPACS"
-           calledAE="PACS" callingAE="PRINTER"
-           host="192.168.1.100" port="104"/>
+    <Store name="SendToPACS">
+      <ConnectionParameters>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
+        <Host>192.168.1.100</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
 
     <!-- Notification actions -->
     <Notify name="EmailNotifyNoMatch">
@@ -399,31 +422,37 @@ Use Run actions to update database records, then configure database triggers to 
       <Arguments>
         --patient "#{PatientID}"
         --event "job_completed"
-        --timestamp "#{Date} #{Time}"
+        --timestamp "#{Date}"
       </Arguments>
     </Run>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="FindPatient"/>
 
-    <If field="QUERY_FOUND" value="false">
-      <!-- No match - notify via email -->
-      <Perform action="EmailNotifyNoMatch"/>
-      <Suspend/>
+    <If field="QUERY_FOUND" value="0">
+      <Statements>
+        <!-- No match - notify via email -->
+        <Perform action="EmailNotifyNoMatch"/>
+        <Suspend resumeAction="FindPatient"/>
+      </Statements>
     </If>
 
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SendToPACS"/>
 
-      <If field="STORE_SUCCEEDED" tag="SendToPACS" value="true">
-        <!-- Success - notify via webhook and database -->
-        <Perform action="WebhookNotifySuccess"/>
-        <Perform action="LogToDatabase"/>
-      </If>
+        <If field="STORE_SUCCEEDED" value="1">
+          <Statements>
+            <!-- Success - notify via webhook and database -->
+            <Perform action="WebhookNotifySuccess"/>
+            <Perform action="LogToDatabase"/>
+          </Statements>
+        </If>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

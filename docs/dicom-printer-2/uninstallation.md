@@ -11,7 +11,7 @@ This guide describes how to completely remove DICOM Printer 2 from your system.
    ```
 
 2. **Save Activation Code**
-   - Record your activation code from `config.xml` (`<RegistrationKey>`) or via `DicomPrinter.exe --activation-data`
+   - Back up the `.activation` file located in the same directory as `config.xml` (it holds your activation code), or record the code via `DicomPrinter.exe --activation-data`
    - Keep for potential reinstallation
 
 3. **Export Logs** (if needed for troubleshooting or records)

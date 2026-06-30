@@ -86,14 +86,8 @@ The activation code is invalid or corrupted.
    ```
    Outputs a URL like `https://store.fluxinc.ca/activate?request=...` that you can paste into a browser on another machine to complete activation.
 
-4. **Apply an activation code by hand (offline)**
-   Edit `config.xml`:
-   ```xml
-   <General>
-     <RegistrationKey>YOUR-ACTIVATION-CODE-HERE</RegistrationKey>
-   </General>
-   ```
-   Restart `DicomPrinterService` (see [Starting and Stopping the Services](starting-and-stopping.md)).
+4. **Complete activation offline**
+   On a machine without internet access, use `DicomPrinter.exe --get-activation-url` to obtain the machine-specific activation URL, open it in a browser on another machine to retrieve the activation code, then run `DicomPrinter.exe --activate` and supply that code. The activation code is written to the `.activation` file in the same directory as `config.xml`; you do not hand-edit `config.xml` to license the product.
 
 ## Activation Code Format
 
@@ -143,21 +137,16 @@ Request codes are generated from:
 - Same request code for same system
 - Re-activation required after major hardware changes
 
-## Configuration File
+## Where the Activation Code Is Stored
 
-The activation key is stored in `config.xml` under `<RegistrationKey>`:
+You do not hand-edit `config.xml` to license the product. When activation succeeds, the app stores the activation code in a file named `.activation`, located in the **same directory as `config.xml`**.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <General>
-    <RegistrationKey>XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX</RegistrationKey>
-  </General>
-</DicomPrinter>
-```
+**Location:** `%ProgramData%\Flux Inc\DICOM Printer 2\config\.activation`
+(alongside `%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml`)
 
-**Location:** `%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml`
+The activation code is **not** stored in the Windows registry, and it is **not** placed into `config.xml`.
+
+> **Note:** A legacy `<RegistrationKey>` element may appear inside `config.xml`. It is inert and ignored — it plays no part in current activation. Editing or removing it has no effect on licensing.
 
 ## Troubleshooting
 
@@ -216,17 +205,17 @@ The activation key is stored in `config.xml` under `<RegistrationKey>`:
 - Error in logs: "License check failed"
 
 **Solutions:**
-- Verify activation code is correctly entered
-- Check config.xml for corrupted RegistrationKey
-- Remove RegistrationKey temporarily to run in trial mode
-- Contact Flux Inc for valid activation code
+- Re-run activation (`DicomPrinter.exe --activate`) to obtain a fresh activation code
+- Inspect the stored activation with `DicomPrinter.exe --activation-data`
+- If the `.activation` file is corrupted, delete it (it sits next to `config.xml`) to fall back to trial mode, then re-activate
+- Contact Flux Inc for a valid activation code
 
 ## License Management Best Practices
 
 1. **Record activation codes** - Store activation codes securely
 2. **Monitor expiration** - Set reminders before licenses expire
 3. **Plan for renewal** - Contact Flux Inc well before expiration
-4. **Backup config.xml** - Keep backup of activated configuration
+4. **Backup the `.activation` file** - Keep a backup of the activated `.activation` file (stored next to `config.xml`)
 5. **Document hardware** - Record hardware configuration for reference
 6. **Test after hardware changes** - Verify licensing after system changes
 

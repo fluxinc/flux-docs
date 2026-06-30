@@ -17,8 +17,8 @@ Print actions send images to DICOM film printers using the DICOM Basic Grayscale
   </BasicImageBoxAttributes>
   <PrintMode>Grayscale8</PrintMode>
   <ConnectionParameters>
-    <PeerAETitle>PrinterAE</PeerAETitle>
-    <MyAETitle>LocalAE</MyAETitle>
+    <PeerAeTitle>PrinterAE</PeerAeTitle>
+    <MyAeTitle>LocalAE</MyAeTitle>
     <Host>hostname</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -56,10 +56,10 @@ The print mode determines the color depth for the output.
 ### `ConnectionParameters`
 Network connection settings for the remote DICOM printer. Must contain the following nested elements:
 
-#### `PeerAETitle`
+#### `PeerAeTitle`
 The AE Title of the DICOM film printer.
 
-#### `MyAETitle`
+#### `MyAeTitle`
 The AE Title of DICOM Printer 2 (this application).
 
 #### `Host`
@@ -89,9 +89,11 @@ If the Resolution element is not specified or set to `0x0`, images are sent to t
 
 **Note:** The resolution values must be positive integers. The format is parsed using the pattern `WIDTHxHEIGHT` where both values represent DPI.
 
-**Source:** `src/DicomPrinter/Print.cpp:337-359`
-
 ## Film Session Attributes
+
+::: warning Case-sensitive tags
+The attribute block names (`BasicFilmSessionAttributes`, `BasicFilmBoxAttributes`, `BasicImageBoxAttributes`) and their child tags are case-sensitive and must use the exact PascalCase shown (e.g. `FilmSizeId`, `ImageDisplayFormat`). A lowercase or misspelled child tag is silently ignored, and a wrong-case block name fails the entire configuration parse. `NumberOfCopies` is the only case-insensitive exception.
+:::
 
 Film session attributes control the overall print job settings.
 
@@ -106,9 +108,8 @@ Film session attributes control the overall print job settings.
 
 ### `PrintPriority`
 **Valid Values:** `HIGH`, `MED`, `LOW`
-**Default:** `MED`
 
-Sets the priority of the print job in the printer's queue.
+Sets the priority of the print job in the printer's queue. If omitted, `PrintPriority` is not sent and the printer applies its own default (commonly `MED`). More generally, unset film/session attributes are omitted from the print request rather than given DICOM-standard defaults, so the printer SCP's own defaults apply.
 
 ### `MediumType`
 **Examples:** `PAPER`, `BLUE FILM`, `CLEAR FILM`
@@ -134,7 +135,7 @@ Film box attributes control the layout and appearance of the printed film.
 <BasicFilmBoxAttributes>
   <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
   <FilmOrientation>PORTRAIT</FilmOrientation>
-  <FilmSizeID>14INX17IN</FilmSizeID>
+  <FilmSizeId>14INX17IN</FilmSizeId>
   <MagnificationType>REPLICATE</MagnificationType>
   <Trim>NO</Trim>
   <BorderDensity>BLACK</BorderDensity>
@@ -145,17 +146,20 @@ Film box attributes control the layout and appearance of the printed film.
 ### `ImageDisplayFormat`
 Specifies the layout of images on the film.
 
-**Format:** `STANDARD\rows,columns`
+**Format:** `STANDARD\columns,rows`
 
 **Examples:**
 - `STANDARD\1,1` - Single image per film
 - `STANDARD\2,2` - 2x2 grid (4 images)
-- `STANDARD\3,4` - 3 rows, 4 columns (12 images)
+- `STANDARD\3,4` - 3 columns, 4 rows (12 images)
 
 ### `FilmOrientation`
-**Valid Values:** `PORTRAIT`, `LANDSCAPE`
+**Valid Values:** `PORTRAIT`, `LANDSCAPE`, `AUTO`
+**Default:** `AUTO`
 
-### `FilmSizeID`
+With `AUTO` (the default), the engine chooses `LANDSCAPE` or `PORTRAIT` per page based on each image's aspect ratio (landscape if width > height, otherwise portrait).
+
+### `FilmSizeId`
 Specifies the physical size of the film.
 
 **Common Values:**
@@ -192,7 +196,7 @@ Image box attributes control individual image settings.
 ```xml
 <BasicImageBoxAttributes>
   <Polarity>NORMAL</Polarity>
-  <MagnificationFactor></MagnificationFactor>
+  <MagnificationType>REPLICATE</MagnificationType>
   <SmoothingType></SmoothingType>
 </BasicImageBoxAttributes>
 ```
@@ -202,8 +206,10 @@ Image box attributes control individual image settings.
 
 Controls whether the image is printed normally or inverted.
 
-### `MagnificationFactor`
-Custom magnification factor for the image. Leave empty for automatic.
+### `MagnificationType`
+**Valid Values:** `REPLICATE`, `BILINEAR`, `CUBIC`, `NONE`
+
+Specifies the image interpolation method when scaling individual images. Leave empty for the printer default.
 
 ### `SmoothingType`
 Image smoothing algorithm. Leave empty for printer default.
@@ -223,7 +229,7 @@ Print a single image to a film printer:
   <BasicFilmBoxAttributes>
     <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
     <FilmOrientation>PORTRAIT</FilmOrientation>
-    <FilmSizeID>14INX17IN</FilmSizeID>
+    <FilmSizeId>14INX17IN</FilmSizeId>
     <MagnificationType>BILINEAR</MagnificationType>
     <Trim>NO</Trim>
   </BasicFilmBoxAttributes>
@@ -232,8 +238,8 @@ Print a single image to a film printer:
   </BasicImageBoxAttributes>
   <PrintMode>Grayscale8</PrintMode>
   <ConnectionParameters>
-    <PeerAETitle>FILM_PRINTER</PeerAETitle>
-    <MyAETitle>DICOM_PRINTER</MyAETitle>
+    <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+    <MyAeTitle>DICOM_PRINTER</MyAeTitle>
     <Host>192.168.1.50</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -255,13 +261,13 @@ For accurate physical sizing (e.g., printing radiographs at 1:1 scale), configur
   <BasicFilmBoxAttributes>
     <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
     <FilmOrientation>PORTRAIT</FilmOrientation>
-    <FilmSizeID>14INX17IN</FilmSizeID>
+    <FilmSizeId>14INX17IN</FilmSizeId>
     <MagnificationType>CUBIC</MagnificationType>
   </BasicFilmBoxAttributes>
   <PrintMode>Grayscale12</PrintMode>
   <ConnectionParameters>
-    <PeerAETitle>FILM_PRINTER</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.50</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -284,12 +290,12 @@ Print multiple copies with high priority:
   <BasicFilmBoxAttributes>
     <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
     <FilmOrientation>PORTRAIT</FilmOrientation>
-    <FilmSizeID>14INX17IN</FilmSizeID>
+    <FilmSizeId>14INX17IN</FilmSizeId>
   </BasicFilmBoxAttributes>
   <PrintMode>Grayscale8</PrintMode>
   <ConnectionParameters>
-    <PeerAETitle>FILM_PRINTER</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.50</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -311,7 +317,7 @@ Print multiple images on a single film:
     <!-- 2x2 grid layout -->
     <ImageDisplayFormat>STANDARD\2,2</ImageDisplayFormat>
     <FilmOrientation>PORTRAIT</FilmOrientation>
-    <FilmSizeID>14INX17IN</FilmSizeID>
+    <FilmSizeId>14INX17IN</FilmSizeId>
     <MagnificationType>BILINEAR</MagnificationType>
     <Trim>YES</Trim>
     <BorderDensity>BLACK</BorderDensity>
@@ -319,8 +325,8 @@ Print multiple images on a single film:
   </BasicFilmBoxAttributes>
   <PrintMode>Grayscale8</PrintMode>
   <ConnectionParameters>
-    <PeerAETitle>FILM_PRINTER</PeerAETitle>
-    <MyAETitle>PRINTER</MyAETitle>
+    <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.50</Host>
     <Port>104</Port>
   </ConnectionParameters>
@@ -336,9 +342,11 @@ Print after successful PACS storage:
 <Workflow>
   <Perform action="SendToPACS"/>
 
-  <If field="STORE_SUCCEEDED" tag="SendToPACS" value="true">
-    <!-- Only print if PACS storage succeeded -->
-    <Perform action="PrintToFilm"/>
+  <If field="STORE_SUCCEEDED" value="1">
+    <Statements>
+      <!-- Only print if PACS storage succeeded -->
+      <Perform action="PrintToFilm"/>
+    </Statements>
   </If>
 </Workflow>
 ```
@@ -347,14 +355,14 @@ Print after successful PACS storage:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Query for patient -->
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -364,8 +372,8 @@ Print after successful PACS storage:
     <!-- Store to PACS -->
     <Store name="SendToPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -383,7 +391,7 @@ Print after successful PACS storage:
       <BasicFilmBoxAttributes>
         <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
         <FilmOrientation>PORTRAIT</FilmOrientation>
-        <FilmSizeID>14INX17IN</FilmSizeID>
+        <FilmSizeId>14INX17IN</FilmSizeId>
         <MagnificationType>CUBIC</MagnificationType>
         <Trim>NO</Trim>
       </BasicFilmBoxAttributes>
@@ -392,23 +400,25 @@ Print after successful PACS storage:
       </BasicImageBoxAttributes>
       <PrintMode>Grayscale8</PrintMode>
       <ConnectionParameters>
-        <PeerAETitle>FILM_PRINTER</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.50</Host>
         <Port>104</Port>
       </ConnectionParameters>
       <Resolution>300x300</Resolution>
     </Print>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="FindPatient"/>
-    <If field="QUERY_FOUND" value="true">
-      <Perform action="SendToPACS"/>
-      <Perform action="PrintToFilm"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <Perform action="SendToPACS"/>
+        <Perform action="PrintToFilm"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Printer Compatibility

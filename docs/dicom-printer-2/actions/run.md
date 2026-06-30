@@ -14,9 +14,9 @@ DICOM Printer 2 supports two types of plugins:
 ```xml
 <Run name="ActionName" type="Console|Interactive">
   <Command>path_to_executable</Command>
-  <Arguments>command_arguments</Arguments>
-  <Input>input_mapping</Input>
-  <Output>output_mapping</Output>
+  <Arguments>arg1|arg2|arg3</Arguments>
+  <Input tag="(gggg,eeee)"/>
+  <Output tag="(gggg,eeee)" type="Global|Unique"/>
 </Run>
 ```
 
@@ -76,9 +76,13 @@ The full path to the executable file.
 ### `<Arguments>` (Optional)
 Command-line arguments to pass to the executable. Supports placeholders.
 
+Arguments are **pipe-delimited**, not space-delimited: the value is split on the `|` character, and each `|`-separated segment becomes a single argv element. Spaces within a segment are preserved, so a single argument may contain spaces. For example, `<Arguments>a b|c</Arguments>` produces argv `["a b", "c"]`.
+
 ```xml
-<Arguments>--input "#{InputFile}" --patient-id "#{PatientID}"</Arguments>
+<Arguments>--input|C:\in.dcm|--output|C:\out.dcm</Arguments>
 ```
+
+**Note:** Tag *values* are not passed as command-line arguments — pass them to the plugin via `<Input>` (stdin) instead. See [Input and Output](#input-and-output).
 
 ### `<Timeout>` (Optional)
 Maximum time in milliseconds to wait for the plugin to execute.
@@ -117,11 +121,38 @@ The launcher port number is automatically determined at runtime:
 <LauncherPortNumber>37275</LauncherPortNumber>
 ```
 
+## Input and Output
+
+`<Input>` and `<Output>` are **empty elements** with a required `tag` attribute. They define a strictly positional, line-oriented contract over the plugin's standard input and standard output — there are no key=value mappings.
+
 ### `<Input>` (Optional)
-Specifies how input data is passed to the plugin.
+
+```xml
+<Input tag="(0020,000D)"/>
+```
+
+Each `<Input>` declares one DICOM tag whose value is written to the plugin's **stdin**, one value per line, in declaration order. Order is significant: the first `<Input>` becomes the first stdin line, the second `<Input>` the second line, and so on. If a tag has no value, a blank line is still written so the positions stay aligned. (Tag values are never passed as command-line arguments — only on stdin.)
 
 ### `<Output>` (Optional)
-Specifies how output data is received from the plugin.
+
+```xml
+<Output tag="(0020,000E)" type="Unique"/>
+<Output tag="(0008,103E)" type="Global"/>
+```
+
+Each `<Output>` declares one DICOM tag whose value the engine reads from the plugin's **stdout**, line by line, in declaration order. Output is purely position-based — the engine does **not** parse `key=value` or `tag=value`; it reads bare values in the order the `<Output>` elements are declared.
+
+Outputs are read **only when the plugin exits with code 0**. A trailing `\r` is stripped from each line, so CRLF output is safe.
+
+#### `type` attribute
+
+**Valid Values:** `Global`, `Unique`
+**Default:** `Global`
+
+- **`Global`** (default) — consumes exactly **one** stdout line and sets the value on the job-level dataset (applies to the whole job).
+- **`Unique`** — consumes **one stdout line per image** (`NOFILES` lines; see [Environment Variables](#environment-variables)) and sets each value on the corresponding per-image dataset. If the plugin emits too few lines, the remaining tags are left unset.
+
+An unrecognized `type` value logs a warning and is treated as `Global`.
 
 ## Console Plugins
 
@@ -132,7 +163,7 @@ Console plugins are command-line applications that run in the background without
 ```xml
 <Run name="ProcessImage" type="Console">
   <Command>C:\Tools\ImageConverter.exe</Command>
-  <Arguments>--input "#{InputFile}" --output "#{OutputFile}"</Arguments>
+  <Arguments>--input|#{InputFile}|--output|#{OutputFile}</Arguments>
 </Run>
 ```
 
@@ -141,12 +172,7 @@ Console plugins are command-line applications that run in the background without
 ```xml
 <Run name="CustomProcessor" type="Console">
   <Command>C:\Scripts\process.bat</Command>
-  <Arguments>
-    --patient "#{PatientID}"
-    --study "#{StudyDate}"
-    --file "#{InputFile}"
-    --output "C:\Temp\processed_#{PatientID}.dcm"
-  </Arguments>
+  <Arguments>--patient|#{PatientID}|--study|#{StudyDate}|--file|#{InputFile}|--output|C:\Temp\processed_#{PatientID}.dcm</Arguments>
 </Run>
 ```
 
@@ -155,7 +181,7 @@ Console plugins are command-line applications that run in the background without
 ```xml
 <Run name="ConvertPDFToImage" type="Console">
   <Command>C:\Tools\pdftopng.exe</Command>
-  <Arguments>-r 300 "#{InputFile}" "#{OutputPath}\image.png"</Arguments>
+  <Arguments>-r|300|#{InputFile}|#{OutputPath}\image.png</Arguments>
 </Run>
 ```
 
@@ -164,11 +190,7 @@ Console plugins are command-line applications that run in the background without
 ```xml
 <Run name="ValidateData" type="Console">
   <Command>C:\Scripts\validate.exe</Command>
-  <Arguments>
-    --patient-id "#{PatientID}"
-    --patient-name "#{PatientName}"
-    --check-database
-  </Arguments>
+  <Arguments>--patient-id|#{PatientID}|--patient-name|#{PatientName}|--check-database</Arguments>
 </Run>
 ```
 
@@ -177,7 +199,7 @@ Console plugins are command-line applications that run in the background without
 ```xml
 <Run name="ComplexProcessing" type="Console">
   <Command>C:\Tools\HeavyProcessor.exe</Command>
-  <Arguments>--input "#{InputFile}" --quality high</Arguments>
+  <Arguments>--input|#{InputFile}|--quality|high</Arguments>
   <Timeout>300000</Timeout>  <!-- 5 minutes for complex processing -->
 </Run>
 ```
@@ -198,7 +220,7 @@ Interactive plugins display a user interface for interactive processing.
 ```xml
 <Run name="ManualReview" type="Interactive">
   <Command>C:\Tools\ImageReview.exe</Command>
-  <Arguments>--file "#{InputFile}"</Arguments>
+  <Arguments>--file|#{InputFile}</Arguments>
 </Run>
 ```
 
@@ -207,11 +229,7 @@ Interactive plugins display a user interface for interactive processing.
 ```xml
 <Run name="EditMetadata" type="Interactive">
   <Command>C:\Tools\MetadataEditor.exe</Command>
-  <Arguments>
-    --file "#{InputFile}"
-    --patient "#{PatientID}"
-    --name "#{PatientName}"
-  </Arguments>
+  <Arguments>--file|#{InputFile}|--patient|#{PatientID}|--name|#{PatientName}</Arguments>
 </Run>
 ```
 
@@ -220,7 +238,7 @@ Interactive plugins display a user interface for interactive processing.
 ```xml
 <Run name="AnnotateImage" type="Interactive">
   <Command>C:\Tools\Annotator.exe</Command>
-  <Arguments>--image "#{InputFile}" --output "#{OutputPath}\annotated.dcm"</Arguments>
+  <Arguments>--image|#{InputFile}|--output|#{OutputPath}\annotated.dcm</Arguments>
 </Run>
 ```
 
@@ -231,7 +249,7 @@ Display the review interface on the remote client's desktop:
 ```xml
 <Run name="RemoteQCReview" type="Interactive" resolveHostNameAutomatically="true">
   <Command>C:\Tools\QualityControl.exe</Command>
-  <Arguments>--file "#{InputFile}" --patient "#{PatientID}"</Arguments>
+  <Arguments>--file|#{InputFile}|--patient|#{PatientID}</Arguments>
   <Timeout>600000</Timeout>  <!-- 10 minutes for user interaction -->
 </Run>
 ```
@@ -244,10 +262,14 @@ Plugins can communicate with DICOM Printer 2 through:
 
 ### Exit Codes
 
-The plugin's exit code determines the workflow outcome:
+The plugin's exit code determines the workflow outcome. Four codes have defined meaning:
 
-- **0** - Success, continue processing
-- **Non-zero** - Failure, trigger error handling based on `onError` attribute
+- **0** (Ok) - Success; the plugin's `<Output>` values are read and continue processing.
+- **-1** (Error) - The action fails and the plugin's stderr is logged as the error (workflow error handling applies based on the `onError` attribute).
+- **-2** (Discard) - The job is discarded (removed). The action itself returns success, so `onError` is **not** triggered.
+- **-3** (Suspend) - The job is suspended; the workflow resumes at this action later.
+
+Any other non-zero code is treated as a failure (`-1`). `<Output>` values are read **only** on exit code `0` — Discard and Suspend short-circuit before output parsing.
 
 ### File-Based Input/Output
 
@@ -256,7 +278,7 @@ Plugins can read the input DICOM file and write a modified version:
 ```xml
 <Run name="FileProcessor" type="Console">
   <Command>C:\Tools\processor.exe</Command>
-  <Arguments>--in "#{InputFile}" --out "#{OutputFile}"</Arguments>
+  <Arguments>--in|#{InputFile}|--out|#{OutputFile}</Arguments>
 </Run>
 ```
 
@@ -264,13 +286,14 @@ The workflow automatically uses the output file for subsequent actions.
 
 ### Environment Variables
 
-DICOM Printer 2 provides environment variables to plugins:
+DICOM Printer 2 sets the following environment variables for Console plugins:
 
-- `DP2_PATIENT_ID` - Patient ID (0010,0020)
-- `DP2_PATIENT_NAME` - Patient Name (0010,0010)
-- `DP2_STUDY_DATE` - Study Date (0008,0020)
-- `DP2_INPUT_FILE` - Path to input DICOM file
-- `DP2_WORK_DIR` - Working directory for temporary files
+- `CLIENT_HOST_NAME` - The host the job originated from
+- `CLIENT_USER_NAME` - The user the job originated from
+- `CONTENTS_FILE` - Absolute path to the job's contents file
+- `NOFILES` - The number of image files in the job
+- `ProgramData` - The all-users application data directory
+- `FILE1`, `FILE2`, … `FILEn` - Absolute path to each image file (1-based; there are `NOFILES` of them)
 
 ### Example Using Environment Variables
 
@@ -279,11 +302,13 @@ DICOM Printer 2 provides environment variables to plugins:
 import os
 import sys
 
-patient_id = os.environ.get('DP2_PATIENT_ID')
-input_file = os.environ.get('DP2_INPUT_FILE')
+count = int(os.environ.get('NOFILES', '0'))
+first_image = os.environ.get('FILE1')
 
-# Process the file
-# ...
+# Process each image file
+for i in range(1, count + 1):
+    path = os.environ.get(f'FILE{i}')
+    # ... process path ...
 
 # Exit with success
 sys.exit(0)
@@ -306,11 +331,14 @@ sys.exit(0)
 
 ```xml
 <Workflow>
-  <Perform action="AutoValidate"/>
+  <Perform action="AutoValidate" onError="Ignore"/>
 
-  <If field="VALIDATION_FAILED" value="true">
-    <!-- Run Interactive plugin for manual review -->
-    <Perform action="ManualReview"/>
+  <!-- AutoValidate writes its verdict into a tag; branch on it with TAG_VALUE -->
+  <If field="TAG_VALUE(0009,1001)" value="^FAIL$">
+    <Statements>
+      <!-- Run Interactive plugin for manual review -->
+      <Perform action="ManualReview"/>
+    </Statements>
   </If>
 
   <Perform action="SendToPACS"/>
@@ -320,7 +348,7 @@ sys.exit(0)
 ### Plugin Error Handling
 
 ```xml
-<Actions>
+<ActionsList>
   <!-- Mandatory processing - must succeed -->
   <Run name="RequiredProcessor" type="Console">
     <Command>C:\Tools\required.exe</Command>
@@ -332,7 +360,7 @@ sys.exit(0)
     <Command>C:\Tools\optional.exe</Command>
     <Arguments>"#{InputFile}"</Arguments>
   </Run>
-</Actions>
+</ActionsList>
 ```
 
 ## Common Use Cases
@@ -342,12 +370,7 @@ sys.exit(0)
 ```xml
 <Run name="EnhanceImage" type="Console">
   <Command>C:\Tools\ImageEnhancer.exe</Command>
-  <Arguments>
-    --input "#{InputFile}"
-    --output "#{OutputPath}\enhanced.dcm"
-    --brightness 10
-    --contrast 20
-  </Arguments>
+  <Arguments>--input|#{InputFile}|--output|#{OutputPath}\enhanced.dcm|--brightness|10|--contrast|20</Arguments>
 </Run>
 ```
 
@@ -356,12 +379,7 @@ sys.exit(0)
 ```xml
 <Run name="UpdateDatabase" type="Console">
   <Command>C:\Scripts\UpdateDB.exe</Command>
-  <Arguments>
-    --patient-id "#{PatientID}"
-    --study-date "#{StudyDate}"
-    --accession "#{AccessionNumber}"
-    --action "insert_study"
-  </Arguments>
+  <Arguments>--patient-id|#{PatientID}|--study-date|#{StudyDate}|--accession|#{AccessionNumber}|--action|insert_study</Arguments>
 </Run>
 ```
 
@@ -370,11 +388,7 @@ sys.exit(0)
 ```xml
 <Run name="ExtractText" type="Console">
   <Command>C:\Tools\ocr.exe</Command>
-  <Arguments>
-    --input "#{InputFile}"
-    --output "#{OutputPath}\text.txt"
-    --language eng
-  </Arguments>
+  <Arguments>--input|#{InputFile}|--output|#{OutputPath}\text.txt|--language|eng</Arguments>
 </Run>
 ```
 
@@ -383,11 +397,7 @@ sys.exit(0)
 ```xml
 <Run name="QCReview" type="Interactive">
   <Command>C:\Tools\QCReviewer.exe</Command>
-  <Arguments>
-    --file "#{InputFile}"
-    --patient "#{PatientID}"
-    --require-approval
-  </Arguments>
+  <Arguments>--file|#{InputFile}|--patient|#{PatientID}|--require-approval</Arguments>
 </Run>
 ```
 
@@ -405,20 +415,19 @@ When using Run actions:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinter SYSTEM "config.dtd">
-<DicomPrinter>
-  <Actions>
+<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
+<DicomPrinterConfig>
+  <ActionsList>
     <!-- Parse patient ID -->
     <ParseJobFileName name="GetPatientID">
-      <Pattern>(\d+)_.*\.pdf</Pattern>
-      <DcmTag tag="0010,0020" group="1"/>
+      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
     </ParseJobFileName>
 
     <!-- Query worklist -->
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
-        <PeerAETitle>RIS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>RIS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -428,59 +437,54 @@ When using Run actions:
     <!-- Custom PDF processing -->
     <Run name="ProcessPDF" type="Console">
       <Command>C:\Tools\PDFProcessor.exe</Command>
-      <Arguments>
-        --input "#{InputFile}"
-        --output "C:\Temp\processed_#{PatientID}.dcm"
-        --patient-id "#{PatientID}"
-        --enhance
-      </Arguments>
+      <Arguments>--input|#{InputFile}|--output|C:\Temp\processed_#{PatientID}.dcm|--patient-id|#{PatientID}|--enhance</Arguments>
     </Run>
 
     <!-- Manual quality review if query fails -->
     <Run name="ManualReview" type="Interactive">
       <Command>C:\Tools\ReviewApp.exe</Command>
-      <Arguments>--file "#{InputFile}" --patient "#{PatientID}"</Arguments>
+      <Arguments>--file|#{InputFile}|--patient|#{PatientID}</Arguments>
     </Run>
 
     <!-- Update external database -->
     <Run name="LogToDatabase" type="Console">
       <Command>C:\Scripts\LogStudy.exe</Command>
-      <Arguments>
-        --patient "#{PatientID}"
-        --date "#{Date}"
-        --status "processed"
-      </Arguments>
+      <Arguments>--patient|#{PatientID}|--date|#{Date}|--status|processed</Arguments>
     </Run>
 
     <!-- Store to PACS -->
     <Store name="SendToPACS">
       <ConnectionParameters>
-        <PeerAETitle>PACS</PeerAETitle>
-        <MyAETitle>PRINTER</MyAETitle>
+        <PeerAeTitle>PACS</PeerAeTitle>
+        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
     </Store>
-  </Actions>
+  </ActionsList>
 
   <Workflow>
     <Perform action="GetPatientID"/>
     <Perform action="FindPatient"/>
 
-    <If field="QUERY_FOUND" value="true">
-      <!-- Automated path -->
-      <Perform action="ProcessPDF"/>
-      <Perform action="LogToDatabase"/>
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <!-- Automated path -->
+        <Perform action="ProcessPDF"/>
+        <Perform action="LogToDatabase"/>
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
 
-    <If field="QUERY_FOUND" value="false">
-      <!-- Manual review path -->
-      <Perform action="ManualReview"/>
-      <Perform action="SendToPACS"/>
+    <If field="QUERY_FOUND" value="0">
+      <Statements>
+        <!-- Manual review path -->
+        <Perform action="ManualReview"/>
+        <Perform action="SendToPACS"/>
+      </Statements>
     </If>
   </Workflow>
-</DicomPrinter>
+</DicomPrinterConfig>
 ```
 
 ## Related Topics

@@ -157,12 +157,17 @@ The 2.4.0 installer bundles the ASP.NET Core 10 `x86` runtime and an offline Web
 copy "%ProgramData%\Flux Inc\DICOM Printer 2\config\config.xml" "%USERPROFILE%\Desktop\config_backup.xml"
 ```
 
-### 2. Record Activation Code
+### 2. Preserve the Activation File
 
-Save your activation code:
-- Open the DICOM Printer Console → Manage → Activate (or extract from `config.xml`)
-- Copy activation code
-- OR extract from config.xml `<RegistrationKey>` element
+Your activation code is stored in a `.activation` file located in the **same directory as `config.xml`** (it is written there by the activation flow). It is *not* stored inside `config.xml` and *not* in the Windows registry. The `<RegistrationKey>` element that may appear in `config.xml` is legacy and inert — it is ignored, so do not rely on it.
+
+Back up the `.activation` file alongside your config backup so activation is preserved across the upgrade:
+
+```cmd
+copy "%ProgramData%\Flux Inc\DICOM Printer 2\config\.activation" "%USERPROFILE%\Desktop\activation_backup"
+```
+
+If you also have your original activation code on hand, record it as a fallback. You can view license status any time from the DICOM Printer Console → Manage → Activate.
 
 ### 3. Note Current Version
 
@@ -316,7 +321,7 @@ Look for:
 
 - Check license status in the DICOM Printer Console (Manage → Activate)
 - Verify activation is still valid
-- Reactivate if necessary (same activation code works)
+- If activation was lost, restore the `.activation` file you backed up (place it next to `config.xml`), or reactivate (the same activation code works)
 
 ### 4. Test Workflows
 

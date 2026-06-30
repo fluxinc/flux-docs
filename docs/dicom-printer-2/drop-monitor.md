@@ -34,17 +34,19 @@ The Drop Monitor reads its settings from the same `config.xml` used by DP2, insi
 | Setting | Default | Description |
 |---|---|---|
 | `Path` | `<CommonBasePath>/drop` | The folder to monitor for incoming files. |
-| `ConvertToPNG` | `false` | When `true`, PDF pages are converted to PNG images before injection. |
-| `Montage` | `false` | When `true` (and `ConvertToPNG` is also true), creates a single montage image from all PDF pages. |
+| `ConvertToPNG` | `false` | Enabled unless set to `false`: PDF pages are converted to PNG images before injection. |
+| `Montage` | `false` | Enabled unless set to `false` (and `ConvertToPNG` is also enabled): creates a single montage image from all PDF pages. |
 | `PdfConversionTimeoutMs` | `5000` | Maximum time in milliseconds to wait for a PDF-to-image conversion to complete. Increase this for large or complex PDFs. |
 | `PathSeparator` | `/` | The separator character used to join subfolder names into the job name prefix. |
 | `RetryIntervalSeconds` | `5` | How long to wait before retrying a failed file. |
 | `MaxRetryAttempts` | `3` | Maximum number of retry attempts for a failed file before giving up. |
 | `Layout` | `raw` | The layout format for generated job files. |
-| `LineEndings` | `unix` | Line ending style for generated text files (`unix` or `windows`). |
+| `LineEndings` | `unix` | Line ending style for generated text files (`unix`, `dos`, or `mac`). |
 | `MetadataEncoding` | `utf-8` | Character encoding for PDF metadata extraction. |
 | `MetadataOutputFormat` | `plaintext` | Format for extracted metadata (`plaintext` or `base64`). |
 | `TextFileEncoding` | `utf-8` | Character encoding for generated text (job) files. |
+
+> **Note:** `ConvertToPNG` and `Montage` are enabled by any value except the literal `false` (case-insensitive). To disable them you must write exactly `false` — values like `0`, `no`, or `off` will **enable** the feature.
 
 Drop Monitor resolves `${VAR}` and `${VAR:-default}` placeholders with the same
 environment loader as the main DICOM Printer service. Values can come from the
