@@ -16,7 +16,7 @@ This section covers common operational problems and their resolutions.
 
 - **Filter too restrictive.** Review the `<DcmTag>` elements in the `<Query>` action. Negation filters (tags prefixed with `!`) run locally and can silently reject all results. Temporarily remove filters to isolate the problem.
 - **SPS date range mismatch.** For worklist queries, the Scheduled Procedure Step Start Date defaults to a 15-day window ending today (today minus 14 through today, centered 7 days ago). DP2 enforces this constraint locally on returned candidates: items outside the window are rejected even if the SCP returns them. If your target procedures fall outside this range, set the SPS Start Date explicitly using `(0040,0100)/(0040,0002)` or the root `(0008,0020)` StudyDate alias. See [Worklist Date Constraints](actions/query.md#worklist-date-constraints).
-- **Empty tag values causing rejection.** Blank `<DcmTag>` values previously caused all results to be rejected (fixed in v2.2.14). Ensure you are running a current version.
+- **Empty tag values.** Blank `<DcmTag>` values are treated as return keys and are handled correctly, so they do not cause results to be rejected.
 - **Increase verbosity to diagnose.** Set `<Verbosity>` to `20` (full debug) in the `<General>` section to see the complete query dataset sent to the SCP, the raw results returned, and the filter decisions applied to each result.
 
 ### 9.3. Print Job Stuck in Held State

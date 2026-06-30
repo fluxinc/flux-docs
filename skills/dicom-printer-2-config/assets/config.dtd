@@ -1,0 +1,218 @@
+<!ELEMENT DicomPrinterConfig (General, ActionsList, Workflow, DropMonitor?)>
+        <!ELEMENT General (CheckingInterval|SuspensionTime|Verbosity|RegistrationKey|ValidityPeriod|RedactSensitiveLogValues|MaximumLogFileSize|MaximumLogFileCount)*>
+        <!ELEMENT SpoolDirectory (#PCDATA)>
+        <!ELEMENT CheckingInterval (#PCDATA)>
+        <!ELEMENT SuspensionTime (#PCDATA)>
+        <!ELEMENT Verbosity (#PCDATA)>
+        <!ELEMENT ValidityPeriod (#PCDATA)>
+        <!ELEMENT RegistrationKey (#PCDATA)>
+        <!ELEMENT RedactSensitiveLogValues (#PCDATA)>
+        <!ELEMENT MaximumLogFileSize (#PCDATA)>
+        <!ELEMENT MaximumLogFileCount (#PCDATA)>
+        <!ELEMENT PrintMode (#PCDATA)>
+        <!ELEMENT Resolution (#PCDATA)>
+        <!ELEMENT Debug (#PCDATA)>
+        <!ELEMENT DropMonitor (Path|Layout|LineEndings|ConvertToPNG|Montage|MetadataEncoding|MetadataInputEncoding|MetadataOutputFormat|TextFileEncoding|PdfConversionTimeoutMs|PdfRasterDpi)*>
+        <!ELEMENT Path (#PCDATA)>
+        <!ELEMENT Layout (#PCDATA)>
+        <!ELEMENT LineEndings (#PCDATA)>
+        <!ELEMENT ConvertToPNG (#PCDATA)>
+        <!ELEMENT Montage (#PCDATA)>
+        <!ELEMENT MetadataEncoding (#PCDATA)>
+        <!ELEMENT MetadataInputEncoding (#PCDATA)>
+        <!ELEMENT MetadataOutputFormat (#PCDATA)>
+        <!ELEMENT TextFileEncoding (#PCDATA)>
+        <!ELEMENT PdfConversionTimeoutMs (#PCDATA)>
+        <!ELEMENT PdfRasterDpi (#PCDATA)>
+        <!ELEMENT ConnectionParameters (PeerAeTitle|Host|Port|MyAeTitle|MaxPdu|BlockingMode|AssociationTimeout|DimseTimeout)*>
+        <!ELEMENT PeerAeTitle (#PCDATA)>
+        <!ELEMENT MyAeTitle (#PCDATA)>
+        <!ELEMENT Host (#PCDATA)>
+        <!ELEMENT Port (#PCDATA)>
+        <!ELEMENT MaxPdu (#PCDATA)>
+        <!ELEMENT BlockingMode (#PCDATA)>
+        <!ELEMENT AssociationTimeout (#PCDATA)>
+        <!ELEMENT DimseTimeout (#PCDATA)>
+        <!ELEMENT ActionsList (Print|Store|Query|ParseJobFileName|ParseJobTextFile|Run|Notify|MergeJob|Trim|Rotate|AutoRotateText|Resize|SetTag|SetSequence|AddInstance|Save|PrintText|PrintImage)*>
+        <!ELEMENT Print (BasicFilmSessionAttributes|BasicFilmBoxAttributes|BasicImageBoxAttributes|PrintMode|ConnectionParameters|Resolution|Debug)*>
+        <!ATTLIST Print name ID #REQUIRED>
+        <!ELEMENT BasicFilmSessionAttributes (NumberOfCopies|PrintPriority|MediumType|FilmDestination|FilmSessionLabel|MemoryAllocation|OwnerId)*>
+        <!ELEMENT NumberOfCopies (#PCDATA)>
+        <!ELEMENT PrintPriority (#PCDATA)>
+        <!ELEMENT MediumType (#PCDATA)>
+        <!ELEMENT FilmDestination (#PCDATA)>
+        <!ELEMENT FilmSessionLabel (#PCDATA)>
+        <!ELEMENT MemoryAllocation (#PCDATA)>
+        <!ELEMENT OwnerId (#PCDATA)>
+        <!ELEMENT BasicFilmBoxAttributes (ImageDisplayFormat|AnnotationDisplayFormatId|FilmOrientation|FilmSizeId|MagnificationType|SmoothingType|BorderDensity|EmptyImageDensity|MinDensity|MaxDensity|Trim|ConfigurationInformation|Illumination|ReflectedAmbientLight|RequestedResolutionId)*>
+        <!ELEMENT ImageDisplayFormat (#PCDATA)>
+        <!ELEMENT AnnotationDisplayFormatId (#PCDATA)>
+        <!ELEMENT FilmOrientation (#PCDATA)>
+        <!ELEMENT FilmSizeId (#PCDATA)>
+        <!ELEMENT MagnificationType (#PCDATA)>
+        <!ELEMENT SmoothingType (#PCDATA)>
+        <!ELEMENT BorderDensity (#PCDATA)>
+        <!ELEMENT EmptyImageDensity (#PCDATA)>
+        <!ELEMENT MinDensity (#PCDATA)>
+        <!ELEMENT MaxDensity (#PCDATA)>
+        <!ELEMENT ConfigurationInformation (#PCDATA)>
+        <!ELEMENT Illumination (#PCDATA)>
+        <!ELEMENT ReflectedAmbientLight (#PCDATA)>
+        <!ELEMENT RequestedResolutionId (#PCDATA)>
+        <!ELEMENT BasicImageBoxAttributes (Polarity|MagnificationType|SmoothingType|BorderDensity|MinDensity|MaxDensity|ConfigurationInformation|RequestedImageSize|RequestedDecimateCropBehavior)*>
+        <!ELEMENT Polarity (#PCDATA)>
+        <!ELEMENT RequestedImageSize (#PCDATA)>
+        <!ELEMENT RequestedDecimateCropBehavior (#PCDATA)>
+        <!ELEMENT Store (Compression|Colormode|ConnectionParameters)*>
+        <!ATTLIST Store name ID #REQUIRED>
+        <!ELEMENT Compression EMPTY>
+        <!ATTLIST Compression type (RLE|JPEG_Lossless|JPEG_Lossy) #REQUIRED>
+        <!ELEMENT Colormode EMPTY>
+        <!ATTLIST Colormode mode CDATA #REQUIRED>
+        <!ELEMENT Query (DcmTag|DcmSequence|ConnectionParameters)*>
+        <!ATTLIST Query
+                name ID #IMPLIED
+                type (Study|Worklist|Patient|Manual) #IMPLIED
+                select (first|last) #IMPLIED
+                order-by CDATA #IMPLIED
+                force-assignment (true|false) #IMPLIED
+                forcePeerAe (true|false) #IMPLIED>
+
+        <!ELEMENT Perform (Query?)>
+        <!ATTLIST Perform
+                action IDREF #REQUIRED
+                onError (Hold|Ignore|Suspend|Discard) #IMPLIED>
+
+        <!ATTLIST DcmTag
+                tag CDATA #REQUIRED
+                mandatory (true|false) #IMPLIED
+                replacePattern CDATA #IMPLIED
+                transform CDATA #IMPLIED
+                match (both|local) #IMPLIED>
+
+        <!ELEMENT DcmTag (#PCDATA)>
+        <!ELEMENT DcmSequence (DcmItem+)>
+        <!ATTLIST DcmSequence
+                tag CDATA #REQUIRED
+                persist (true|false) #IMPLIED>
+        <!ELEMENT DcmItem (DcmTag|DcmSequence)+>
+        <!ELEMENT ParseJobFileName (DcmTag+)>
+        <!ATTLIST ParseJobFileName
+                name ID #REQUIRED
+                mandatory (true|false) #IMPLIED>
+        <!ELEMENT ParseJobTextFile (DcmTag+)>
+        <!ATTLIST ParseJobTextFile
+                name ID #REQUIRED
+                mandatory (true|false) #IMPLIED>
+        <!ELEMENT Run (Command|Arguments|Timeout|Input|Output|LauncherPortNumber)*>
+        <!ATTLIST Run
+                name ID #REQUIRED
+                type (Console|Interactive) #IMPLIED
+                resolveHostNameAutomatically (true|false) #IMPLIED>
+
+        <!ELEMENT Command (#PCDATA)>
+        <!ELEMENT Arguments (#PCDATA)>
+        <!ELEMENT Timeout (#PCDATA)>
+        <!ELEMENT Message (#PCDATA)>
+        <!ELEMENT Input EMPTY>
+        <!ATTLIST Input tag CDATA #REQUIRED>
+        <!ELEMENT Output EMPTY>
+        <!ATTLIST Output
+                tag CDATA #REQUIRED
+                type (Global|Unique) #IMPLIED>
+        <!ELEMENT LauncherPortNumber (#PCDATA)>
+
+        <!ELEMENT Notify (Message|Timeout|Input)*>
+        <!ATTLIST Notify
+                name ID #REQUIRED
+                type (Console|Interactive) #IMPLIED
+                resolveHostNameAutomatically (true|false) #IMPLIED>
+        <!ELEMENT MergeJob (Timeout|PollInterval|TimeThreshold|MatchHost|MatchUser|MaxJobs|MergePdf|MergeText|PdfMergeCommand|PdfMergeArguments|PdfMergeTimeout)*>
+        <!ATTLIST MergeJob name ID #REQUIRED>
+
+        <!ELEMENT SetTag (#PCDATA|DcmTag)*>
+        <!ATTLIST SetTag
+                tag CDATA #REQUIRED
+                tagName CDATA #IMPLIED
+                name ID #REQUIRED
+                vr CDATA #IMPLIED
+                type (Global|Unique) #IMPLIED>
+        <!ELEMENT SetSequence (DcmItem+)>
+        <!ATTLIST SetSequence
+                tag CDATA #REQUIRED
+                tagName CDATA #IMPLIED
+                name ID #REQUIRED
+                vr CDATA #IMPLIED
+                type (Global|Unique) #IMPLIED
+                unique (true|false) #IMPLIED
+                replace (true|false) #IMPLIED>
+        <!ELEMENT Save (Directory|Filename|FileName|Format)*>
+        <!ATTLIST Save name ID #REQUIRED>
+        <!ELEMENT Directory (#PCDATA)>
+        <!ELEMENT Filename (#PCDATA)>
+        <!ELEMENT FileName (#PCDATA)>
+        <!ELEMENT Format (#PCDATA)>
+        <!ELEMENT PrintText (Text|X|Y|Width|Height|Color|BackgroundColor|FontHeight|FontFamily|Alignment)*>
+        <!ATTLIST PrintText name ID #REQUIRED>
+        <!ELEMENT PrintImage (X|Y|Width|Height|Aspect|ImagePath)*>
+        <!ATTLIST PrintImage name ID #REQUIRED>
+        <!ELEMENT AddInstance (ImagePath|Width|Height|CanvasColor|InsertionIndex)*>
+        <!ATTLIST AddInstance name ID #REQUIRED>
+        <!ELEMENT Text (#PCDATA)>
+        <!ELEMENT X (#PCDATA)>
+        <!ELEMENT Y (#PCDATA)>
+        <!ELEMENT Color (#PCDATA)>
+        <!ELEMENT BackgroundColor (#PCDATA)>
+        <!ELEMENT FontHeight (#PCDATA)>
+        <!ELEMENT FontFamily (#PCDATA)>
+        <!ELEMENT Alignment (#PCDATA)>
+        <!ELEMENT ImagePath (#PCDATA)>
+        <!ELEMENT CanvasColor (#PCDATA)>
+        <!ELEMENT InsertionIndex (#PCDATA)>
+        <!ELEMENT Trim (#PCDATA|Top|Bottom|Left|Right)*>
+        <!ELEMENT Top (#PCDATA)>
+        <!ELEMENT Bottom (#PCDATA)>
+        <!ELEMENT Left (#PCDATA)>
+        <!ELEMENT Right (#PCDATA)>
+        <!ELEMENT Height (#PCDATA)>
+        <!ELEMENT Width (#PCDATA)>
+        <!ELEMENT Aspect (#PCDATA)>
+        <!ELEMENT Angle (#PCDATA)>
+        <!ATTLIST Trim name ID #REQUIRED>
+        <!ELEMENT Resize (Height|Width|Aspect)*>
+        <!ATTLIST Resize name ID #REQUIRED>
+        <!ELEMENT Rotate ((Angle*))>
+        <!ATTLIST Rotate name ID #REQUIRED>
+        <!ELEMENT AutoRotateText (MaxAnalysisSide|TrustHintConfidence|MinAxisConfidence|MinDirectionConfidence|MinDirectionConfidence180|MinScoreDelta|MarginBandPercent|MarginWeight|MinLinesFor180|UseHints|FailOnUnsupported)*>
+        <!ATTLIST AutoRotateText name ID #REQUIRED>
+        <!ELEMENT MaxAnalysisSide (#PCDATA)>
+        <!ELEMENT TrustHintConfidence (#PCDATA)>
+        <!ELEMENT MinAxisConfidence (#PCDATA)>
+        <!ELEMENT MinDirectionConfidence (#PCDATA)>
+        <!ELEMENT MinDirectionConfidence180 (#PCDATA)>
+        <!ELEMENT MinScoreDelta (#PCDATA)>
+        <!ELEMENT MarginBandPercent (#PCDATA)>
+        <!ELEMENT MarginWeight (#PCDATA)>
+        <!ELEMENT MinLinesFor180 (#PCDATA)>
+        <!ELEMENT UseHints (#PCDATA)>
+        <!ELEMENT FailOnUnsupported (#PCDATA)>
+        <!ELEMENT Workflow (If|Switch|Perform|Update|Suspend|Discard)*>
+        <!ELEMENT If ((Statements), (Else?))>
+        <!ATTLIST If value CDATA #REQUIRED>
+        <!ATTLIST If field CDATA #REQUIRED>
+        <!ELEMENT Statements (If|Switch|Perform|Update|Suspend|Discard)*>
+        <!ELEMENT Else (If|Switch|Perform|Update|Suspend|Discard)*>
+        <!ELEMENT Switch ((Case+), (Default?))>
+        <!ATTLIST Switch field (CLIENT_HOST_NAME|PRINTED_FILE_NAME) #REQUIRED>
+        <!ELEMENT Case (If|Switch|Perform|Update|Suspend|Discard)*>
+        <!ATTLIST Case value CDATA #REQUIRED>
+        <!ELEMENT Default (If|Switch|Perform|Update|Suspend|Discard)*>
+        <!ELEMENT Update (BasicFilmSessionAttributes|BasicFilmBoxAttributes|BasicImageBoxAttributes|PrintMode|ConnectionParameters|Resolution|Debug)*>
+        <!ATTLIST Update
+                action IDREF #REQUIRED
+                type CDATA #REQUIRED>
+        <!ELEMENT Suspend EMPTY>
+        <!ATTLIST Suspend resumeAction IDREF #REQUIRED
+                          onError (Hold|Ignore|Suspend|Discard) #IMPLIED
+                          maxRetries CDATA #IMPLIED>
+        <!ELEMENT Discard EMPTY>

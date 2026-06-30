@@ -43,8 +43,8 @@ Both share the same configuration schema: the action element contains one or mor
 | `name` | (required) | Action name referenced by `<Perform>` |
 | `defaultReplacePattern` | `\1` | Default `replacePattern` for all child `DcmTag` entries |
 | `defaultTransformation` | `None` | Default `transform` for all child `DcmTag` entries |
-| `defaultCaseSensitive` | `true` | Default case sensitivity for all child `DcmTag` expressions *(2.4.8+)* |
-| `matchPolicy` | `lastMatch` | `lastMatch` or `firstMatch` — see [Match Policy](#match-policy) *(2.4.8+)* |
+| `defaultCaseSensitive` | `true` | Default case sensitivity for all child `DcmTag` expressions |
+| `matchPolicy` | `lastMatch` | `lastMatch` or `firstMatch` — see [Match Policy](#match-policy) |
 
 ## DcmTag Attributes
 
@@ -54,14 +54,14 @@ Both share the same configuration schema: the action element contains one or mor
 | `mandatory` | `false` | When `true`, the action fails if this tag was not extracted |
 | `replacePattern` | `\1` | Rewrites the matched text using backreferences (`\1`, `\2`, ...) |
 | `transform` | `None` | `None`, `ToUpper`, or `ToLower` — applied to the final value |
-| `caseSensitive` | `true` | `false` makes this expression match case-insensitively *(2.4.8+)* |
-| `allowEmpty` | `false` | `true` allows a matched-but-empty value to be written *(2.4.8+)* |
+| `caseSensitive` | `true` | `false` makes this expression match case-insensitively |
+| `allowEmpty` | `false` | `true` allows a matched-but-empty value to be written |
 
 Tags with odd group numbers are automatically treated as private tags and the private creator ID is set automatically.
 
 ## Regular Expression Engine
 
-Since version 2.4.8 the parse engine uses Qt `QRegularExpression` (PCRE2). In addition to the usual character classes, quantifiers, anchors, and capture groups, configurations can use:
+The parse engine uses Qt `QRegularExpression` (PCRE2). In addition to the usual character classes, quantifiers, anchors, and capture groups, configurations can use:
 
 - **Lookahead and lookbehind**: `(?<!HRI )ID` matches `ID` not preceded by `HRI `
 - **Inline options**: `(?i)` for case-insensitive matching inside the pattern itself
@@ -99,7 +99,7 @@ Or set the default for the whole action and override per entry where needed:
 
 When several expressions target the same DICOM tag — for example a strong labeled match plus a weaker fallback — the default `lastMatch` policy means **whatever matches last wins**, including a weak fallback that happens to match later in the document.
 
-`matchPolicy="firstMatch"` *(2.4.8+)* makes the **configured entry order the priority order**:
+`matchPolicy="firstMatch"` makes the **configured entry order the priority order**:
 
 - List expressions **strongest first**.
 - The first-listed entry that matches anywhere in the document wins for its tag, even if a weaker (later-listed) entry matched earlier in the text.
@@ -109,18 +109,18 @@ When several expressions target the same DICOM tag — for example a strong labe
 <ParseJobTextFile name="ParsePatientId" matchPolicy="firstMatch" defaultCaseSensitive="false">
   <!-- Strongest: explicit label -->
   <DcmTag tag="0010,0020">MRN\s*:?\s*(\d{2,10})</DcmTag>
-  <!-- Fallback: bare legacy W-number -->
+  <!-- Fallback: bare W-number -->
   <DcmTag tag="0010,0020">\b[Ww](\d{2,8})\b</DcmTag>
 </ParseJobTextFile>
 ```
 
-With this configuration a document containing a stray `W4444` in the header and `MRN: 12345` in the footer stores `12345` — under the legacy policy it would depend on document order.
+With this configuration a document containing a stray `W4444` in the header and `MRN: 12345` in the footer stores `12345` — under the `lastMatch` policy the result would depend on document order.
 
-**Note:** configurations written for the legacy behavior often list expressions weakest-first (so later, stronger entries overwrite). When opting into `firstMatch`, re-order the entries strongest-first.
+**Note:** under `lastMatch`, list expressions weakest-first (so later, stronger entries overwrite). When using `firstMatch`, re-order the entries strongest-first.
 
 ## Empty Values
 
-Since 2.4.8, a match whose rewritten value is empty (for example, an optional capture group that did not participate: `MRN:\s*(\d+)?` against the line `MRN:`) is **skipped**: nothing is written, and the entry does not count as found for `mandatory` validation. Previously an empty string was written and satisfied `mandatory`.
+A match whose rewritten value is empty (for example, an optional capture group that did not participate: `MRN:\s*(\d+)?` against the line `MRN:`) is **skipped**: nothing is written, and the entry does not count as found for `mandatory` validation.
 
 If writing a blank value is intentional, opt in per entry:
 
@@ -197,7 +197,7 @@ For filename `John_Doe_12345.pdf`:
 - Filename `ID12345_CT.pdf`: **Success** - Both extracted
 - Filename `report.pdf`: **Failure** - Patient ID (mandatory) not found, job discarded
 
-Mandatory validation is evaluated per job: a tag found while parsing one job never satisfies validation for a later job *(fixed in 2.4.8)*.
+Mandatory validation is evaluated per job: a tag found while parsing one job never satisfies validation for a later job.
 
 ## ParseJobTextFile Examples
 
@@ -230,7 +230,7 @@ A realistic labeled-ID matcher that survives label variants and excludes unwante
 <ParseJobTextFile name="ParsePatientId" matchPolicy="firstMatch" defaultCaseSensitive="false">
   <!-- Strong labels anywhere in the line; HRI ID is excluded by lookbehind -->
   <DcmTag tag="0010,0020">(?&lt;!HRI )\b(?:Patient\s*ID|MRN|Hospital\s*(?:No\.?|ID))\s*:?\s*(\d{2,10}|[A-Za-z]\d{2,8})\b</DcmTag>
-  <!-- Fallback: bare legacy W-number -->
+  <!-- Fallback: bare W-number -->
   <DcmTag tag="0010,0020">\b[Ww](\d{2,8})(?![0-9A-Za-z./:-])</DcmTag>
 </ParseJobTextFile>
 ```

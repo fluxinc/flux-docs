@@ -22,7 +22,7 @@ General settings control the overall behavior of the DICOM Printer 2 service, in
 - Suspension time for failed jobs
 - Logging verbosity and rotation
 
-> Note: Licensing is handled by the machine activation system, not `config.xml`. A `<RegistrationKey>` element in the configuration is legacy and has no effect.
+> Note: Licensing is handled by the machine activation system, not `config.xml`. A `<RegistrationKey>` element in the configuration is inert and has no effect.
 
 See [Settings Reference](config.md) for a complete list of general settings.
 

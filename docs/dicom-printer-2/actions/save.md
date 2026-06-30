@@ -141,6 +141,28 @@ Example: `1.2.840.113619.2.55.3.123456789.dcm`
 
 Example: `20240315_12345.dcm`
 
+## Filename Sanitization and Numbering
+
+### Invalid Character Sanitization
+
+When a placeholder resolves to a value (for example a patient name or accession number), the engine sanitizes characters that are invalid for filesystem path components by replacing them with an underscore (`_`). The sanitized characters are:
+
+```
+< > : " / \ | ? *
+```
+
+along with control characters. This means a resolved placeholder value that contains one of these characters will not cause the save to fail — the offending characters are replaced.
+
+For the default DICOM File Set format, keep `<Directory>` as a stable directory and put dynamic values in `<Filename>` unless you have tested the exact path behavior you need. In DXI format, the raw job and companion files are copied to the configured directory.
+
+For example, a resolved filename of `Doe^John:2024.dcm` is written as `Doe^John_2024.dcm`.
+
+### Auto-Incrementing Index
+
+The value of `<Filename>` is used as a **base pattern**. The engine automatically appends a sequential, zero-padded index to that base so that every file produced by a save action is unique — for example across the multiple pages of a single print job, or across repeated saves to the same directory. Because of this, you do not need to include `#{InstanceNumber}` (or a similar counter) just to avoid overwriting files; the index guarantees uniqueness on its own.
+
+If `<Filename>` is omitted, the base pattern is empty and the appended index alone forms the file name.
+
 ## Format Options
 
 ### Standard DICOM Format

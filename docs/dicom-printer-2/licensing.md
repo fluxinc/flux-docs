@@ -146,7 +146,7 @@ You do not hand-edit `config.xml` to license the product. When activation succee
 
 The activation code is **not** stored in the Windows registry, and it is **not** placed into `config.xml`.
 
-> **Note:** A legacy `<RegistrationKey>` element may appear inside `config.xml`. It is inert and ignored — it plays no part in current activation. Editing or removing it has no effect on licensing.
+> **Note:** A `<RegistrationKey>` element may appear inside `config.xml`. It is inert and ignored — it plays no part in current activation. Editing or removing it has no effect on licensing.
 
 ## Troubleshooting
 

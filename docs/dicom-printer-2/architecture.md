@@ -1,7 +1,7 @@
 # Architecture & Design
 
 
-This document provides an overview of the DICOM Printer 2 (DP2) application's operating principles, architecture, and key functions. For detailed information on configuration file tags, please refer to the [Configuration File Tags Specification](/dicom-printer-2/config). For a comprehensive DICOM conformance statement, including details on color support and transfer syntaxes, please consult the [DICOM 3.0 Conformance Statement](/dicom-printer-2/conformance).
+This document provides an overview of the DICOM Printer 2 (DP2) application's operating principles, architecture, and key functions. For detailed information on configuration file tags, please refer to the [Configuration Reference](/dicom-printer-2/config). For a comprehensive DICOM conformance statement, including details on color support and transfer syntaxes, please consult the [DICOM 3.0 Conformance Statement](/dicom-printer-2/conformance).
 
 ## 1. Introduction to DP2
 
@@ -9,7 +9,7 @@ DICOM Printer (DP2) is an application that integrates into healthcare network in
 
 ## 2. Application Lifecycle and Core Components
 
-### 2.1. Application Invocation and Command-Line Arguments
+### Application Invocation and Command-Line Arguments
 
 DP2 can be started in two primary modes:
 
@@ -25,7 +25,7 @@ The application's startup behavior is controlled by the following command-line a
 | `--path <directory>` | Sets the application's root directory, overriding the default location (`%ProgramData%\Flux Inc\DICOM Printer 2`). All subdirectories (`config/`, `log/`, `queue/`, `temp/`) are resolved relative to this path. Useful for managing multiple operational profiles or testing new configurations. |
 | `--console` | Forces the application to run in console mode, even if installed as a service. In this mode, log output is displayed on the console and the application can be terminated by pressing any key. |
 | `--activate` | Launches an interactive activation wizard. This mode opens the activation page in the default web browser, displays the hardware request code, and polls the licensing server in the background until activation succeeds. The user can also paste an activation code directly into the console. The application exits after activation completes (or if the user types `quit`). Requires an interactive console session (not Session 0). |
-| `--activation-data` | Outputs the current activation data as an XML document to standard output and exits. The XML contains the hardware `RequestCode` and the stored `ActivationCode`. Requires a valid configuration file. Added in v2.2.6. |
+| `--activation-data` | Outputs the current activation data as an XML document to standard output and exits. The XML contains the hardware `RequestCode` and the stored `ActivationCode`. Requires a valid configuration file. |
 
 Arguments can be combined. For example, to run the activation wizard against a non-default data directory:
 
@@ -33,7 +33,7 @@ Arguments can be combined. For example, to run the activation wizard against a n
 DicomPrinter.exe --path "D:\DP2\Site-B" --activate
 ```
 
-### 2.2. Event Loop and Service Operation
+### Event Loop and Service Operation
 
 DP2 operates on a continuous event loop, which is the core engine of the application. This loop constantly monitors for new activities and processes data.
 
@@ -43,7 +43,7 @@ DP2 operates on a continuous event loop, which is the core engine of the applica
 
 When running as a service, DP2 operates silently in the background. Its activities are communicated through its logging system and by triggering actions that interact with external systems.
 
-### 2.3. User Interaction through Actions and Plugins
+### User Interaction through Actions and Plugins
 
 While DP2 is a console-only application, it can interact with users and external systems through its configurable actions and a plugin system.
 
@@ -52,13 +52,13 @@ While DP2 is a console-only application, it can interact with users and external
 
 This architecture allows DP2 to be highly adaptable, supporting complex workflows that require external interaction.
 
-### 2.4. DICOM Printer Console
+### DICOM Printer Console
 
 | **DICOM Printer Console** | WebView2 desktop UI (`DICOMPrinterConsole.exe`) backed by the `DICOMPrinterApiService` HTTP service (`DICOMPrinterApi.exe`) for queue triage, manual worklist matching, configuration editing, log tailing, and service control |
 
-The `<Query type="Manual">` plus `<Perform action="ManualMatch" />` workflow parks unmatched jobs in `queue/manual/`. The Console (introduced in 2.4.0, replacing both the legacy `DICOMPrinterControl.exe` WinForms application and the prior Queue Dashboard web UI) presents the parked jobs to the operator, queries any configured Worklist, Study, or Patient endpoint to find a candidate, and writes a `.match` companion file alongside the job's `.dxi`. When DP2 next polls `queue/`, it reads the `.match` file, applies the matched tags, and resumes workflow processing. See [DICOM Printer Console](control-app.md) and [Manual Matching](queue-dashboard.md).
+The `<Query type="Manual">` plus `<Perform action="ManualMatch" />` workflow parks unmatched jobs in `queue/manual/`. The Console presents the parked jobs to the operator, queries any configured Worklist, Study, or Patient endpoint to find a candidate, and writes a `.match` companion file alongside the job's `.dxi`. When DP2 next polls `queue/`, it reads the `.match` file, applies the matched tags, and resumes workflow processing. See [DICOM Printer Console](control-app.md) and [Manual Matching](queue-dashboard.md).
 
-### 2.5. Global Application Paths
+### Global Application Paths
 
 DP2 internally manages application-wide paths for its resources. This includes the main application directory, configuration file location, log file storage, and temporary processing directories. This system ensures that all components can locate necessary resources.
 

@@ -1,0 +1,53 @@
+{
+  "skill_name": "dicom-printer-2-config",
+  "evals": [
+    {
+      "id": 1,
+      "name": "worklist-to-pacs",
+      "prompt": "We're installing DICOM Printer 2 at a clinic. Doctors print reports from their EHR and the print job's filename is the accession number (like 'A1002345.pdf'). I need a config.xml that grabs that accession, queries our Modality Worklist at 10.8.0.12 port 105 (their AE is MWL_SCP, call ourselves DCMPRINT), and if it matches, stores to the PACS at 10.8.0.12 port 104 (AE PACSSTORE) as JPEG lossless. If the worklist has nothing yet, keep retrying for a while; if there are multiple matches, let staff pick. Write the config.xml.",
+      "expected_output": "A complete config.xml: ParseJobFileName capturing (0008,0050) from the job name; Query type=Worklist to MWL_SCP@10.8.0.12:105 (MyAeTitle DCMPRINT); Store with Compression type=JPEG_Lossless to PACSSTORE@10.8.0.12:104; Workflow branching on QUERY_FOUND, routing multiple matches (QUERY_PARTIAL) to a type=Manual query, and Suspend with maxRetries for the no-match retry loop. Passes the skill self-check (loads in the DICOM Printer Console).",
+      "files": [],
+      "assertions": [
+        {"text": "Root is <DicomPrinterConfig> with <General>, <ActionsList>, and <Workflow>"},
+        {"text": "Has a ParseJobFileName action with a <DcmTag tag> for AccessionNumber (0008,0050) whose body is a regex"},
+        {"text": "Has a Query with type=\"Worklist\" and ConnectionParameters PeerAeTitle MWL_SCP, Host 10.8.0.12, Port 105"},
+        {"text": "Has a Store with <Compression type=\"JPEG_Lossless\"/> and ConnectionParameters PeerAeTitle PACSSTORE, Host 10.8.0.12, Port 104"},
+        {"text": "Workflow tests QUERY_FOUND and uses a type=\"Manual\" query for the multiple-match case (QUERY_PARTIAL)"},
+        {"text": "Workflow retries the query via <Suspend resumeAction=...> (ideally with maxRetries)"},
+        {"text": "Well-formed XML with valid structure and values per the skill's self-check"},
+        {"text": "Does NOT use a UID placeholder or #{Time}, and any #{TagName} placeholder is a whole tag value"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "print-to-film",
+      "prompt": "Make me a DICOM Printer 2 config that just sends whatever gets printed to our dry imager - it's a film printer at 192.168.50.30, port 104, AE title DRYSTAR. Trim the white borders first, print in 8-bit grayscale, two images per page. No PACS, no query.",
+      "expected_output": "A config.xml with a Trim action (auto edges), a Print action with PrintMode Grayscale8, ImageDisplayFormat for 2 images per page (e.g. STANDARD\\2,1), ConnectionParameters PeerAeTitle DRYSTAR/Host 192.168.50.30/Port 104, and a Workflow that performs Trim then Print. No Query or Store. Passes the skill self-check (loads in the DICOM Printer Console).",
+      "files": [],
+      "assertions": [
+        {"text": "Has a Trim action using auto on the edges"},
+        {"text": "Has a Print action with <PrintMode>Grayscale8</PrintMode>"},
+        {"text": "ImageDisplayFormat places 2 images per page (STANDARD\\2,1 or STANDARD\\1,2) using the correct backslash COLUMNS,ROWS form"},
+        {"text": "Print ConnectionParameters has PeerAeTitle DRYSTAR, Host 192.168.50.30, Port 104"},
+        {"text": "Contains no Query and no Store action"},
+        {"text": "Film-box child tags use exact PascalCase (e.g. ImageDisplayFormat, not lowercase)"},
+        {"text": "Well-formed XML with valid structure and values per the skill's self-check"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "run-plugin-io",
+      "prompt": "I have a little console exe at plugins\\AccLookup.exe that takes a patient ID on stdin and prints back the patient's name and the study instance UID on two lines. In our DICOM Printer 2 config, after we parse the patient ID out of the printed document text (it appears as 'MRN: 12345'), run that exe, feed it the patient ID, and capture the name into PatientName and the UID into StudyInstanceUID, then store to PACS at pacs.hosp.local port 104 AE STORESCP. Write the config.",
+      "expected_output": "A config.xml with ParseJobTextFile capturing (0010,0020) from a 'MRN: ...' regex; a Run action type=Console, Command plugins\\AccLookup.exe, one <Input tag=\"(0010,0020)\"/>, and two <Output> elements for (0010,0010) and (0020,000D) (positional, NOT key=value); a Store to STORESCP@pacs.hosp.local:104; Workflow performing parse -> run -> store. Passes the skill self-check (loads in the DICOM Printer Console).",
+      "files": [],
+      "assertions": [
+        {"text": "Has a ParseJobTextFile action capturing PatientID (0010,0020) via a regex matching 'MRN: <digits>'"},
+        {"text": "Has a Run action with <Command>plugins\\AccLookup.exe</Command>"},
+        {"text": "Run has exactly one <Input tag=...> for (0010,0020) PatientID"},
+        {"text": "Run has two <Output tag=...> elements, for (0010,0010) PatientName then (0020,000D) StudyInstanceUID, relying on positional stdin/stdout (no key=value mapping)"},
+        {"text": "Has a Store to PeerAeTitle STORESCP, Host pacs.hosp.local, Port 104"},
+        {"text": "Well-formed XML with valid structure and values per the skill's self-check"}
+      ]
+    }
+  ]
+}

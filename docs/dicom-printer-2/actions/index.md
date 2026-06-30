@@ -38,8 +38,8 @@ DICOM Printer 2 supports the following action types:
 - **[Image Manipulation](image-manipulation.md)** - Trim, rotate, resize images
 - **[AutoRotateText](image-manipulation.md#autorotatetext-action)** - Automatically orient pages so the dominant parseable text is upright (conservative; no-ops when ambiguous)
 - **[AddInstance](image-manipulation.md#addinstance)** - Adds a new image instance to the job from an image file or blank canvas
-- **PrintText** - Overlay/burn text onto every image in the job within a specified rectangle (x, y, width, height) and color
-- **PrintImage** - Overlay an image (e.g. watermark or logo) onto every image in the job at a given position/size with a configurable aspect-ratio mode
+- **[PrintText](print-text.md)** - Burn text onto every page within a rectangle (x/y/width/height as percentages) with configurable color, font, and alignment
+- **[PrintImage](print-image.md)** - Overlay an image (watermark or logo) onto a page at a percentage position/size, with a keep/ignore aspect mode
 
 ### Job Actions
 

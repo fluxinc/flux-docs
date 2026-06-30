@@ -74,13 +74,13 @@ Controls how a multi-result C-FIND response is reduced before assignment.
 
 **Type:** Enum
 **Valid Values:** `first`, `last`
-**Default:** unset — the legacy "single match wins, multiple match warns and skips assignment" behavior is preserved.
+**Default:** unset — a single match wins; multiple matches log a warning and assignment is skipped.
 
 ```xml
 <Query name="FindStudies" type="Study" select="first" ...>
 ```
 
-When `select="first"` or `select="last"` is set, the locally-filtered result list is reduced to that single dataset and assignment proceeds. When unset, multi-result responses log a warning and no tags are assigned (the historical behavior).
+When `select="first"` or `select="last"` is set, the locally-filtered result list is reduced to that single dataset and assignment proceeds. When unset, multi-result responses log a warning and no tags are assigned.
 
 `select` pairs naturally with [`order-by`](#order-by) so the choice of which result wins is deterministic across runs:
 
@@ -90,8 +90,6 @@ When `select="first"` or `select="last"` is set, the locally-filtered result lis
   <!-- ... -->
 </Query>
 ```
-
-Added in 2.4.0 (#84).
 
 ### `order-by`
 
@@ -126,7 +124,7 @@ Sort semantics:
 
 ### `force-assignment`
 
-Legacy alias for `select="first"`.
+Compatibility alias for `select="first"`.
 
 **Type:** Boolean
 **Default:** `false`
@@ -259,7 +257,7 @@ Use `match="local"` when the value should not be sent as a wire matching key:
 <DcmTag tag="(0008,0020)" match="local">#{Date,-7,7}</DcmTag>
 ```
 
-With `match="local"`, DP2 sends the tag as an empty C-FIND return key and applies the configured value only after results come back. This is useful for SCPs that reject `YYYYMMDD-YYYYMMDD` range syntax but will accept a broader query and return the date field needed for local filtering. The default is `match="both"`, which preserves the existing behavior: send the value on the wire and post-filter locally.
+With `match="local"`, DP2 sends the tag as an empty C-FIND return key and applies the configured value only after results come back. This is useful for SCPs that reject `YYYYMMDD-YYYYMMDD` range syntax but will accept a broader query and return the date field needed for local filtering. The default is `match="both"`: send the value on the wire and post-filter locally.
 
 Date constraints are the most load-bearing case:
 

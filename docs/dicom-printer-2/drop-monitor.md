@@ -73,5 +73,5 @@ The service logs to `<CommonBasePath>/log/dicom_printer_drop_monitor_service.log
 - **Files not being picked up.** Verify the `<Path>` setting points to the correct folder. The Drop Monitor also handles files that are moved (renamed) into the folder, so atomic move operations are supported.
 - **A literal `${...}` appears in the configured path.** Confirm the variable is present in the process environment or one of the DP2 `.env` files. For installed site profiles, check `%ProgramData%\Flux Inc\DICOM Printer 2\.env` first, then `config\.env`.
 - **PDF conversion timeout.** If large PDFs fail to process, increase `<PdfConversionTimeoutMs>`. The default of 5000 ms may be insufficient for documents with many pages or complex graphics.
-- **Uppercase file extensions.** As of v2.4.12, the Drop Monitor accepts uppercase extensions (e.g., `.PDF`, `.DCM`). Earlier versions may silently ignore such files.
+- **Uppercase file extensions.** The Drop Monitor accepts uppercase extensions (e.g., `.PDF`, `.DCM`).
 - **Retry failures.** After `MaxRetryAttempts` failures, the file is abandoned. Check the Drop Monitor log for error details. Common causes include file permission problems or corrupted input files.

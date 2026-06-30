@@ -1,6 +1,6 @@
 # DICOM Printer Console
 
-The **DICOM Printer Console** is the operator UI for DICOM Printer 2. It bundles a WebView2 desktop window (`DICOMPrinterConsole.exe`) with a local ASP.NET Core HTTP service (`DICOMPrinterApi.exe`, Windows service `DICOMPrinterApiService`) and replaces the legacy `DICOMPrinterControl.exe` WinForms application and the earlier separately-branded "Queue Dashboard" web UI.
+The **DICOM Printer Console** is the operator UI for DICOM Printer 2. It bundles a WebView2 desktop window (`DICOMPrinterConsole.exe`) with a local ASP.NET Core HTTP service (`DICOMPrinterApi.exe`, Windows service `DICOMPrinterApiService`).
 
 The Console covers:
 
@@ -9,8 +9,6 @@ The Console covers:
 - **Manage pane** — service status, start/stop/restart of `DICOMPrinterApiService` and `DicomPrinterService`, storage endpoint listing with inline C-ECHO and query test, and a multi-source live log tail
 - **Config editor** — CodeMirror XML editor with line numbers, syntax highlighting, DTD validation, inline gutter markers at the line/column reported by the parser, and a save-triggered config reload that does not bounce the service
 - Activation — surfaces the installed activator via `/api/admin/activate-info`
-
-> **Available since:** 2.4.0. Earlier releases shipped `DICOMPrinterControl.exe` and a separate Queue Dashboard web UI; both surfaces have been folded into the Console.
 
 ## Architecture
 
@@ -50,7 +48,7 @@ The shortcut runs `OpenQueueDashboard.exe`, which opens a Console window or focu
 C:\Program Files (x86)\Flux Inc\DICOM Printer 2\dicom-printer-2-queue\OpenQueueDashboard.exe
 ```
 
-The `dicom-printer-2-queue\` subdirectory is a compatibility alias from the prior Queue Dashboard layout; the binaries inside are the Console + API stack.
+The `dicom-printer-2-queue\` subdirectory is a compatibility alias; the binaries inside are the Console + API stack.
 
 ### Command line
 
@@ -82,7 +80,7 @@ When a job lands in the Review tab:
 4. The Console highlights any missing or insufficient fields rather than silently refusing. The confirmation dialog renders only fields that would actually change.
 5. On apply the API writes a `.match` companion file alongside the job's `.dxi`, immediately returns the job from `queue/manual/` to `queue/`, and tolerates brief `.dxi` lock contention during the move.
 
-`.match` companion files use the same `(GGGG,EEEE)=value` line format as before; existing customer plugins that consume them continue to work. See [Manual Matching](queue-dashboard.md) for the on-disk contract.
+`.match` companion files use the `(GGGG,EEEE)=value` line format; customer plugins that consume them continue to work. See [Manual Matching](queue-dashboard.md) for the on-disk contract.
 
 ### Manage pane
 
@@ -139,7 +137,7 @@ The HTTP listener binds to loopback (`localhost`) only. Configuration of authent
 
 ### Console starts off-screen
 
-Fixed in 2.4.0 (#127): the window now centres on the active display on first launch.
+The window centres on the active display on first launch.
 
 ### Configuration changes not picked up
 
@@ -160,7 +158,7 @@ Click the validation echo to jump the editor to the failing line/column and rend
 
 ### Activate button does nothing
 
-Fixed in 2.4.0 (#92): the button now posts `launch-activate` to the WebView host. If the host cannot launch the activator (missing file, blocked by policy), the Console surfaces a concrete operator-facing error instead of silently doing nothing. Confirm the activator path with `/api/admin/activate-info`.
+The button posts `launch-activate` to the WebView host. If the host cannot launch the activator (missing file, blocked by policy), the Console surfaces a concrete operator-facing error instead of silently doing nothing. Confirm the activator path with `/api/admin/activate-info`.
 
 ## Related topics
 

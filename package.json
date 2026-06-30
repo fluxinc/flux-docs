@@ -6,8 +6,9 @@
   },
   "scripts": {
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:build": "bash scripts/pack-skill.sh && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "build:skill-zip": "bash scripts/pack-skill.sh"
   },
   "dependencies": {
     "vue": "^3.5.12"

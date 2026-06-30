@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DICOM Printer 2 — Print-to-Film
+  Flow: capture -> auto-trim white margins -> send to a DICOM film/paper printer.
+  EDIT the ConnectionParameters and the film-box layout/size for your printer.
+-->
+<DicomPrinterConfig>
+  <General>
+    <CheckingInterval>1</CheckingInterval>
+    <SuspensionTime>5</SuspensionTime>
+    <Verbosity>20</Verbosity>
+  </General>
+
+  <ActionsList>
+    <Trim name="Trim">
+      <Left>auto</Left>
+      <Right>auto</Right>
+      <Top>auto</Top>
+      <Bottom>auto</Bottom>
+    </Trim>
+
+    <Print name="PrintFilm">
+      <PrintMode>Grayscale8</PrintMode>
+      <ConnectionParameters>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
+        <PeerAeTitle>FILM_SCP</PeerAeTitle>
+        <Host>192.168.1.20</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+      <BasicFilmSessionAttributes>
+        <NumberOfCopies>1</NumberOfCopies>
+        <MediumType>PAPER</MediumType>
+      </BasicFilmSessionAttributes>
+      <BasicFilmBoxAttributes>
+        <ImageDisplayFormat>STANDARD\2,2</ImageDisplayFormat> <!-- 2 cols x 2 rows -->
+        <FilmOrientation>PORTRAIT</FilmOrientation>
+      </BasicFilmBoxAttributes>
+    </Print>
+  </ActionsList>
+
+  <Workflow>
+    <Perform action="Trim" />
+    <Perform action="PrintFilm" onError="Suspend" />
+  </Workflow>
+</DicomPrinterConfig>

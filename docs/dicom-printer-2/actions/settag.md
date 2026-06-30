@@ -125,7 +125,7 @@ Multiple SetTag actions to set study metadata:
 <ActionsList>
   <SetTag tag="0008,0070" name="SetManufacturer">Flux Inc</SetTag>
   <SetTag tag="0008,1090" name="SetManufacturerModel">DICOM Printer 2</SetTag>
-  <SetTag tag="0018,1020" name="SetSoftwareVersion">2.0.0</SetTag>
+  <SetTag tag="0018,1020" name="SetSoftwareVersion">DICOM Printer 2</SetTag>
 </ActionsList>
 ```
 

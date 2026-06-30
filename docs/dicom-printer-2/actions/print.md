@@ -35,6 +35,23 @@ Unique identifier for this action.
 
 ## Required Elements
 
+### `ConnectionParameters`
+Network connection settings for the remote DICOM printer. Must contain the following nested elements:
+
+#### `PeerAeTitle`
+The AE Title of the DICOM film printer.
+
+#### `MyAeTitle`
+The AE Title of DICOM Printer 2 (this application).
+
+#### `Host`
+The hostname or IP address of the DICOM film printer.
+
+#### `Port`
+The TCP port number of the DICOM film printer (typically 104).
+
+## Optional Elements
+
 ### `PrintMode`
 The print mode determines the color depth for the output.
 
@@ -52,23 +69,6 @@ The print mode determines the color depth for the output.
 - **`Grayscale12`** - 12-bit grayscale (4096 gray levels)
 
 **Note:** Grayscale12 may be reduced to 8-bit depth depending on printer capabilities.
-
-### `ConnectionParameters`
-Network connection settings for the remote DICOM printer. Must contain the following nested elements:
-
-#### `PeerAeTitle`
-The AE Title of the DICOM film printer.
-
-#### `MyAeTitle`
-The AE Title of DICOM Printer 2 (this application).
-
-#### `Host`
-The hostname or IP address of the DICOM film printer.
-
-#### `Port`
-The TCP port number of the DICOM film printer (typically 104).
-
-## Optional Elements
 
 ### `Resolution`
 Specifies the printer's resolution in DPI (dots per inch). When set, images are automatically resized to match the printer's resolution before printing.
@@ -127,6 +127,22 @@ Specifies where the printed film should be sent. Valid values depend on the prin
 
 Number of copies to print.
 
+### `FilmSessionLabel`
+**Type:** String
+**Default:** `DICOM PRINTER PRINT SESSION`
+
+A human-readable label identifying the film session on the printer.
+
+### `MemoryAllocation`
+**Type:** Integer
+
+Amount of printer memory requested for the session. Omitted unless set.
+
+### `OwnerId`
+**Type:** String
+
+Identifies the owner of the film session. Omitted unless set.
+
 ## Film Box Attributes
 
 Film box attributes control the layout and appearance of the printed film.
@@ -182,12 +198,38 @@ Whether to trim the border around the image area.
 ### `BorderDensity`
 **Valid Values:** `BLACK`, `WHITE`
 
-Density of the border around images.
+Density of the border around images. May also be set to an integer density value in hundredths of OD (optical density).
 
 ### `EmptyImageDensity`
 **Valid Values:** `BLACK`, `WHITE`
 
-Density for empty image boxes when using multi-image layouts.
+Density for empty image boxes when using multi-image layouts. May also be set to an integer density value in hundredths of OD (optical density).
+
+### `MinDensity` / `MaxDensity`
+**Type:** Integer (hundredths of OD)
+
+Minimum and maximum optical density for the film box, expressed in hundredths of OD (e.g. `20` = 0.20 OD). Omitted unless set.
+
+### `SmoothingType`
+**Type:** Integer (printer-defined)
+
+Smoothing algorithm identifier. Only sent when `MagnificationType` is `CUBIC`; otherwise omitted.
+
+### `RequestedResolutionId`
+**Valid Values:** `STANDARD`, `HIGH`
+
+Requests the printer's standard or high resolution for the film box. Omitted unless set.
+
+### `ConfigurationInformation`
+**Type:** String (printer-defined)
+
+Free-form configuration string interpreted by the printer. Consult your printer's Conformance Statement for supported values. Omitted unless set.
+
+### `AnnotationDisplayFormatId` / `Illumination` / `ReflectedAmbientLight`
+
+::: warning Never sent
+These attributes are **never** transmitted to the printer. Annotation and presentation-LUT support are disabled in the print engine, so any values configured here are silently dropped.
+:::
 
 ## Image Box Attributes
 
@@ -212,7 +254,27 @@ Controls whether the image is printed normally or inverted.
 Specifies the image interpolation method when scaling individual images. Leave empty for the printer default.
 
 ### `SmoothingType`
-Image smoothing algorithm. Leave empty for printer default.
+Image smoothing algorithm. Only sent when `MagnificationType` is `CUBIC`; otherwise omitted.
+
+### `RequestedImageSize`
+**Type:** Decimal (millimetres)
+
+Requested printed width of the image, in millimetres. Omitted unless set.
+
+### `RequestedDecimateCropBehavior`
+**Valid Values:** `DECIMATE`, `CROP`, `FAIL`
+
+Controls how the printer handles an image larger than the image box: `DECIMATE` shrinks it to fit, `CROP` trims it, `FAIL` rejects it. Omitted unless set, so the printer SCP's own default applies.
+
+### `ConfigurationInformation`
+**Type:** String (printer-defined)
+
+Free-form configuration string interpreted by the printer. Omitted unless set. Ignored in `Color` print mode.
+
+### `MinDensity` / `MaxDensity`
+**Type:** Integer (hundredths of OD)
+
+Minimum and maximum optical density for individual image boxes, expressed in hundredths of OD (e.g. `20` = 0.20 OD). Omitted unless set, and ignored in `Color` print mode.
 
 ## Basic Print Example
 

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { writeFileSync, readdirSync, readFileSync, statSync } from 'fs'
-import { join, relative } from 'path'
+import { join } from 'path'
 
 function collectMdFiles(dir) {
   const results = []
@@ -28,9 +28,8 @@ export default defineConfig({
     const files = collectMdFiles(srcDir)
     const parts = ['# Flux Docs — Full Content\n']
     for (const file of files) {
-      const rel = relative(srcDir, file)
       const content = readFileSync(file, 'utf-8')
-      parts.push(`\n\n---\n<!-- source: ${rel} -->\n\n${content}`)
+      parts.push(`\n\n---\n\n${content}`)
     }
     writeFileSync(join(outDir, 'llms-full.txt'), parts.join(''), 'utf-8')
   },
@@ -173,11 +172,14 @@ export default defineConfig({
               { text: "Architecture & Design", link: "/dicom-printer-2/architecture" },
               { text: "Installation", link: "/dicom-printer-2/installation" },
               { text: "Command Line Options", link: "/dicom-printer-2/command-line" },
+              { text: "AI Config Assistant", link: "/dicom-printer-2/config-assistant" },
               {
                 text: "Configuration",
                 link: "/dicom-printer-2/configuration",
                 items: [
                   { text: "Configuration Reference", link: "/dicom-printer-2/config" },
+                  { text: "General Settings", link: "/dicom-printer-2/general-settings" },
+                  { text: "Connection Parameters", link: "/dicom-printer-2/connection-parameters" },
                   {
                     text: "Actions",
                     link: "/dicom-printer-2/actions/",
@@ -186,6 +188,8 @@ export default defineConfig({
                       { text: "Query Attributes", link: "/dicom-printer-2/actions/query-attributes" },
                       { text: "Store", link: "/dicom-printer-2/actions/store" },
                       { text: "Print", link: "/dicom-printer-2/actions/print" },
+                      { text: "PrintText", link: "/dicom-printer-2/actions/print-text" },
+                      { text: "PrintImage", link: "/dicom-printer-2/actions/print-image" },
                       { text: "Parse", link: "/dicom-printer-2/actions/parse" },
                       { text: "SetTag", link: "/dicom-printer-2/actions/settag" },
                       { text: "SetSequence", link: "/dicom-printer-2/actions/setsequence" },

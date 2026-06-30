@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DICOM Printer 2 — Drop-folder ingestion
+  A separate Drop Monitor service watches <DropMonitor><Path>; files dropped there
+  become jobs that run through the Workflow below (here: store to PACS).
+  EDIT the drop Path and the Store ConnectionParameters.
+-->
+<DicomPrinterConfig>
+  <General>
+    <CheckingInterval>1</CheckingInterval>
+    <SuspensionTime>5</SuspensionTime>
+    <Verbosity>20</Verbosity>
+  </General>
+
+  <ActionsList>
+    <Store name="StoreToPACS">
+      <Compression type="JPEG_Lossless" />
+      <ConnectionParameters>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
+        <PeerAeTitle>PACS_SCP</PeerAeTitle>
+        <Host>192.168.1.51</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
+  </ActionsList>
+
+  <Workflow>
+    <Perform action="StoreToPACS" onError="Suspend" />
+  </Workflow>
+
+  <DropMonitor>
+    <Path>C:\ProgramData\Flux Inc\DICOM Printer 2\drop</Path>
+    <ConvertToPNG>false</ConvertToPNG>
+    <PdfRasterDpi>300</PdfRasterDpi>
+  </DropMonitor>
+</DicomPrinterConfig>

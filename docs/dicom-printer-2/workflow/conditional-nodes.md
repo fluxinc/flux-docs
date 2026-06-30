@@ -36,7 +36,7 @@ The type of field to evaluate.
 #### `value` (Required)
 The value to compare against. For `TAG_VALUE(...)` this is a regular expression; for all other fields it is compared literally.
 
-#### `caseSensitive` (Optional, 2.4.8+)
+#### `caseSensitive` (Optional)
 **Valid Values:** `true` (default), `false`
 
 When `false`, literal comparisons (`CLIENT_HOST_NAME`, `PRINTED_FILE_NAME`, ...) ignore case, and `TAG_VALUE(...)` regular expressions match case-insensitively.
@@ -141,7 +141,7 @@ Compares a DICOM tag value using **regular expression matching**.
 
 **Syntax:**
 - `field` - `TAG_VALUE(GGGG,EEEE)` or `TAG_VALUE(TagName)` — numeric tags use 1-4 hex digits for group and element; dictionary names such as `PatientID` also work
-- `value` - Regular expression pattern (Qt `QRegularExpression` / PCRE2 since 2.4.8)
+- `value` - Regular expression pattern (Qt `QRegularExpression` / PCRE2)
 
 **Matching Behavior:**
 Unlike other field types, TAG_VALUE treats `value` as a regular expression and matches it anywhere in the tag's value (substring matching). Anchor with `^...$` for exact matches.
@@ -186,7 +186,7 @@ Alternation:
 </If>
 ```
 
-Case-insensitive institution check *(2.4.8+)*:
+Case-insensitive institution check:
 ```xml
 <If field="TAG_VALUE(0008,0080)" value="general hospital" caseSensitive="false">
   <Statements>
@@ -195,7 +195,7 @@ Case-insensitive institution check *(2.4.8+)*:
 </If>
 ```
 
-Since 2.4.8 the pattern is a full PCRE2 regular expression, so lookahead/lookbehind and inline options such as `(?i)` are available. Escape `<` as `&lt;` inside the XML attribute.
+The pattern is a full PCRE2 regular expression, so lookahead/lookbehind and inline options such as `(?i)` are available. Escape `<` as `&lt;` inside the XML attribute.
 
 **Private Tags:**
 Tags with odd group numbers are automatically treated as private tags and the private creator ID is set automatically.
@@ -271,7 +271,7 @@ Switch does NOT support `QUERY_FOUND`, `QUERY_PARTIAL`, `TAG_VALUE`, or `STORE_S
 #### `field` (Required)
 `CLIENT_HOST_NAME` or `PRINTED_FILE_NAME`.
 
-#### `caseSensitive` (Optional, 2.4.8+)
+#### `caseSensitive` (Optional)
 **Valid Values:** `true` (default), `false`
 
 When `false`, case lookup ignores case. If two `Case` values differ only by case, the first one declared wins.

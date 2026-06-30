@@ -36,7 +36,7 @@ The `<Verbosity>` setting in the `<General>` section controls how deeply nested 
 
 - **Level 2** (recommended for production): Logs top-level actions and their immediate results. Sufficient for monitoring normal operation and diagnosing most problems.
 - **Level 20** (full debug): Logs all nested operations, including detailed DICOM tag manipulation, query dataset contents, filter decisions, and network association details. Use this level when diagnosing complex issues. Note that this produces significantly more log output.
-- **Default level**: `35` (as defined in the source code). This is the default if `<Verbosity>` is not specified, and logs nearly all available detail.
+- **Default level**: `35`. This is the default if `<Verbosity>` is not specified, and logs nearly all available detail.
 
 ### 11.4. EventGuard Blocks (Indented Log Sections)
 
@@ -72,15 +72,13 @@ Log files are stored in the `log/` subdirectory under the application root path.
 
 ### 11.6. PHI Redaction
 
-By default DP2 redacts patient-identifying values from the event log using a DICOM-tag-aware redactor. The behavior is controlled by the `<RedactSensitiveLogValues>` setting in the `<General>` section (added in 2.2.44):
+By default DP2 redacts patient-identifying values from the event log using a DICOM-tag-aware redactor. The behavior is controlled by the `<RedactSensitiveLogValues>` setting in the `<General>` section:
 
 | Setting | Default | Description |
 |---|---|---|
 | `RedactSensitiveLogValues` | `true` | When `true`, sensitive values are replaced with `****OBSCURED****` before they reach the log. Set to `false` to inspect real DICOM tag values during diagnostics. |
 
 Redacted tags include patient identifiers (name, ID, birth date, sex, address, phone, age, comments, history, other-IDs, mother-birth-name, insurance, medical-record-locator), exam identifiers (`StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`, `StudyID`, `AccessionNumber`), all physician and operator name variants, requested/scheduled procedure descriptions and IDs, admitting-diagnoses-description, and all private tags (odd group). Hostnames, usernames, file names, and AE titles are **not** redacted. The redactor applies across `Query`, `Job`, `Store`, `Run`, `WorklistQuery`, `SetTag`, `SetSequence`, `Parse`, and `IfNode` log paths.
-
-Earlier releases (2.2.43 and earlier) gated PHI redaction on the `_DEBUG` build flag; 2.2.44 replaced that with this runtime setting so release builds can be toggled without rebuilding.
 
 ### 11.7. Console, API, and Drop Monitor logs
 

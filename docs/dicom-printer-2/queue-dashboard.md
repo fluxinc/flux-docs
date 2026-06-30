@@ -2,8 +2,8 @@
 
 DICOM Printer 2 supports operator-driven worklist matching for jobs that cannot be matched automatically. The workflow uses a parked-job directory, a `.match` companion file, and the [DICOM Printer Console](control-app.md) for the operator UI.
 
-> **What happened to the "Queue Dashboard"?**
-> Through 2.3.x DP2 shipped a standalone web UI called the Queue Dashboard, backed by the `DICOMPrinterQueueService` Windows service. In 2.4.0 it was folded into the new **DICOM Printer Console** (`DICOMPrinterConsole.exe` WebView2 desktop + `DICOMPrinterApi.exe` HTTP service, `DICOMPrinterApiService`). The `dicom-printer-2-queue/` install directory and `OpenQueueDashboard.exe` launcher remain as compatibility aliases. See [DICOM Printer Console](control-app.md) for the UI.
+> **Where is the manual-matching UI?**
+> Manual matching is handled by the **DICOM Printer Console** (`DICOMPrinterConsole.exe` WebView2 desktop + `DICOMPrinterApi.exe` HTTP service, `DICOMPrinterApiService`). The `dicom-printer-2-queue/` install directory and `OpenQueueDashboard.exe` launcher are compatibility aliases for the Console. See [DICOM Printer Console](control-app.md) for the UI.
 
 This page documents the on-disk contract that makes manual matching work — the directory layout, the `.match` companion file, and how `DicomPrinter.exe` consumes them. Use it when integrating other tooling or when troubleshooting matches that do not get picked up.
 

@@ -4,12 +4,10 @@
 ## N.0 Cover Page
 
 - **Product Name:** DICOM Printer
-- **Version:** 2.2
 - **Vendor:** Flux Inc.
-- **Date:** 2025-10-09
 - **DICOM Standard Compliance:** PS3.2 2023d
 
-© 2025 By Flux Inc. of Austin, Texas. All rights reserved.
+© Flux Inc. All rights reserved.
 
 ## N.1 Conformance Statement Overview
 
@@ -52,15 +50,9 @@ This DICOM Conformance Statement specifies the behavior and functionality of the
 
 Flux DICOM Printer 2 (DP2) is a DICOM enabler, designed to fit into existing healthcare network infrastructure and add DICOM-compliant query and storage functionality to devices that presently lack this capability. As such, DP2 permits the querying of remote data and associated remote storage of printed documents and images on an existing PACS. For this purpose, DP2 utilizes the DICOM 3.0 protocol to perform both query and store operations against compliant devices.
 
-### N.3.1 Revision History
+### N.3.1 Scope
 
-**Table N.3-1: Revision History**
-
-| Version  | Date       | Changes                                                                                         |
-| -------- | ---------- | ----------------------------------------------------------------------------------------------- |
-| 2.0 Beta | 2008.08.16 | First revision                                                                                  |
-| 2.0.0    | 2008.10.31 | Implemented suspension for all AEs and added Modality Worklist Information Model - FIND support |
-| 2.2      | 2025-10-09 | Added support for Encapsulated PDF Storage and advanced Color Support/Transfer Syntaxes.        |
+This page describes the current DICOM network behavior of DICOM Printer 2.
 
 ### N.3.2 Audience
 
@@ -364,7 +356,7 @@ This product supports both IPv4 and IPv6. It does not utilize any of the optiona
 
 ### Configuration
 
-> **See also:** The [Configuration File Tags Specification](/dicom-printer-2/config) provides a complete reference for all XML configuration elements, and the [DP2 Operator Guide](/dicom-printer-2/) covers installation and operational procedures.
+> **See also:** The [Configuration Reference](/dicom-printer-2/config) provides a complete reference for all XML configuration elements, and the [DP2 Operator Guide](/dicom-printer-2/) covers installation and operational procedures.
 
 #### AE Title/Presentation Address Mapping
 

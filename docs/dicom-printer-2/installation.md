@@ -25,7 +25,7 @@ All of these subdirectories are resolved relative to the root path. DP2 will cre
 
 ### 8.2. Required Files
 
-- **config.xml** — The main configuration file that defines general settings, the actions library, and the workflow. DP2 will not start without a valid configuration file. See the [Configuration File Tags Specification](/dicom-printer-2/config) for the full tag reference.
+- **config.xml** — The main configuration file that defines general settings, the actions library, and the workflow. DP2 will not start without a valid configuration file. See the [Configuration Reference](/dicom-printer-2/config) for the full tag reference.
 - **config.dtd** — The DTD schema referenced by `config.xml`. Bundled with the application and included in the project as a build artifact.
 
 ### 8.3. Runtime Dependencies
@@ -80,7 +80,7 @@ The Console + API stack is published framework-dependent for `win-x86` on .NET 1
 | Console desktop window | `dicom-printer-2-queue\DICOMPrinterConsole.exe` |
 | Launcher / activator | `dicom-printer-2-queue\OpenQueueDashboard.exe` |
 
-> The `dicom-printer-2-queue\` directory and `OpenQueueDashboard.exe` name are compatibility aliases inherited from the prior Queue Dashboard lineage; the binaries inside are the new Console + API stack introduced in 2.4.0.
+> The `dicom-printer-2-queue\` directory and `OpenQueueDashboard.exe` name are compatibility aliases; the binaries inside are the Console + API stack.
 
 To launch manually (or focus an existing window):
 ```
@@ -91,7 +91,7 @@ The default API listener is `http://localhost:5009` (loopback only). See [DICOM 
 
 ### 8.6. Offline installation
 
-The installer is offline-capable: build-time prerequisite preparation (`scripts/prepare_installer_prereqs.ps1`) packages the WebView2 standalone runtime alongside the ASP.NET Core `x86` runtime, removing the runtime download that earlier installers performed at install time. A repeatable VM install harness (`scripts/installer_vm_test.ps1`) and one-time elevated broker prep script (`scripts/prepare_installer_vm_test_broker.ps1`) cover end-to-end offline install verification.
+The installer is offline-capable: build-time prerequisite preparation packages the WebView2 standalone runtime alongside the ASP.NET Core `x86` runtime, so no runtime download is performed at install time. A repeatable VM install harness and one-time elevated broker prep cover end-to-end offline install verification.
 
 ### 8.7. Site-profile installation
 
@@ -107,8 +107,8 @@ site-profile companion files. Place these files next to
 Silent examples:
 
 ```cmd
-DICOMPrinterSetup-2.4.7.0-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-A
-DICOMPrinterSetup-2.4.7.0-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-B /SITEPROFILES=\\fileserver\dp2\DICOMPrinterSiteProfiles.ini
+DICOMPrinterSetup-<version>-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-A
+DICOMPrinterSetup-<version>-Release.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SITE=LOCAL-B /SITEPROFILES=\\fileserver\dp2\DICOMPrinterSiteProfiles.ini
 ```
 
 Use `/REQUIRE_SITE=1` when a silent deployment must fail closed if no valid

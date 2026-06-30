@@ -39,21 +39,29 @@ DICOM Printer 2 is a Windows service that automates DICOM printing workflows —
 - [Installation](https://docs.fluxinc.co/dicom-printer-2/installation): Installation
 - [Configuration](https://docs.fluxinc.co/dicom-printer-2/configuration): Configuration guide
 - [Configuration Reference](https://docs.fluxinc.co/dicom-printer-2/config): Full config reference
+- [AI Config Assistant](https://docs.fluxinc.co/dicom-printer-2/config-assistant): Installable agent skill for generating and reviewing DP2 config.xml
+- [General Settings](https://docs.fluxinc.co/dicom-printer-2/general-settings): General config.xml settings
+- [Connection Parameters](https://docs.fluxinc.co/dicom-printer-2/connection-parameters): DICOM AE, host, port, and timeout settings
 - [Actions](https://docs.fluxinc.co/dicom-printer-2/actions/): Action pipeline overview
 - [Query Action](https://docs.fluxinc.co/dicom-printer-2/actions/query): DICOM query actions
 - [Store Action](https://docs.fluxinc.co/dicom-printer-2/actions/store): DICOM store actions
 - [Print Action](https://docs.fluxinc.co/dicom-printer-2/actions/print): Print actions
+- [PrintText Action](https://docs.fluxinc.co/dicom-printer-2/actions/print-text): Text overlays
+- [PrintImage Action](https://docs.fluxinc.co/dicom-printer-2/actions/print-image): Image overlays and watermarks
+- [Save Action](https://docs.fluxinc.co/dicom-printer-2/actions/save): Local DICOM File Set and DXI archive saves
+- [Parse Actions](https://docs.fluxinc.co/dicom-printer-2/actions/parse): Regex extraction from job names and text
 - [SetTag Action](https://docs.fluxinc.co/dicom-printer-2/actions/settag): Tag manipulation
 - [SetSequence Action](https://docs.fluxinc.co/dicom-printer-2/actions/setsequence): Sequence manipulation
+- [Run and Notify Actions](https://docs.fluxinc.co/dicom-printer-2/actions/run): External plugins and notifications
 - [Image Manipulation](https://docs.fluxinc.co/dicom-printer-2/actions/image-manipulation): Image processing actions
 - [Workflow](https://docs.fluxinc.co/dicom-printer-2/workflow/): Workflow configuration
 - [Placeholders](https://docs.fluxinc.co/dicom-printer-2/placeholders): Placeholder syntax
 - [Drop Monitor](https://docs.fluxinc.co/dicom-printer-2/drop-monitor): Drop monitor configuration
-- [DICOM Printer Console](https://docs.fluxinc.co/dicom-printer-2/control-app): WebView2 desktop console + API service (replaces Control Application and Queue Dashboard as of v2.4.0)
+- [DICOM Printer Console](https://docs.fluxinc.co/dicom-printer-2/control-app): WebView2 desktop console + API service for queue triage, matching, configuration, and service control
 - [Manual Matching](https://docs.fluxinc.co/dicom-printer-2/queue-dashboard): Operator-driven worklist matching, queue/manual layout, .match file contract
 - [Starting and Stopping](https://docs.fluxinc.co/dicom-printer-2/starting-and-stopping): Service management (DICOMPrinterService + DICOMPrinterApiService)
 - [Logs](https://docs.fluxinc.co/dicom-printer-2/logs): Log access, PHI redaction, multi-source tailing
-- [Upgrading](https://docs.fluxinc.co/dicom-printer-2/upgrading): Upgrade procedures including 2.4.0 migration notes
+- [Upgrading](https://docs.fluxinc.co/dicom-printer-2/upgrading): Current upgrade procedure and verification checklist
 - [Troubleshooting](https://docs.fluxinc.co/dicom-printer-2/troubleshooting): Common issues and solutions
 - [DICOM Conformance Statement](https://docs.fluxinc.co/dicom-printer-2/conformance): DICOM conformance details
 

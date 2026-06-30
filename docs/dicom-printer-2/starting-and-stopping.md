@@ -10,8 +10,6 @@ DICOM Printer 2 runs as two Windows services on a fully-installed system, plus a
 
 Both core services are set to **Automatic** startup by the installer and start with Windows.
 
-> Prior to 2.4.0 the API service was named `DICOMPrinterQueueService`. The 2.4.0 installer removes the old name and registers `DICOMPrinterApiService` in its place; see [Upgrading § Upgrading to 2.4.0](upgrading.md#upgrading-to-240).
-
 ## Using the DICOM Printer Console
 
 The Console **Manage** pane is the easiest way to control the services. It auto-refreshes service status while open (no manual refresh button) and exposes start/stop/restart buttons for `DicomPrinterService` and `DICOMPrinterApiService`.
@@ -83,7 +81,7 @@ If you edit `config.xml` from the Console **Manage → Config** pane, the API br
 
 ### After installing an update
 
-The 2.4.0+ installer stops `DicomPrinterService`, `DICOMPrinterApiService`, and any running Console processes before replacing binaries, so DLL-in-use errors should not occur. If they do, stop the services manually and retry.
+The installer stops `DicomPrinterService`, `DICOMPrinterApiService`, and any running Console processes before replacing binaries, so DLL-in-use errors should not occur. If they do, stop the services manually and retry.
 
 ## Troubleshooting
 

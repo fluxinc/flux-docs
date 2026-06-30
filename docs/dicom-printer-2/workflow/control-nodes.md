@@ -407,9 +407,27 @@ Update nodes modify action configuration during workflow execution.
 ```
 
 **Supported Action Types:**
-- `print` - Update Print action configuration
+- `Print` - Update Print action configuration
 
 **Note:** Currently, only Print actions are supported for Update nodes. Other action types will cause an error.
+
+### Mergeable Elements
+
+The body of an `<Update>` node is a partial Print action body that is merged into the target action. Only the following child elements can be updated:
+
+- `BasicFilmSessionAttributes`
+- `BasicFilmBoxAttributes`
+- `BasicImageBoxAttributes`
+- `PrintMode`
+- `ConnectionParameters`
+- `Resolution`
+- `Debug`
+
+Only the elements you include are changed; everything else on the target Print action is left as-is.
+
+### Scope
+
+An `<Update>` modifies the named Print action **for the remainder of the current job only**. The change does not persist to the configuration file and does not affect other jobs — the next job starts again from the original Print action definition.
 
 ### Example: Update Print Settings
 
@@ -432,7 +450,7 @@ Update nodes modify action configuration during workflow execution.
   <!-- Update print action to print 3 copies for STAT jobs -->
   <If field="CLIENT_HOST_NAME" value="STAT-WORKSTATION">
     <Statements>
-      <Update action="PrintToFilm" type="print">
+      <Update action="PrintToFilm" type="Print">
         <BasicFilmSessionAttributes>
           <NumberOfCopies>3</NumberOfCopies>
         </BasicFilmSessionAttributes>

@@ -84,9 +84,9 @@ All query types share this fundamental configuration structure:
 - `name` — workflow identifier for the action
 - `type` — `Worklist`, `Study`, `Patient`, or `Manual`
 - `level` — for `Patient` and `Study` queries: `PATIENT`, `STUDY`, `SERIES`, or `IMAGE`
-- `select` — `first` or `last` to reduce a multi-result response deterministically (added in 2.4.0)
-- `order-by` — comma-separated sort clauses applied before `select` (added in 2.4.0)
-- `force-assignment` — legacy alias for `select="first"`. If both are present, `select` wins
+- `select` — `first` or `last` to reduce a multi-result response deterministically
+- `order-by` — comma-separated sort clauses applied before `select`
+- `force-assignment` — compatibility alias for `select="first"`. If both are present, `select` wins
 - `forcePeerAe` — when `1`, inserts the job's Scheduled Station AE Title into Scheduled Station AE Title `(0040,0001)` in the SPS sequence as a match key (Worklist only; default `0`)
 - `ConnectionParameters` — network connection settings (optional on `type="Manual"`)
 

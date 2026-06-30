@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DICOM Printer 2 — Print-to-PACS with Modality Worklist
+  Flow: capture -> parse Accession from the job name -> query Worklist by it ->
+        if one match, store to PACS; if several, let an operator pick; if none,
+        retry a few times then send to the manual queue.
+  EDIT the ConnectionParameters (AE titles, hosts, ports) and the Parse regex.
+-->
+<DicomPrinterConfig>
+  <General>
+    <CheckingInterval>1</CheckingInterval>   <!-- seconds -->
+    <SuspensionTime>5</SuspensionTime>        <!-- minutes between retries -->
+    <Verbosity>20</Verbosity>
+    <ValidityPeriod>2</ValidityPeriod>        <!-- days before an unfinished job is dropped -->
+    <RedactSensitiveLogValues>true</RedactSensitiveLogValues>
+  </General>
+
+  <ActionsList>
+    <!-- Pull the accession number out of the print job's name, e.g. "ACC12345.pdf" -->
+    <ParseJobFileName name="ParseAccession">
+      <DcmTag tag="(0008,0050)" mandatory="true">([A-Za-z0-9]{4,})</DcmTag>
+    </ParseJobFileName>
+
+    <Query name="QueryWorklist" type="Worklist">
+      <ConnectionParameters>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
+        <PeerAeTitle>WORKLIST_SCP</PeerAeTitle>
+        <Host>192.168.1.50</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+      <DcmTag tag="(0008,0050)">#{AccessionNumber}</DcmTag> <!-- match on parsed accession -->
+      <DcmTag tag="(0010,0010)" />                          <!-- return PatientName -->
+      <DcmTag tag="(0010,0020)" />                          <!-- return PatientID -->
+      <DcmTag tag="(0010,0030)" />                          <!-- return BirthDate -->
+      <DcmTag tag="(0010,0040)" />                          <!-- return Sex -->
+      <DcmTag tag="(0008,0060)" />                          <!-- return Modality -->
+      <DcmTag tag="(0008,1030)" />                          <!-- return StudyDescription -->
+      <DcmTag tag="(0020,000D)" />                          <!-- return StudyInstanceUID -->
+    </Query>
+
+    <!-- Multiple worklist hits: park the job so an operator chooses the right one -->
+    <Query name="ManualMatch" type="Manual" />
+
+    <SetTag name="SetInstitution" tag="(0008,0080)">Your Hospital Name</SetTag>
+
+    <Store name="StoreToPACS">
+      <Compression type="JPEG_Lossless" />
+      <ConnectionParameters>
+        <MyAeTitle>DICOM_PRINTER</MyAeTitle>
+        <PeerAeTitle>PACS_SCP</PeerAeTitle>
+        <Host>192.168.1.51</Host>
+        <Port>104</Port>
+      </ConnectionParameters>
+    </Store>
+  </ActionsList>
+
+  <Workflow>
+    <Perform action="ParseAccession" onError="Hold" />
+    <Perform action="QueryWorklist" onError="Suspend" />
+    <If field="QUERY_FOUND" value="1">
+      <Statements>
+        <If field="QUERY_PARTIAL" value="1">
+          <Statements><Perform action="ManualMatch" /></Statements>
+        </If>
+        <Perform action="SetInstitution" />
+        <Perform action="StoreToPACS" onError="Suspend" />
+      </Statements>
+      <Else>
+        <Suspend resumeAction="QueryWorklist" maxRetries="6" />
+        <Perform action="ManualMatch" />   <!-- reached only after retries run out -->
+      </Else>
+    </If>
+  </Workflow>
+</DicomPrinterConfig>

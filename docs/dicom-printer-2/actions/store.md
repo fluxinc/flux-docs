@@ -128,7 +128,7 @@ Specifies the color mode for image conversion.
 
 Best for:
 - Standard grayscale images
-- Compatibility with older PACS systems
+- PACS systems that expect grayscale secondary-capture images
 - Smaller file sizes
 
 #### `Monochrome12`
@@ -151,6 +151,14 @@ Store actions automatically select the appropriate SOP Class based on the DICOM 
 
 - **Encapsulated PDF Storage** - For PDF documents (1.2.840.10008.5.1.4.1.1.104.1)
 - **Secondary Capture Image Storage** - For image-based print jobs (1.2.840.10008.5.1.4.1.1.7)
+
+## Series Organization
+
+When a job produces both image and PDF instances, the Store action separates them into distinct DICOM series:
+
+- **Images** and **PDFs** are stored as separate series, each with its own Series Instance UID.
+- Each instance is assigned a unique instance number within its series.
+- Series numbers are assigned sequentially starting from `1`, unless a series number is already set in the dataset (for example, by an earlier `SetTag` action or a query result), in which case the existing value is preserved.
 
 ## Association Lifetime
 
