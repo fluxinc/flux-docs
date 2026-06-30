@@ -260,6 +260,10 @@ engine passes input tag **values on stdin, one line per `<Input>`, in order**, a
 reads output tag **values from stdout, one line per `<Output>`, in order**
 (`type="Unique"` consumes one line *per image*). It is positional, **not**
 `key=value`. Exit `0` ok, `-1` fail, `-2` discard, `-3` suspend.
+`<Arguments>` are literal pipe-separated argv entries; they do not expand DICOM
+tag/date/file placeholders. Do not invent input-file or output-file placeholders
+for `Run`: pass DICOM values with `<Input>`/`<Output>`, and use Console plugin
+environment variables for job artifact paths.
 
 ```xml
 <Run name="GetUids" type="Console">

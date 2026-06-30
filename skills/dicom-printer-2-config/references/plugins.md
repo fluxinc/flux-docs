@@ -13,7 +13,7 @@ This is the contract any external script (in any language) must follow.
 | `type` (attr) | `Console` \| `Interactive` | **Console** | anything but exactly `Interactive` → Console |
 | `resolveHostNameAutomatically` (attr) | bool | false | Interactive + **remote** jobs only |
 | `<Command>` | path to exe/script | — (**required**) | relative to the install dir; must exist or the action fails |
-| `<Arguments>` | string | "" | **pipe `\|`-separated** → argv (NOT spaces) |
+| `<Arguments>` | string | "" | **literal pipe `\|`-separated** argv; no placeholder expansion |
 | `<Timeout>` | int ms | 3000 | per phase (start / write / finish) |
 | `<Input tag="(gggg,eeee)"/>` | tag ref | — | **order-significant**; one stdin line each |
 | `<Output tag="…" type="Global\|Unique"/>` | tag ref | type=Global | **order-significant**; one stdout line each (Unique = one *per image*) |
@@ -29,7 +29,7 @@ The engine runs the command directly via QProcess.
 |---|---|
 | `CLIENT_HOST_NAME` | originating host |
 | `CLIENT_USER_NAME` | originating user |
-| `CONTENTS_FILE` | absolute path to the job's extracted-text file |
+| `CONTENTS_FILE` | absolute path to the job contents/text artifact |
 | `NOFILES` | number of image files in the job |
 | `FILE1` … `FILEn` | absolute path to each image file (1-based) |
 | `ProgramData` | all-users app-data dir |
@@ -37,6 +37,8 @@ The engine runs the command directly via QProcess.
 **Input → stdin:** each `<Input>` tag's current value is written on its own line,
 `\n`-terminated, in declaration order. A missing tag still writes a blank line (order preserved).
 Tag values are **not** passed as command-line arguments — only `<Arguments>` are.
+`<Arguments>` are literal argv entries; do not invent input-file/output-file
+placeholders for `Run`.
 
 **Output ← stdout:** the engine reads stdout line-by-line in `<Output>` declaration order.
 It is purely **positional** — the Nth line sets the Nth `<Output>` tag. **Not** `KEY=VALUE`,
@@ -133,8 +135,12 @@ No `<Output>`, `<Command>`, or `<Arguments>`.
 ## Gotchas
 
 - **Arguments are pipe-delimited.** `<Arguments>a b|c</Arguments>` → `["a b","c"]`.
+- **Arguments are literal.** DICOM values go through `<Input>`/stdin; Console file
+  artifacts come from environment variables.
 - **Output is positional, not key=value.** Emit the bare value on the right line.
 - **`Unique` eats one stdout line per image** (`NOFILES`); emit too few and later tags go unset.
 - **Outputs are read only on exit 0.**
+- **Run does not adopt generated output paths.** Return DICOM attribute values via
+  `<Output>`, or update job artifacts deliberately inside the plugin.
 - **GUI plugins must be `type="Interactive"`** or they hang headless in the service session.
 - **`<LauncherPortNumber>` does nothing.** **`<Notify>` `%N` count must equal `<Input>` count.**

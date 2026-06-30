@@ -1,494 +1,373 @@
-# Run Actions (Plugins)
+# Run Actions
 
-Run actions execute external console or interactive applications as part of the workflow, enabling custom processing and integration with third-party tools.
+Run actions launch an external program from a workflow. Use them when a script
+or plugin needs to inspect job context, return DICOM attribute values, or ask a
+user for interactive input.
 
-## Plugin Types
+Run does not use input-file or output-file placeholders. The plugin contract is:
 
-DICOM Printer 2 supports two types of plugins:
+- `<Arguments>` passes literal command-line arguments.
+- `<Input>` sends selected DICOM attribute values to stdin.
+- `<Output>` reads stdout lines back into selected DICOM attributes.
+- Console plugins can read current job artifact paths from environment variables.
 
-- **Console** - Command-line applications that run in the background
-- **Interactive** - Graphical applications that display a user interface
+There is no `#{InputFile}`, `#{OutputFile}`, or `#{OutputPath}` placeholder, and
+DICOM Printer 2 does not adopt an output file path produced by a plugin.
 
 ## Basic Syntax
 
 ```xml
-<Run name="ActionName" type="Console|Interactive">
-  <Command>path_to_executable</Command>
-  <Arguments>arg1|arg2|arg3</Arguments>
-  <Input tag="(gggg,eeee)"/>
-  <Output tag="(gggg,eeee)" type="Global|Unique"/>
+<Run name="ActionName" type="Console">
+  <Command>C:\Tools\Plugin.exe</Command>
+  <Arguments>--mode|prod</Arguments>
+  <Input tag="(0010,0020)" />
+  <Output tag="(0010,0010)" type="Global" />
+  <Timeout>30000</Timeout>
 </Run>
 ```
 
-**Note:** Error handling (`onError`) is configured on `<Perform>` nodes in the workflow, not on the action definition. See [Actions Overview](index.md#error-handling-workflow-level) for details.
+Run actions are defined in `<ActionsList>` and invoked from the workflow with
+`<Perform>`.
 
-## Required Attributes
+```xml
+<Workflow>
+  <Perform action="ActionName" onError="Hold" />
+</Workflow>
+```
+
+`onError` belongs on the workflow `<Perform>` node, not on the `<Run>` action.
+
+## Attributes
 
 ### `name`
-Unique identifier for this action.
+
+Unique action name used by `<Perform action="...">`.
 
 ### `type`
-The plugin type.
 
-**Valid Values:** `Console`, `Interactive`
+Plugin execution mode.
 
-## Optional Attributes
+| Value | Behavior |
+|---|---|
+| `Console` | Runs a background process directly. |
+| `Interactive` | Sends a launch request to the plugin launcher so a GUI can run in a user session. |
 
 ### `resolveHostNameAutomatically`
-Controls whether Interactive plugins should display on remote client machines.
 
-**Valid Values:** `true`, `false`
-**Default:** `false`
-**Applies to:** Interactive plugins only (ignored for Console plugins)
+Optional. Applies only to `type="Interactive"`.
+
+When set to `true`, DICOM Printer 2 resolves the originating client host and asks
+the plugin launcher on that client to display the interactive plugin there. When
+omitted or `false`, the plugin launcher is contacted on the server side.
 
 ```xml
 <Run name="RemoteReview" type="Interactive" resolveHostNameAutomatically="true">
   <Command>C:\Tools\Reviewer.exe</Command>
+  <Timeout>600000</Timeout>
 </Run>
 ```
-
-**Behavior:**
-- When `true` and the job originates from a remote client:
-  - The system resolves the client's hostname to an IP address
-  - The Interactive plugin launcher connects to the client's machine
-  - The plugin's user interface displays on the **client's desktop**
-- When `false` (default):
-  - The plugin runs on the **server** (localhost)
-
-**Use Cases:**
-- **Enable (`true`):** When technicians submit jobs from workstations and need to interact with the plugin GUI on their own machines
-- **Disable (`false`):** When plugins should run on the server, or all jobs are submitted locally
-
-**Requirements:**
-- Client machine must have the DICOM Printer 2 plugin launcher installed and running
-- Network connectivity must allow connections from server to client
-- Firewall rules must permit the launcher port
 
 ## Elements
 
-### `<Command>` (Required)
-The full path to the executable file.
+### `<Command>`
+
+Required. Path to the executable or script to launch.
 
 ```xml
-<Command>C:\Tools\ImageProcessor.exe</Command>
+<Command>C:\Tools\LookupPatient.exe</Command>
 ```
 
-### `<Arguments>` (Optional)
-Command-line arguments to pass to the executable. Supports placeholders.
+Use a full path for production configurations. Relative paths depend on the
+runtime working directory and are easier to break during service installation or
+operator troubleshooting.
 
-Arguments are **pipe-delimited**, not space-delimited: the value is split on the `|` character, and each `|`-separated segment becomes a single argv element. Spaces within a segment are preserved, so a single argument may contain spaces. For example, `<Arguments>a b|c</Arguments>` produces argv `["a b", "c"]`.
+### `<Arguments>`
+
+Optional. Literal command-line arguments.
+
+Arguments are pipe-delimited, not space-delimited. DICOM Printer 2 splits the
+text on `|` and passes each segment as one argv element. Spaces inside a segment
+are preserved.
 
 ```xml
-<Arguments>--input|C:\in.dcm|--output|C:\out.dcm</Arguments>
+<Arguments>--mode|prod|--label|Needs review</Arguments>
 ```
 
-**Note:** Tag *values* are not passed as command-line arguments — pass them to the plugin via `<Input>` (stdin) instead. See [Input and Output](#input-and-output).
+This produces:
 
-### `<Timeout>` (Optional)
-Maximum time in milliseconds to wait for the plugin to execute.
-
-**Type:** Integer (milliseconds)
-**Default:** `3000` (3 seconds)
-
-```xml
-<Timeout>30000</Timeout>  <!-- 30 seconds -->
+```text
+argv[1] = --mode
+argv[2] = prod
+argv[3] = --label
+argv[4] = Needs review
 ```
 
-The timeout applies to:
-- Starting the plugin process
-- Writing input data to the plugin
-- Waiting for the plugin to finish execution
+`<Arguments>` does not expand DICOM tag placeholders, date placeholders, or file
+placeholders. To pass DICOM attribute values, use `<Input>`. To access job files,
+use the environment variables available to Console plugins.
 
-If the timeout is exceeded, the action fails and workflow error handling is triggered based on the `onError` attribute.
+### `<Timeout>`
 
-**Recommended values:**
-- **Quick operations:** `5000` (5 seconds)
-- **Standard processing:** `30000` (30 seconds)
-- **Long-running tasks:** `300000` (5 minutes)
-- **Very long tasks:** `600000` (10 minutes)
-
-### `<LauncherPortNumber>` (Deprecated)
-**This element is present in the configuration schema for backwards compatibility but is ignored by DICOM Printer 2.**
-
-The launcher port number is automatically determined at runtime:
-- **Local jobs:** Port is retrieved from the user's plugin launcher
-- **Remote jobs:** Port 37275 is used
-
-**You do not need to configure this element.** Any value specified will be ignored.
+Optional. Maximum time in milliseconds for each process phase.
 
 ```xml
-<!-- This element is ignored - do not use -->
-<LauncherPortNumber>37275</LauncherPortNumber>
+<Timeout>30000</Timeout>
 ```
 
-## Input and Output
+If omitted or invalid, the default is `3000` milliseconds.
 
-`<Input>` and `<Output>` are **empty elements** with a required `tag` attribute. They define a strictly positional, line-oriented contract over the plugin's standard input and standard output — there are no key=value mappings.
+Recommended values:
 
-### `<Input>` (Optional)
+| Use case | Suggested value |
+|---|---:|
+| Quick metadata lookup | `5000` |
+| Normal local script | `30000` |
+| Long image/text processing | `300000` |
+| Human interactive review | `600000` |
+
+### `<LauncherPortNumber>`
+
+Deprecated. Present in the schema for compatibility, but ignored by DICOM
+Printer 2. Do not use it in new configurations.
+
+## Input And Output
+
+`<Input>` and `<Output>` are a positional, line-oriented stdin/stdout protocol
+for DICOM attribute values. They are not file I/O settings.
+
+### `<Input>`
+
+Each `<Input>` element names one DICOM attribute. DICOM Printer 2 writes that
+attribute's current value to the plugin's stdin, one line per `<Input>`, in the
+same order as the configuration.
 
 ```xml
-<Input tag="(0020,000D)"/>
+<Input tag="(0010,0020)" />
+<Input tag="(0008,0050)" />
 ```
 
-Each `<Input>` declares one DICOM tag whose value is written to the plugin's **stdin**, one value per line, in declaration order. Order is significant: the first `<Input>` becomes the first stdin line, the second `<Input>` the second line, and so on. If a tag has no value, a blank line is still written so the positions stay aligned. (Tag values are never passed as command-line arguments — only on stdin.)
+For the example above, the plugin receives:
 
-### `<Output>` (Optional)
-
-```xml
-<Output tag="(0020,000E)" type="Unique"/>
-<Output tag="(0008,103E)" type="Global"/>
+```text
+stdin line 1 = Patient ID value
+stdin line 2 = Accession Number value
 ```
 
-Each `<Output>` declares one DICOM tag whose value the engine reads from the plugin's **stdout**, line by line, in declaration order. Output is purely position-based — the engine does **not** parse `key=value` or `tag=value`; it reads bare values in the order the `<Output>` elements are declared.
+If a value is missing, a blank line is still written so the line positions stay
+stable.
 
-Outputs are read **only when the plugin exits with code 0**. A trailing `\r` is stripped from each line, so CRLF output is safe.
+### `<Output>`
 
-#### `type` attribute
-
-**Valid Values:** `Global`, `Unique`
-**Default:** `Global`
-
-- **`Global`** (default) — consumes exactly **one** stdout line and sets the value on the job-level dataset (applies to the whole job).
-- **`Unique`** — consumes **one stdout line per image** (`NOFILES` lines; see [Environment Variables](#environment-variables)) and sets each value on the corresponding per-image dataset. If the plugin emits too few lines, the remaining tags are left unset.
-
-An unrecognized `type` value logs a warning and is treated as `Global`.
-
-## Console Plugins
-
-Console plugins are command-line applications that run in the background without user interaction.
-
-### Basic Console Plugin
+Each `<Output>` element names one DICOM attribute to set from the plugin's
+stdout. DICOM Printer 2 reads plain stdout lines in declaration order. It does
+not parse `key=value`, `tag=value`, JSON, XML, or filenames.
 
 ```xml
-<Run name="ProcessImage" type="Console">
-  <Command>C:\Tools\ImageConverter.exe</Command>
-  <Arguments>--input|#{InputFile}|--output|#{OutputFile}</Arguments>
+<Output tag="(0010,0010)" type="Global" />
+<Output tag="(0020,000E)" type="Unique" />
+```
+
+`type` controls how many stdout lines are consumed:
+
+| Type | Behavior |
+|---|---|
+| `Global` | Consumes one stdout line and sets the value on the job-level dataset. This is the default. |
+| `Unique` | Consumes one stdout line per image and sets the value on each per-image dataset. |
+
+Outputs are read only when the plugin exits with code `0`. Carriage returns from
+CRLF output are stripped.
+
+### Positional Example
+
+```xml
+<Run name="LookupPatient" type="Console">
+  <Command>C:\DP2\plugins\LookupPatient.exe</Command>
+  <Arguments>--database|prod</Arguments>
+  <Input tag="(0010,0020)" />
+  <Input tag="(0008,0050)" />
+  <Output tag="(0010,0010)" type="Global" />
+  <Output tag="(0020,000D)" type="Global" />
+  <Timeout>30000</Timeout>
 </Run>
 ```
 
-### Console Plugin with Placeholders
+DICOM Printer 2 writes the input values:
+
+```text
+123456
+ACC-9988
+```
+
+The plugin writes the output values:
+
+```text
+DOE^JANE
+1.2.840.113619.2.55.3.604688433.781.1716902782.467
+```
+
+DICOM Printer 2 then sets Patient Name from stdout line 1 and Study Instance UID
+from stdout line 2.
+
+### Unique Output Example
+
+For a two-image job:
 
 ```xml
-<Run name="CustomProcessor" type="Console">
-  <Command>C:\Scripts\process.bat</Command>
-  <Arguments>--patient|#{PatientID}|--study|#{StudyDate}|--file|#{InputFile}|--output|C:\Temp\processed_#{PatientID}.dcm</Arguments>
+<Run name="AssignSeries" type="Console">
+  <Command>C:\DP2\plugins\AssignSeries.exe</Command>
+  <Input tag="(0020,000D)" />
+  <Output tag="(0020,000E)" type="Unique" />
+  <Output tag="(0008,103E)" type="Global" />
 </Run>
 ```
 
-### Console Plugin Example: PDF Conversion
+The plugin must print one line for each image before the global output line:
 
-```xml
-<Run name="ConvertPDFToImage" type="Console">
-  <Command>C:\Tools\pdftopng.exe</Command>
-  <Arguments>-r|300|#{InputFile}|#{OutputPath}\image.png</Arguments>
-</Run>
+```text
+1.2.840.example.series.1
+1.2.840.example.series.2
+Processed Series
 ```
 
-### Console Plugin Example: Custom Validation
+## Console Plugin Environment
 
-```xml
-<Run name="ValidateData" type="Console">
-  <Command>C:\Scripts\validate.exe</Command>
-  <Arguments>--patient-id|#{PatientID}|--patient-name|#{PatientName}|--check-database</Arguments>
-</Run>
-```
+Console plugins receive environment variables that point to the current job
+artifacts. These are the only file paths the Run action provides automatically.
 
-### Console Plugin Example: Long-Running Processing
+| Variable | Value |
+|---|---|
+| `CLIENT_HOST_NAME` | Host that originated the job. |
+| `CLIENT_USER_NAME` | User that originated the job. |
+| `CONTENTS_FILE` | Path to the job contents/text artifact. |
+| `NOFILES` | Number of image files in the job. |
+| `FILE1` through `FILEn` | Paths to the image files for the job, one-based. |
+| `ProgramData` | All-users application data directory. |
 
-```xml
-<Run name="ComplexProcessing" type="Console">
-  <Command>C:\Tools\HeavyProcessor.exe</Command>
-  <Arguments>--input|#{InputFile}|--quality|high</Arguments>
-  <Timeout>300000</Timeout>  <!-- 5 minutes for complex processing -->
-</Run>
-```
-
-Use in workflow with timeout handling:
-```xml
-<Perform action="ComplexProcessing" onError="Hold"/>
-```
-
-If the processing exceeds 5 minutes, the job is held for retry.
-
-## Interactive Plugins
-
-Interactive plugins display a user interface for interactive processing.
-
-### Basic Interactive Plugin
-
-```xml
-<Run name="ManualReview" type="Interactive">
-  <Command>C:\Tools\ImageReview.exe</Command>
-  <Arguments>--file|#{InputFile}</Arguments>
-</Run>
-```
-
-### Interactive Plugin with Patient Context
-
-```xml
-<Run name="EditMetadata" type="Interactive">
-  <Command>C:\Tools\MetadataEditor.exe</Command>
-  <Arguments>--file|#{InputFile}|--patient|#{PatientID}|--name|#{PatientName}</Arguments>
-</Run>
-```
-
-### Interactive Plugin Example: Manual Annotation
-
-```xml
-<Run name="AnnotateImage" type="Interactive">
-  <Command>C:\Tools\Annotator.exe</Command>
-  <Arguments>--image|#{InputFile}|--output|#{OutputPath}\annotated.dcm</Arguments>
-</Run>
-```
-
-### Interactive Plugin Example: Remote Client Review
-
-Display the review interface on the remote client's desktop:
-
-```xml
-<Run name="RemoteQCReview" type="Interactive" resolveHostNameAutomatically="true">
-  <Command>C:\Tools\QualityControl.exe</Command>
-  <Arguments>--file|#{InputFile}|--patient|#{PatientID}</Arguments>
-  <Timeout>600000</Timeout>  <!-- 10 minutes for user interaction -->
-</Run>
-```
-
-**Scenario:** A technician at workstation `TECH-PC-05` sends a print job. With `resolveHostNameAutomatically="true"`, the QC review window appears on `TECH-PC-05`, not on the server.
-
-## Plugin Communication Protocol
-
-Plugins can communicate with DICOM Printer 2 through:
-
-### Exit Codes
-
-The plugin's exit code determines the workflow outcome. Four codes have defined meaning:
-
-- **0** (Ok) - Success; the plugin's `<Output>` values are read and continue processing.
-- **-1** (Error) - The action fails and the plugin's stderr is logged as the error (workflow error handling applies based on the `onError` attribute).
-- **-2** (Discard) - The job is discarded (removed). The action itself returns success, so `onError` is **not** triggered.
-- **-3** (Suspend) - The job is suspended; the workflow resumes at this action later.
-
-Any other non-zero code is treated as a failure (`-1`). `<Output>` values are read **only** on exit code `0` — Discard and Suspend short-circuit before output parsing.
-
-### File-Based Input/Output
-
-Plugins can read the input DICOM file and write a modified version:
-
-```xml
-<Run name="FileProcessor" type="Console">
-  <Command>C:\Tools\processor.exe</Command>
-  <Arguments>--in|#{InputFile}|--out|#{OutputFile}</Arguments>
-</Run>
-```
-
-The workflow automatically uses the output file for subsequent actions.
-
-### Environment Variables
-
-DICOM Printer 2 sets the following environment variables for Console plugins:
-
-- `CLIENT_HOST_NAME` - The host the job originated from
-- `CLIENT_USER_NAME` - The user the job originated from
-- `CONTENTS_FILE` - Absolute path to the job's contents file
-- `NOFILES` - The number of image files in the job
-- `ProgramData` - The all-users application data directory
-- `FILE1`, `FILE2`, … `FILEn` - Absolute path to each image file (1-based; there are `NOFILES` of them)
-
-### Example Using Environment Variables
+These paths are job artifacts, not `#{...}` placeholders. If a plugin needs to
+inspect the current image files, read `NOFILES` and `FILE1` through `FILEn` from
+the process environment.
 
 ```python
-# Python plugin example
 import os
 import sys
 
-count = int(os.environ.get('NOFILES', '0'))
-first_image = os.environ.get('FILE1')
+patient_id = sys.stdin.readline().rstrip("\n")
+image_count = int(os.environ.get("NOFILES", "0"))
+first_image = os.environ.get("FILE1")
 
-# Process each image file
-for i in range(1, count + 1):
-    path = os.environ.get(f'FILE{i}')
-    # ... process path ...
-
-# Exit with success
+# Compute values from stdin and environment, then return DICOM attribute values.
+print("DOE^JANE")
+print("1.2.840.example.study")
 sys.exit(0)
 ```
 
-## Workflow Integration
-
-### Sequential Plugin Execution
+Matching configuration:
 
 ```xml
-<Workflow>
-  <Perform action="ExtractText"/>
-  <Perform action="ValidateData"/>
-  <Perform action="ConvertImage"/>
-  <Perform action="SendToPACS"/>
-</Workflow>
+<Run name="LookupFromArtifact" type="Console">
+  <Command>C:\DP2\plugins\LookupFromArtifact.exe</Command>
+  <Input tag="(0010,0020)" />
+  <Output tag="(0010,0010)" type="Global" />
+  <Output tag="(0020,000D)" type="Global" />
+</Run>
 ```
 
-### Conditional Plugin Execution
+## Interactive Plugins
+
+Interactive plugins use the same argument, stdin, stdout, and exit-code contract
+as Console plugins, but the process is launched through the plugin launcher so a
+GUI can appear in a user session.
 
 ```xml
-<Workflow>
-  <Perform action="AutoValidate" onError="Ignore"/>
-
-  <!-- AutoValidate writes its verdict into a tag; branch on it with TAG_VALUE -->
-  <If field="TAG_VALUE(0009,1001)" value="^FAIL$">
-    <Statements>
-      <!-- Run Interactive plugin for manual review -->
-      <Perform action="ManualReview"/>
-    </Statements>
-  </If>
-
-  <Perform action="SendToPACS"/>
-</Workflow>
+<Run name="ManualMetadataReview" type="Interactive">
+  <Command>C:\DP2\plugins\MetadataReview.exe</Command>
+  <Arguments>--mode|review</Arguments>
+  <Input tag="(0010,0020)" />
+  <Input tag="(0010,0010)" />
+  <Output tag="(0009,1001)" type="Global" />
+  <Timeout>600000</Timeout>
+</Run>
 ```
 
-### Plugin Error Handling
+Use `type="Interactive"` only for plugins that need a visible UI. Background
+scripts should use `type="Console"`.
+
+## Exit Codes
+
+The plugin exit code controls workflow behavior.
+
+| Exit code | Meaning |
+|---:|---|
+| `0` | Success. `<Output>` stdout lines are read. |
+| `-1` | Error. The action fails and stderr is logged. |
+| `-2` | Discard. The job is discarded and `onError` is not triggered. |
+| `-3` | Suspend. The job is suspended and resumes at this action later. |
+
+Any other non-zero exit code is treated as failure. Output values are read only
+for exit code `0`.
+
+## Common Patterns
+
+### Metadata Lookup
+
+```xml
+<Run name="LookupAccession" type="Console">
+  <Command>C:\DP2\plugins\LookupAccession.exe</Command>
+  <Input tag="(0008,0050)" />
+  <Output tag="(0010,0010)" type="Global" />
+  <Output tag="(0010,0020)" type="Global" />
+  <Output tag="(0020,000D)" type="Global" />
+  <Timeout>30000</Timeout>
+</Run>
+```
+
+### External Validation
+
+```xml
+<Run name="ValidateStudy" type="Console">
+  <Command>C:\DP2\plugins\ValidateStudy.exe</Command>
+  <Arguments>--ruleset|prod</Arguments>
+  <Input tag="(0010,0020)" />
+  <Input tag="(0008,0050)" />
+  <Output tag="(0009,1001)" type="Global" />
+  <Timeout>30000</Timeout>
+</Run>
+```
+
+The plugin prints a status value, such as `PASS` or `FAIL`, which can be used by
+later workflow conditions.
+
+```xml
+<If field="TAG_VALUE(0009,1001)" value="^FAIL$">
+  <Statements>
+    <Perform action="ManualMetadataReview" />
+  </Statements>
+</If>
+```
+
+### Optional Plugin Step
 
 ```xml
 <ActionsList>
-  <!-- Mandatory processing - must succeed -->
-  <Run name="RequiredProcessor" type="Console">
-    <Command>C:\Tools\required.exe</Command>
-    <Arguments>"#{InputFile}"</Arguments>
-  </Run>
-
-  <!-- Optional processing - failure ignored -->
-  <Run name="OptionalProcessor" type="Console">
-    <Command>C:\Tools\optional.exe</Command>
-    <Arguments>"#{InputFile}"</Arguments>
+  <Run name="OptionalAudit" type="Console">
+    <Command>C:\DP2\plugins\Audit.exe</Command>
+    <Input tag="(0010,0020)" />
+    <Timeout>5000</Timeout>
   </Run>
 </ActionsList>
+
+<Workflow>
+  <Perform action="OptionalAudit" onError="Ignore" />
+</Workflow>
 ```
 
-## Common Use Cases
+## Troubleshooting
 
-### Custom Image Processing
-
-```xml
-<Run name="EnhanceImage" type="Console">
-  <Command>C:\Tools\ImageEnhancer.exe</Command>
-  <Arguments>--input|#{InputFile}|--output|#{OutputPath}\enhanced.dcm|--brightness|10|--contrast|20</Arguments>
-</Run>
-```
-
-### Database Integration
-
-```xml
-<Run name="UpdateDatabase" type="Console">
-  <Command>C:\Scripts\UpdateDB.exe</Command>
-  <Arguments>--patient-id|#{PatientID}|--study-date|#{StudyDate}|--accession|#{AccessionNumber}|--action|insert_study</Arguments>
-</Run>
-```
-
-### OCR Processing
-
-```xml
-<Run name="ExtractText" type="Console">
-  <Command>C:\Tools\ocr.exe</Command>
-  <Arguments>--input|#{InputFile}|--output|#{OutputPath}\text.txt|--language|eng</Arguments>
-</Run>
-```
-
-### Quality Control Review
-
-```xml
-<Run name="QCReview" type="Interactive">
-  <Command>C:\Tools\QCReviewer.exe</Command>
-  <Arguments>--file|#{InputFile}|--patient|#{PatientID}|--require-approval</Arguments>
-</Run>
-```
-
-## Security Considerations
-
-When using Run actions:
-
-1. **Validate plugin executables** - Ensure plugins are from trusted sources
-2. **Use full paths** - Always specify complete paths to executables
-3. **Sanitize input** - Be cautious with placeholders in arguments
-4. **Limit permissions** - Run DICOM Printer 2 service with minimum required privileges
-5. **Test plugins** - Thoroughly test plugins before production use
-
-## Complete Example
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE DicomPrinterConfig SYSTEM "config.dtd">
-<DicomPrinterConfig>
-  <ActionsList>
-    <!-- Parse patient ID -->
-    <ParseJobFileName name="GetPatientID">
-      <DcmTag tag="0010,0020">(\d+)_.*\.pdf</DcmTag>
-    </ParseJobFileName>
-
-    <!-- Query worklist -->
-    <Query name="FindPatient" type="Worklist">
-      <ConnectionParameters>
-        <PeerAeTitle>RIS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
-        <Host>192.168.1.200</Host>
-        <Port>104</Port>
-      </ConnectionParameters>
-      <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
-    </Query>
-
-    <!-- Custom PDF processing -->
-    <Run name="ProcessPDF" type="Console">
-      <Command>C:\Tools\PDFProcessor.exe</Command>
-      <Arguments>--input|#{InputFile}|--output|C:\Temp\processed_#{PatientID}.dcm|--patient-id|#{PatientID}|--enhance</Arguments>
-    </Run>
-
-    <!-- Manual quality review if query fails -->
-    <Run name="ManualReview" type="Interactive">
-      <Command>C:\Tools\ReviewApp.exe</Command>
-      <Arguments>--file|#{InputFile}|--patient|#{PatientID}</Arguments>
-    </Run>
-
-    <!-- Update external database -->
-    <Run name="LogToDatabase" type="Console">
-      <Command>C:\Scripts\LogStudy.exe</Command>
-      <Arguments>--patient|#{PatientID}|--date|#{Date}|--status|processed</Arguments>
-    </Run>
-
-    <!-- Store to PACS -->
-    <Store name="SendToPACS">
-      <ConnectionParameters>
-        <PeerAeTitle>PACS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
-        <Host>192.168.1.100</Host>
-        <Port>104</Port>
-      </ConnectionParameters>
-    </Store>
-  </ActionsList>
-
-  <Workflow>
-    <Perform action="GetPatientID"/>
-    <Perform action="FindPatient"/>
-
-    <If field="QUERY_FOUND" value="1">
-      <Statements>
-        <!-- Automated path -->
-        <Perform action="ProcessPDF"/>
-        <Perform action="LogToDatabase"/>
-        <Perform action="SendToPACS"/>
-      </Statements>
-    </If>
-
-    <If field="QUERY_FOUND" value="0">
-      <Statements>
-        <!-- Manual review path -->
-        <Perform action="ManualReview"/>
-        <Perform action="SendToPACS"/>
-      </Statements>
-    </If>
-  </Workflow>
-</DicomPrinterConfig>
-```
-
-## Related Topics
-
-- [Actions Overview](index.md)
-- [Workflow Control Nodes](../workflow/control-nodes.md)
-- [Placeholders](../placeholders.md)
+| Symptom | Check |
+|---|---|
+| Plugin receives the literal text `#{PatientID}` | Do not use placeholders in `<Arguments>`. Add `<Input tag="(0010,0020)" />` and read stdin. |
+| Plugin cannot find an input file | Read `NOFILES` and `FILE1` through `FILEn` from the environment in a Console plugin. |
+| Output tag stays blank | Confirm the plugin exits with code `0` and prints enough stdout lines in `<Output>` order. |
+| `Unique` output is shifted | Print one line per image for every `type="Unique"` output before printing the next output value. |
+| Interactive plugin never appears | Confirm PluginsLauncher is running in the target user session and use `type="Interactive"`. |
+| Workflow does not use a generated file | Run does not consume generated output paths. Return DICOM attribute values through `<Output>` or update job artifacts deliberately inside the plugin. |
