@@ -24,7 +24,7 @@ dataset for later Store/Print. One `name` per query; invoked by `<Perform>`.
 
 - **Empty** = universal return key (no constraint, just "send it back").
 - **With a value** = sent as a wire match key AND enforced locally on the results.
-- Value patterns: exact, wildcard `*`/`?`, range `low-high`, exclusion `!x` (e.g. `!US`),
+- Value patterns: exact, wildcard `*`, range `low-high`, exclusion `!x` (e.g. `!US`),
   and `#{...}` placeholders (`#{PatientID}`, `#{Date,-7,7}`).
 - Wildcard/regex/exclusion values are **not** sent as a wire match (an empty return key is sent
   instead) and are enforced purely in DP2's local post-filter.
@@ -51,9 +51,10 @@ Pipeline: wire C-FIND → local filters → `order-by` sort → `select`.
 - **Patient** — Patient Root C-FIND. `level` PATIENT/STUDY/SERIES/IMAGE.
 - **Worklist** — Modality Worklist. No `level`. Scheduled-procedure handling below.
 - **Manual** — does **not** hit the network. Parks the job in a manual queue, writes sidecar
-  JSON, marks it Held, and launches the Queue Dashboard / Drop Monitor so an operator picks the
-  match; the workflow resumes *after* this action. Config is just `<Query name="…" type="Manual"/>`
-  (optionally with ConnectionParameters/DcmTag defining what the dashboard re-queries).
+  JSON, marks it Held, and opens the DICOM Printer Console so an operator picks the match; the
+  workflow resumes *after* this action. Config can be as small as
+  `<Query name="…" type="Manual"/>`; the Console uses the parked job context and configured query
+  endpoints for operator matching.
 
 ## Worklist specifics
 

@@ -104,6 +104,28 @@ Sequence values are used as query constraints. Returned sequences are copied bac
 </DcmSequence>
 ```
 
+## Sequence Local Matching
+
+When a configured `<DcmSequence>` contains constrained values, local filtering
+matches the configured item structure against the returned sequence:
+
+| Configured sequence item | Returned result must contain |
+| --- | --- |
+| Empty item or item with only empty tags | Nothing; the item does not constrain filtering. |
+| One item with constrained tags | At least one returned item in that sequence whose constrained tags all match. |
+| Multiple constrained items | A returned item match for each constrained configured item. The same returned item can satisfy more than one configured item if the values match. |
+| Nested constrained sequence | A matching nested sequence item, evaluated recursively. |
+
+Scalar sequence tag values use the same local matching syntax as root
+`<DcmTag>` filters: exact value, `*` wildcard, `low-high` range, or regular
+expression syntax. Matching is case-insensitive. A returned item that is missing
+a constrained tag does not match that configured item.
+
+For Worklist root aliases such as `StudyDate` and `Modality`, DP2 builds an
+internal Scheduled Procedure Step Sequence constraint and applies these same
+rules to returned SPS items. A returned worklist entry with several SPS items is
+accepted when any SPS item satisfies the alias constraint.
+
 ## Result Selection and Assignment
 
 The result pipeline is:
@@ -171,7 +193,7 @@ After normal selected-result copy-back, Worklist applies additional mappings fro
 | SPS `Modality` | `Modality` | Source value is present. |
 | SPS `ScheduledPerformingPhysicianName` | `PerformingPhysicianName` | Source value is present and the job does not already have `PerformingPhysicianName`. |
 | SPS `ScheduledProcedureStepDescription` | `StudyDescription` | Source value is present and the job does not already have `StudyDescription`. |
-| `RequestedProcedureDescription` | `StudyDescription` | Used when no SPS description was assigned. |
+| `RequestedProcedureDescription` | `StudyDescription` | Used when no SPS description was assigned; this fallback writes `StudyDescription` even if the job already had one. |
 | `AccessionNumber` | `AccessionNumber` | Used when the job still has no accession number. |
 
 Because normal copy-back runs first, root values returned by the worklist server can already be present before these worklist-specific fallback mappings run.
