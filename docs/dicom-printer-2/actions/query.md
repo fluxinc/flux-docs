@@ -38,22 +38,22 @@ The type of query to perform.
 
 **Valid Values:** `Worklist`, `Study`, `Patient`, `Manual`
 
-## Required Elements
+## Connection Parameters
 
 ### `ConnectionParameters`
-Network connection settings for the remote DICOM server. Must contain the following nested elements:
+Network connection settings for the remote DICOM server. `PeerAeTitle`, `Host`, and `Port` are required; `MyAeTitle` is optional. (For a `Manual` query, `ConnectionParameters` is optional altogether — no SCP is contacted.)
 
-#### `PeerAeTitle`
+#### `PeerAeTitle` (required)
 The AE Title of the remote DICOM server being queried.
 
-#### `MyAeTitle`
-The AE Title of DICOM Printer 2 (this application).
-
-#### `Host`
+#### `Host` (required)
 The hostname or IP address of the remote DICOM server.
 
-#### `Port`
+#### `Port` (required)
 The TCP port number of the remote DICOM server (typically 104 or 11112).
+
+#### `MyAeTitle` (optional)
+The AE Title DICOM Printer 2 presents as the calling AE. Defaults to `DICOM_PRINTER` when omitted.
 
 ## Optional Attributes
 
@@ -137,10 +137,11 @@ When both `force-assignment` and `select` are present, `select` wins. If the two
 
 ## Query Criteria
 
-Query criteria are specified using `<DcmTag>` elements. Each tag can contain:
+Query criteria are specified with scalar `<DcmTag>` elements and sequence `<DcmSequence>` elements. A scalar tag can contain:
+
 - A simple value
 - A placeholder (e.g., `#{PatientID}`)
-- A sequence of nested tags
+- No value, which requests the tag as a return key unless the current job already has a value for that tag
 
 ### Simple Tag Query
 
@@ -156,13 +157,15 @@ Query criteria are specified using `<DcmTag>` elements. Each tag can contain:
 
 ### Sequence Tag Query
 
+A sequence is a top-level `<DcmSequence>` whose items are `<DcmItem>` elements. Do **not** nest a `<DcmSequence>` inside a `<DcmTag>` — that form is rejected when the configuration loads.
+
 ```xml
-<DcmTag tag="0040,0100">
-  <DcmSequence>
-    <DcmTag tag="0040,0002">#{Date}</DcmTag>
-    <DcmTag tag="0040,0003">080000</DcmTag>
-  </DcmSequence>
-</DcmTag>
+<DcmSequence tag="(0040,0100)">
+  <DcmItem>
+    <DcmTag tag="(0040,0002)">#{Date}</DcmTag>
+    <DcmTag tag="(0040,0003)">080000</DcmTag>
+  </DcmItem>
+</DcmSequence>
 ```
 
 ## Worklist Query Example
@@ -178,14 +181,14 @@ Query a DICOM worklist for today's scheduled procedures for a specific patient:
     <Port>104</Port>
   </ConnectionParameters>
   <!-- Scheduled Procedure Step Sequence -->
-  <DcmTag tag="0040,0100">
-    <DcmSequence>
+  <DcmSequence tag="(0040,0100)">
+    <DcmItem>
       <!-- Scheduled Procedure Step Start Date -->
-      <DcmTag tag="0040,0002">#{Date}</DcmTag>
+      <DcmTag tag="(0040,0002)">#{Date}</DcmTag>
       <!-- Scheduled Procedure Step Start Time -->
-      <DcmTag tag="0040,0003"></DcmTag>
-    </DcmSequence>
-  </DcmTag>
+      <DcmTag tag="(0040,0003)"></DcmTag>
+    </DcmItem>
+  </DcmSequence>
   <!-- Patient ID -->
   <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
   <!-- Patient Name -->
@@ -199,7 +202,7 @@ Empty tag values request that the server return these fields in the response.
 
 ## Study Query Example
 
-Query for studies from the last 7 days for a specific patient:
+Query for studies in a date window around one week ago for a specific patient:
 
 ```xml
 <Query name="FindStudies" type="Study">
@@ -209,7 +212,7 @@ Query for studies from the last 7 days for a specific patient:
     <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
-  <!-- Study Date - last 7 days -->
+  <!-- Study Date - 15-day window: 14 days ago through today (centered 7 days ago) -->
   <DcmTag tag="0008,0020">#{Date,-7,7}</DcmTag>
   <!-- Patient ID -->
   <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
@@ -245,7 +248,7 @@ Patient queries use the Patient Root Information Model instead of the Study Root
 </Query>
 ```
 
-The `level` attribute determines which required tags are automatically included in the query. For example, `level="STUDY"` includes Study Date, Study Time, Accession Number, and Study Instance UID among others. If an unknown level value is provided, it defaults to `PATIENT`.
+The `level` attribute sets the Query/Retrieve Level `(0008,0052)` sent in the request. It does **not** automatically add return-key tags — list every attribute you want back as its own (empty) `<DcmTag>` return key. For a Patient query, an unrecognized `level` value defaults to `PATIENT`.
 
 ## Local Post-Filtering
 
@@ -353,7 +356,7 @@ When executed, ManualQuery:
 <Query name="ParkForManualMatch" type="Manual" />
 ```
 
-A typical workflow pairs Manual with `ManualMatch` to wait for the operator's `.match` file before continuing:
+A typical workflow falls back to Manual when an automated query finds nothing. The Manual action parks the job and sets its **Held** flag, which stops the workflow. There is no separate match action to add. When the operator matches the job in the Console, DP2 applies the matched dataset and resumes after the Manual action:
 
 ```xml
 <Workflow>
@@ -361,7 +364,6 @@ A typical workflow pairs Manual with `ManualMatch` to wait for the operator's `.
   <If field="QUERY_FOUND" value="0">
     <Statements>
       <Perform action="ParkForManualMatch"/>
-      <Perform action="ManualMatch"/>
     </Statements>
   </If>
   <Perform action="SendToPACS"/>
@@ -420,14 +422,14 @@ Date placeholders are particularly useful in query actions:
 <!-- Yesterday -->
 <DcmTag tag="0008,0020">#{Date,-1}</DcmTag>
 
-<!-- Last 30 days -->
+<!-- 61-day window: 60 days ago through today (centered 30 days ago) -->
 <DcmTag tag="0008,0020">#{Date,-30,30}</DcmTag>
 
-<!-- Next 7 days -->
+<!-- 15-day window: 7 days ago through 7 days ahead (centered on today) -->
 <DcmTag tag="0008,0020">#{Date,0,7}</DcmTag>
 ```
 
-See [Placeholders](../placeholders.md) for complete date placeholder syntax.
+`#{Date,offset,range}` expands to `today+offset-range` through `today+offset+range` (a `2 * range + 1` day window). See [Placeholders](../placeholders.md) for complete date placeholder syntax.
 
 ## Common Query Tags
 
@@ -454,14 +456,14 @@ See [Placeholders](../placeholders.md) for complete date placeholder syntax.
 
 ```xml
 <!-- Scheduled Procedure Step Sequence (0040,0100) -->
-<DcmTag tag="0040,0100">
-  <DcmSequence>
-    <DcmTag tag="0040,0002"></DcmTag>  <!-- Scheduled Procedure Step Start Date -->
-    <DcmTag tag="0040,0003"></DcmTag>  <!-- Scheduled Procedure Step Start Time -->
-    <DcmTag tag="0040,0001"></DcmTag>  <!-- Scheduled Station AE Title -->
-    <DcmTag tag="0040,0006"></DcmTag>  <!-- Scheduled Performing Physician Name -->
-  </DcmSequence>
-</DcmTag>
+<DcmSequence tag="(0040,0100)">
+  <DcmItem>
+    <DcmTag tag="(0040,0002)"></DcmTag>  <!-- Scheduled Procedure Step Start Date -->
+    <DcmTag tag="(0040,0003)"></DcmTag>  <!-- Scheduled Procedure Step Start Time -->
+    <DcmTag tag="(0040,0001)"></DcmTag>  <!-- Scheduled Station AE Title -->
+    <DcmTag tag="(0040,0006)"></DcmTag>  <!-- Scheduled Performing Physician Name -->
+  </DcmItem>
+</DcmSequence>
 ```
 
 ## Complete Example
@@ -481,14 +483,14 @@ Complete worklist query with patient matching:
         <Port>11112</Port>
       </ConnectionParameters>
       <!-- Scheduled Procedure Step Sequence -->
-      <DcmTag tag="0040,0100">
-        <DcmSequence>
+      <DcmSequence tag="(0040,0100)">
+        <DcmItem>
           <!-- Today's date -->
-          <DcmTag tag="0040,0002">#{Date}</DcmTag>
-          <DcmTag tag="0040,0003"></DcmTag>
-          <DcmTag tag="0040,0001"></DcmTag>
-        </DcmSequence>
-      </DcmTag>
+          <DcmTag tag="(0040,0002)">#{Date}</DcmTag>
+          <DcmTag tag="(0040,0003)"></DcmTag>
+          <DcmTag tag="(0040,0001)"></DcmTag>
+        </DcmItem>
+      </DcmSequence>
       <!-- Patient ID from print job -->
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
       <!-- Request patient demographics -->
@@ -545,7 +547,7 @@ Exclusion filters support wildcards:
 - `!CARDIOLOGY` — exclude exact match "CARDIOLOGY"
 - `!CR|!OT` — exclude either value in a pipe-list
 
-Exclusion filters also work on sequence tags within `<DcmSequence>` elements. When an exclusion filter matches, the entire result dataset is rejected.
+Use exclusion filters on root-level `<DcmTag>` filters. For Worklist SPS date and modality exclusions, prefer the root `StudyDate` and `Modality` aliases; DP2 maps those aliases into SPS local filters.
 
 ## Sequence Persistence
 

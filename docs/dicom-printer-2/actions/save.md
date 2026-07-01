@@ -1,13 +1,13 @@
 # Save Actions
 
-Save actions write DICOM files to local directories with customizable naming and organization.
+Save actions write the job's images to a local directory, either as a DICOM File Set or as a verbatim copy of the raw captured job.
 
 ## Basic Syntax
 
 ```xml
 <Save name="ActionName">
-  <Directory>path</Directory>
-  <Filename>filename</Filename>
+  <Directory>C:\Archive\DICOM</Directory>
+  <Filename>image.dcm</Filename>
   <Format>dxi</Format>
 </Save>
 ```
@@ -16,202 +16,139 @@ Save actions write DICOM files to local directories with customizable naming and
 
 ## Elements
 
-### `<Directory>` (Required)
-The directory path where files will be saved. Supports placeholders for dynamic directory organization.
+### `<Directory>`
+The directory where files are written.
 
 ```xml
 <Directory>C:\Archive\DICOM</Directory>
 ```
 
-### `<Filename>` (Required)
-The filename pattern for saved files. Supports placeholders for dynamic naming.
+Use a static directory path. DP2 can create this directory for the default DICOM File Set format; for `dxi`, the target directory must already exist.
+
+### `<Filename>` (Optional)
+The base name pattern for saved files. The engine always appends an auto-incrementing index (see [Automatic numbering](#automatic-numbering)), so the filename does not need to be unique on its own.
 
 ```xml
-<Filename>#{PatientID}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
+<Filename>image.dcm</Filename>
 ```
 
-### `<Format>` (Optional)
-The output format to use. The value is matched case-insensitively, and the only special value is `dxi`. Any other value — or omitting `<Format>` entirely — produces the default DICOM File Set.
+If `<Filename>` is omitted, the base defaults to `DP` — producing files like `DP_000001`.
 
-**Default:** DICOM File Set (omit `<Format>`, or use any value other than `dxi`)
+### `<Format>` (Optional)
+The output format. Matched case-insensitively; the only special value is `dxi`. Any other value — or omitting `<Format>` — produces the default DICOM File Set.
 
 ```xml
 <Format>dxi</Format>
 ```
 
-- **DICOM File Set (default)** - Writes Secondary Capture `.dcm` files into the target directory together with a generated `DICOMDIR` index file (FileSet ID `DICOM_PRINTER_2`). This is the behaviour for an absent `<Format>` or any value that is not `dxi`.
-- **DXI** - Copies the original captured job file (`.dxi`) and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion. Use this to archive the raw print-capture job rather than generating DICOM.
+- **DICOM File Set (default)** — Writes Secondary Capture `.dcm` files into the target directory together with a generated `DICOMDIR` index (FileSet ID `DICOM_PRINTER_2`). This is the behavior for an absent `<Format>` or any value that is not `dxi`.
+- **DXI (raw job archive)** — Copies the original captured `.dxi` job file and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion.
 
-## Using Placeholders
+## Placeholders in Names
 
-Both directory and filename support tag placeholders for dynamic organization:
+`<Filename>` is passed through the same placeholder engine used elsewhere, but with one important rule:
 
-### Simple Directory Structure
+- A **tag placeholder** (`#{PatientID}`, `#{0010,0020}`) is substituted **only when it is the entire filename value**. A placeholder mixed with other text or an extension (e.g. `#{PatientID}.dcm` or `#{PatientID}_#{StudyDate}.dcm`) is **not** expanded and is written literally.
+- The **date placeholder** `#{Date[,offset[,range]]}` is the exception: it *is* substituted even when embedded in a larger string.
+
+Because the engine already guarantees unique names via the auto-index, the simplest reliable filename patterns are a static base name or a single whole-value placeholder:
+
+```xml
+<!-- Static base — becomes image_000001.dcm, image_000002.dcm, ... -->
+<Filename>image.dcm</Filename>
+
+<!-- Single whole-value tag placeholder - becomes 987654_000001 (no extension) -->
+<Filename>#{AccessionNumber}</Filename>
+
+<!-- Embedded date is fine - becomes scan_20240315_000001.dcm -->
+<Filename>scan_#{Date}.dcm</Filename>
+```
+
+Do not use tag placeholders to build dynamic directory trees. Keep `<Directory>` static:
 
 ```xml
 <Save name="SaveToArchive">
-  <Directory>E:\DICOM Archive</Directory>
-  <Filename>image_#{InstanceNumber}.dcm</Filename>
+  <Directory>C:\Archive</Directory>
+  <Filename>image.dcm</Filename>
 </Save>
 ```
 
-### Organized by Patient
+> Combining several tag placeholders, or a tag placeholder plus text, in a single `<Filename>` does **not** build a dynamic filename. Directory placeholders are not a supported way to build dynamic folder trees.
 
-```xml
-<Save name="SaveByPatient">
-  <Directory>E:\Archive\#{PatientID}</Directory>
-  <Filename>#{StudyDate}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
-</Save>
-```
+### Invalid-Character Sanitization
 
-Results in structure:
-```
-E:\Archive\
-  ├── 12345\
-  │   ├── 20240315_1_1.dcm
-  │   ├── 20240315_1_2.dcm
-  │   └── 20240315_2_1.dcm
-  └── 67890\
-      └── 20240316_1_1.dcm
-```
-
-### Organized by Modality and Patient
-
-```xml
-<Save name="SaveByModalityPatient">
-  <Directory>E:\Archive\#{Modality}\#{PatientID}\#{StudyDate}</Directory>
-  <Filename>#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
-</Save>
-```
-
-Results in structure:
-```
-E:\Archive\
-  ├── CT\
-  │   └── 12345\
-  │       └── 20240315\
-  │           ├── 1-1.dcm
-  │           └── 1-2.dcm
-  └── MR\
-      └── 67890\
-          └── 20240316\
-              └── 1-1.dcm
-```
-
-### Organized by Date
-
-```xml
-<Save name="SaveByDate">
-  <Directory>E:\Archive\#{StudyDate}\#{PatientID}</Directory>
-  <Filename>#{StudyTime}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
-</Save>
-```
-
-## Complete Filename Examples
-
-### With Patient and Study Information
-
-```xml
-<Filename>#{PatientID}_#{PatientName}_#{StudyDate}_#{SeriesNumber}.dcm</Filename>
-```
-
-Example: `12345_Doe^John_20240315_1.dcm`
-
-### With Accession Number
-
-```xml
-<Filename>ACC#{AccessionNumber}_#{InstanceNumber}.dcm</Filename>
-```
-
-Example: `ACC987654_1.dcm`
-
-### With Study Instance UID
-
-```xml
-<Filename>#{StudyInstanceUID}.dcm</Filename>
-```
-
-Example: `1.2.840.113619.2.55.3.123456789.dcm`
-
-### With Timestamp
-
-```xml
-<Filename>#{Date}_#{PatientID}.dcm</Filename>
-```
-
-Example: `20240315_12345.dcm`
-
-## Filename Sanitization and Numbering
-
-### Invalid Character Sanitization
-
-When a placeholder resolves to a value (for example a patient name or accession number), the engine sanitizes characters that are invalid for filesystem path components by replacing them with an underscore (`_`). The sanitized characters are:
+After placeholder substitution, the following characters are replaced with an underscore (`_`), along with control characters:
 
 ```
 < > : " / \ | ? *
 ```
 
-along with control characters. This means a resolved placeholder value that contains one of these characters will not cause the save to fail — the offending characters are replaced.
+So a resolved filename base of `Doe^John:2024` is written as `Doe^John_2024`.
 
-For the default DICOM File Set format, keep `<Directory>` as a stable directory and put dynamic values in `<Filename>` unless you have tested the exact path behavior you need. In DXI format, the raw job and companion files are copied to the configured directory.
+### Automatic Numbering
 
-For example, a resolved filename of `Doe^John:2024.dcm` is written as `Doe^John_2024.dcm`.
+`<Filename>` is a **base pattern**. The engine appends a sequential, zero-padded 6-digit index so every file a save action produces is unique — across the pages of a single job and across repeated saves to the same directory. Any extension in the pattern is preserved after the index:
 
-### Auto-Incrementing Index
+- `image.dcm` → `image_000001.dcm`, `image_000002.dcm`, …
+- `#{AccessionNumber}` (resolves to `987654`) → `987654_000001`
+- omitted `<Filename>` → `DP_000001`, `DP_000002`, …
 
-The value of `<Filename>` is used as a **base pattern**. The engine automatically appends a sequential, zero-padded index to that base so that every file produced by a save action is unique — for example across the multiple pages of a single print job, or across repeated saves to the same directory. Because of this, you do not need to include `#{InstanceNumber}` (or a similar counter) just to avoid overwriting files; the index guarantees uniqueness on its own.
-
-If `<Filename>` is omitted, the base pattern is empty and the appended index alone forms the file name.
+You do not need to add a counter such as `#{InstanceNumber}` to avoid overwriting files; the index guarantees uniqueness on its own.
 
 ## Format Options
 
-### Standard DICOM Format
+### DICOM File Set (default)
 
 ```xml
 <Save name="SaveDICOM">
   <Directory>E:\Archive</Directory>
-  <Filename>#{PatientID}.dcm</Filename>
-  <Format>DICOM</Format>
+  <Filename>image.dcm</Filename>
 </Save>
 ```
 
-### DXI (Raw Job Archive) Format
+Writes `.dcm` Secondary Capture files plus a `DICOMDIR` index into the directory. The directory is created automatically if it does not exist.
+
+### DXI (Raw Job Archive)
 
 ```xml
 <Save name="SaveDXI">
   <Directory>E:\Archive\Raw</Directory>
-  <Filename>#{PatientID}</Filename>
   <Format>dxi</Format>
 </Save>
 ```
 
-DXI format copies the original captured `.dxi` job file and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion. Use this to:
+DXI copies the original captured `.dxi` job file and all of its companion files (page images, PDF, text) into the target directory verbatim, with no DICOM conversion. Use this to:
+
 - Archive the raw print-capture job exactly as it was captured
 - Retain the original page images, PDF, and text alongside the job file
 - Reprocess or troubleshoot a job later from its native source
 
+For the DXI format specifically:
+
+- `<Filename>` is **ignored** — the files keep their original names.
+- The target `<Directory>` must already exist; it is not created automatically.
+
 ## Multiple Save Actions
 
-Save to multiple locations with different organization:
+Save to more than one location in a single workflow:
 
 ```xml
 <ActionsList>
-  <!-- Save to primary archive -->
+  <!-- DICOM File Set to the primary archive -->
   <Save name="SaveToPrimary">
-    <Directory>E:\Primary Archive\#{Modality}\#{PatientID}</Directory>
-    <Filename>#{StudyDate}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
+    <Directory>E:\Primary Archive</Directory>
+    <Filename>image.dcm</Filename>
   </Save>
 
-  <!-- Save to backup with simpler structure -->
+  <!-- DICOM File Set to a backup volume -->
   <Save name="SaveToBackup">
     <Directory>F:\Backup</Directory>
-    <Filename>#{StudyInstanceUID}_#{InstanceNumber}.dcm</Filename>
+    <Filename>image.dcm</Filename>
   </Save>
 
-  <!-- Archive the raw captured job -->
+  <!-- Raw captured job -->
   <Save name="SaveRaw">
-    <Directory>E:\Archive\Raw\#{Date}</Directory>
-    <Filename>#{PatientID}</Filename>
+    <Directory>E:\Archive\Raw</Directory>
     <Format>dxi</Format>
   </Save>
 </ActionsList>
@@ -223,55 +160,19 @@ Save to multiple locations with different organization:
 </Workflow>
 ```
 
-## Directory Creation
-
-Directories are created automatically if they don't exist. The entire directory path is created, including intermediate directories.
-
-```xml
-<Save name="DeepStructure">
-  <Directory>E:\Archive\#{Year}\#{Month}\#{Day}\#{Modality}\#{PatientID}</Directory>
-  <Filename>image.dcm</Filename>
-</Save>
-```
-
-This creates the full path automatically, e.g.:
-```
-E:\Archive\2024\03\15\CT\12345\image.dcm
-```
-
 ## Error Handling
 
-### Mandatory Save
+Error handling is set with `onError` on the `<Perform>` node:
 
 ```xml
-<Save name="MustSave">
-  <Directory>E:\Archive</Directory>
-  <Filename>#{PatientID}.dcm</Filename>
-</Save>
-
-Use in workflow with error handling:
-```xml
+<!-- Mandatory save: hold the job on failure (files retained; not auto-retried) -->
 <Perform action="MustSave" onError="Hold"/>
-```
-```
 
-If the save fails (e.g., disk full, permissions error), the job is held and retried.
-
-### Optional Save
-
-```xml
-<Save name="OptionalBackup">
-  <Directory>F:\Backup</Directory>
-  <Filename>#{PatientID}.dcm</Filename>
-</Save>
-
-Use in workflow with error handling:
-```xml
+<!-- Optional save: log and continue on failure -->
 <Perform action="OptionalBackup" onError="Ignore"/>
 ```
-```
 
-If the save fails, the error is logged but processing continues.
+`Hold` retains the job for manual attention but does **not** re-run it automatically. To have a failed save retried automatically, use `onError="Suspend"`, which re-queues the job after `SuspensionTime`. See [Control Flow Nodes](../workflow/control-nodes.md).
 
 ## Workflow Integration
 
@@ -283,14 +184,12 @@ If the save fails, the error is logged but processing continues.
 
   <If field="QUERY_FOUND" value="1">
     <Statements>
-      <!-- Save to verified patients folder -->
       <Perform action="SaveToVerified"/>
     </Statements>
   </If>
 
   <If field="QUERY_FOUND" value="0">
     <Statements>
-      <!-- Save to unverified folder for review -->
       <Perform action="SaveToUnverified"/>
     </Statements>
   </If>
@@ -301,40 +200,15 @@ If the save fails, the error is logged but processing continues.
 
 ```xml
 <Workflow>
-  <!-- Save original -->
   <Perform action="SaveOriginal"/>
 
-  <!-- Process image -->
   <Perform action="TrimImage"/>
   <Perform action="RotateImage"/>
 
-  <!-- Save processed version -->
   <Perform action="SaveProcessed"/>
 
-  <!-- Send to PACS -->
   <Perform action="SendToPACS"/>
 </Workflow>
-```
-
-## File Naming Best Practices
-
-1. **Use unique identifiers** to prevent overwriting files
-2. **Include timestamp or date** for temporal organization
-3. **Avoid special characters** that might cause filesystem issues
-4. **Keep filenames reasonably short** (under 255 characters)
-5. **Use consistent naming patterns** across your organization
-
-### Good Filename Patterns
-
-```xml
-<!-- Guaranteed unique with Study Instance UID -->
-<Filename>#{StudyInstanceUID}_#{InstanceNumber}.dcm</Filename>
-
-<!-- Organized and readable -->
-<Filename>#{PatientID}_#{Date}_#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
-
-<!-- With accession number for tracking -->
-<Filename>ACC#{AccessionNumber}_#{SeriesNumber}_#{InstanceNumber}.dcm</Filename>
 ```
 
 ## Complete Example
@@ -353,30 +227,25 @@ If the save fails, the error is logged but processing continues.
     <Query name="FindPatient" type="Worklist">
       <ConnectionParameters>
         <PeerAeTitle>RIS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.200</Host>
         <Port>104</Port>
       </ConnectionParameters>
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
-    <!-- Set metadata -->
-    <SetTag name="SetMetadata">
-      <DcmTag tag="0008,0020" value="#{Date}"/>
-      <DcmTag tag="0008,0080" value="Medical Center"/>
-    </SetTag>
+    <!-- Set metadata (one tag per SetTag) -->
+    <SetTag name="SetStudyDate" tag="0008,0020">#{Date}</SetTag>
+    <SetTag name="SetInstitution" tag="0008,0080">Medical Center</SetTag>
 
-    <!-- Save to organized archive -->
+    <!-- Save a DICOM File Set to the archive -->
     <Save name="SaveToArchive">
-      <Directory>E:\DICOM Archive\#{Modality}\#{PatientID}\#{StudyDate}</Directory>
-      <Filename>#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
-      <Format>DICOM</Format>
+      <Directory>E:\DICOM Archive</Directory>
+      <Filename>image.dcm</Filename>
     </Save>
 
     <!-- Archive the raw captured job -->
     <Save name="SaveRaw">
-      <Directory>E:\Archive\Raw\#{Date}</Directory>
-      <Filename>#{PatientID}</Filename>
+      <Directory>E:\Archive\Raw</Directory>
       <Format>dxi</Format>
     </Save>
 
@@ -384,7 +253,6 @@ If the save fails, the error is logged but processing continues.
     <Store name="SendToPACS">
       <ConnectionParameters>
         <PeerAeTitle>PACS</PeerAeTitle>
-        <MyAeTitle>PRINTER</MyAeTitle>
         <Host>192.168.1.100</Host>
         <Port>104</Port>
       </ConnectionParameters>
@@ -397,7 +265,8 @@ If the save fails, the error is logged but processing continues.
 
     <If field="QUERY_FOUND" value="1">
       <Statements>
-        <Perform action="SetMetadata"/>
+        <Perform action="SetStudyDate"/>
+        <Perform action="SetInstitution"/>
         <Perform action="SaveToArchive"/>
         <Perform action="SaveRaw"/>
         <Perform action="SendToPACS"/>

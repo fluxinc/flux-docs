@@ -7,7 +7,7 @@ Control flow nodes manage job execution and state within workflows.
 - **Perform** - Execute an action
 - **Suspend** - Suspend job for manual intervention
 - **Discard** - Discard job and remove from queue
-- **Update** - Update workflow state
+- **Update** - Override a Print action's configuration
 
 ## Perform Nodes
 
@@ -134,7 +134,7 @@ Perform nodes can contain nested Query elements to override action parameters fo
   <!-- Use base query with additional parameter -->
   <Perform action="QueryWorklist">
     <Query>
-      <DcmTag tag="0010,0030">#{BirthDate}</DcmTag>
+      <DcmTag tag="0010,0030">#{PatientBirthDate}</DcmTag>
     </Query>
   </Perform>
 </Workflow>
@@ -142,10 +142,7 @@ Perform nodes can contain nested Query elements to override action parameters fo
 
 The nested Query element creates a temporary clone of the action with the specified parameters merged in, allowing workflow-specific customization without defining multiple similar actions.
 
-**Supported Nested Configurations:**
-- WorklistQuery
-- StudyQuery
-- PatientQuery
+**Supported nested configuration:** a `<Query>` element on a base Query action. The nested `<Query>` is merged onto a temporary clone of that base action for this execution only; it does not change a Worklist query into a Study, Patient, or Manual query.
 
 ## Suspend Nodes
 
@@ -314,8 +311,8 @@ When a job is resumed, the workflow execution follows these steps:
 
 **Important Notes:**
 - Suspend nodes require `resumeAction` attribute specifying which action to resume from
-- Resumed jobs cannot be suspended again by Suspend nodes (prevents infinite loops)
-- Resumed jobs cannot be discarded by Discard nodes (job has been manually approved)
+- On a resumed run, `Suspend` and `Discard` nodes reached **before** the resume action are skipped (so re-running the earlier part of the workflow doesn't re-suspend or discard the job); once the resume action runs, later `Suspend`/`Discard` nodes take effect normally
+- Runaway suspend loops are bounded by the `maxRetries` attribute on `<Suspend>`, not by an inability to re-suspend
 
 ## Discard Nodes
 
@@ -427,7 +424,9 @@ Only the elements you include are changed; everything else on the target Print a
 
 ### Scope
 
-An `<Update>` modifies the named Print action **for the remainder of the current job only**. The change does not persist to the configuration file and does not affect other jobs — the next job starts again from the original Print action definition.
+An `<Update>` mutates the named Print action in the running service's **in-memory** configuration. The change is **not** limited to the current job: because actions are loaded once at startup and shared across all jobs, the override persists for every subsequent job until the service is restarted or the configuration is reloaded. It does not modify the `config.xml` file on disk.
+
+Because of this, gate an `<Update>` behind a condition (as in the example below) and set the value explicitly on every relevant job rather than assuming it resets between jobs.
 
 ### Example: Update Print Settings
 
@@ -623,7 +622,7 @@ Because `STORE_SUCCEEDED` only reflects the most recent Store, check it immediat
 1. **Always handle failure cases** - Don't leave conditional paths incomplete
 2. **Suspend over Discard** - Suspend when in doubt; discarded jobs are lost
 3. **Notify before Suspend** - Send alerts before suspending for visibility
-4. **Use meaningful state** - Update node values should be descriptive
+4. **Scope Update carefully** - An `<Update>` changes the shared Print action for later jobs too; gate it behind a condition and set the value explicitly where needed
 5. **Document decision points** - Use XML comments for complex logic
 6. **Test all paths** - Ensure every workflow path has been tested
 
@@ -650,11 +649,9 @@ Because `STORE_SUCCEEDED` only reflects the most recent Store, check it immediat
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
-    <!-- Metadata -->
-    <SetTag name="AddMetadata">
-      <DcmTag tag="0008,0020" value="#{Date}"/>
-      <DcmTag tag="0008,0080" value="Medical Center"/>
-    </SetTag>
+    <!-- Metadata (SetTag sets exactly one tag; use one action per tag) -->
+    <SetTag name="SetStudyDate" tag="0008,0020">#{Date}</SetTag>
+    <SetTag name="SetInstitution" tag="0008,0080">Medical Center</SetTag>
 
     <!-- Storage -->
     <Store name="SendToPrimaryPACS">
@@ -676,8 +673,8 @@ Because `STORE_SUCCEEDED` only reflects the most recent Store, check it immediat
     </Store>
 
     <Save name="SaveToArchive">
-      <Directory>E:\Archive\#{PatientID}\#{StudyDate}</Directory>
-      <Filename>#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
+      <Directory>E:\Archive</Directory>
+      <Filename>image.dcm</Filename>
     </Save>
 
     <!-- Notifications -->
@@ -722,7 +719,8 @@ Because `STORE_SUCCEEDED` only reflects the most recent Store, check it immediat
     <If field="QUERY_FOUND" value="1">
       <Statements>
         <!-- Add metadata -->
-        <Perform action="AddMetadata"/>
+        <Perform action="SetStudyDate"/>
+        <Perform action="SetInstitution"/>
 
         <!-- Send to primary PACS -->
         <Perform action="SendToPrimaryPACS" onError="Ignore"/>
