@@ -56,7 +56,7 @@ This architecture allows DP2 to be highly adaptable, supporting complex workflow
 
 | **DICOM Printer Console** | WebView2 desktop UI (`DICOMPrinterConsole.exe`) backed by the `DICOMPrinterApiService` HTTP service (`DICOMPrinterApi.exe`) for queue triage, manual worklist matching, configuration editing, log tailing, and service control |
 
-The `<Query type="Manual">` plus `<Perform action="ManualMatch" />` workflow parks unmatched jobs in `queue/manual/`. The Console presents the parked jobs to the operator, queries any configured Worklist, Study, or Patient endpoint to find a candidate, and writes a `.match` companion file alongside the job's `.dxi`. When DP2 next polls `queue/`, it reads the `.match` file, applies the matched tags, and resumes workflow processing. See [DICOM Printer Console](control-app.md) and [Manual Matching](queue-dashboard.md).
+A workflow can perform a Manual query action, often named `ManualMatch`, to park unmatched jobs in `queue/manual/`. The Console presents the parked jobs to the operator, queries any configured Worklist, Study, or Patient endpoint to find a candidate, and writes a `.match` companion file alongside the job's `.dxi`. When DP2 next polls `queue/`, it reads the `.match` file, applies the matched tags, and resumes workflow processing after the Manual query action. See [DICOM Printer Console](control-app.md) and [Manual Matching](queue-dashboard.md).
 
 ### Global Application Paths
 

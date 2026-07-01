@@ -134,7 +134,7 @@ A `tag` attribute accepts a number **or** a DCMTK keyword. Numbers are hex with
 optional parens/zero-padding — `(0008,0050)` = `0008,0050` = `(8,50)` = `AccessionNumber`.
 
 Three placeholder forms expand inside tag values (SetTag bodies, Query DcmTag
-values, Save paths, PrintText). **`#{...}` is the only placeholder syntax.**
+values, Save `<Filename>`, PrintText). **`#{...}` is the only placeholder syntax.**
 
 | Placeholder | Expands to |
 |---|---|
@@ -213,12 +213,13 @@ See `references/query.md` for query types, Worklist SPS handling, the
 
 <Save name="SaveToDisk">                       <!-- to local disk instead of network -->
   <Directory>D:\dicom</Directory>              <!-- keep stable for DICOM File Set output -->
-  <Filename>#{AccessionNumber}.dcm</Filename>  <!-- dynamic values belong here -->
+  <Filename>image.dcm</Filename>               <!-- engine appends _000001, _000002, ... -->
 </Save>
 ```
-For DICOM File Set output, keep `<Directory>` stable and put dynamic values in
-`<Filename>` unless the exact path behavior has been tested. Set `<Format>dxi</Format>`
-only when you want to copy the raw captured job and companion files.
+For DICOM File Set output, keep `<Directory>` stable. In `<Filename>`, a tag placeholder
+expands only when it is the entire value (`#{AccessionNumber}`); mixed forms such as
+`#{AccessionNumber}.dcm` are written literally. `#{Date...}` may be embedded. Set
+`<Format>dxi</Format>` only when you want to copy the raw captured job and companion files.
 
 `JPEG_Lossy` + `MONOCHROME12` is a fatal combo (12-bit lossy not allowed).
 

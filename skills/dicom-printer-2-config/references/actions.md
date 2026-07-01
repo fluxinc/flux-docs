@@ -31,19 +31,21 @@ The engine auto-fills Study/Series/SOP UIDs, Modality (default OT), dates/times.
 
 | element | values | default | notes |
 |---|---|---|---|
-| `<Directory>` | path | "" | created if missing; keep stable for DICOM File Set output; **always set it** |
-| `<Filename>`/`<FileName>` | pattern | "" | supports `#{...}`; engine appends `_NNNNNN` index |
+| `<Directory>` | path | "" | static path; DICOM File Set output creates it if missing, `dxi` does not |
+| `<Filename>`/`<FileName>` | pattern | `DP` | static name, embedded `#{Date...}`, or one whole-value tag placeholder; engine appends `_NNNNNN` index |
 | `<Format>` | (DICOM file set) \| `dxi` | DICOM file set + DICOMDIR | `dxi` = copy the raw job + companion files verbatim |
 
 ```xml
 <Save name="SaveToDisk">
   <Directory>D:\dicom</Directory>
-  <Filename>#{AccessionNumber}.dcm</Filename>
+  <Filename>image.dcm</Filename>
 </Save>
 <Save name="ArchiveRaw"><Directory>D:\archive</Directory><Format>dxi</Format></Save>
 ```
-Common use: an error/overflow sink after exhausted retries. For DICOM File Set output,
-put dynamic values in `<Filename>` unless the exact path behavior has been tested.
+Common use: an error/overflow sink after exhausted retries. Do not use tag placeholders
+to build dynamic directories. In `<Filename>`, a tag placeholder expands only when it
+is the entire value (`#{AccessionNumber}`); mixed forms such as
+`#{AccessionNumber}.dcm` are written literally. `#{Date...}` may be embedded.
 
 ## ParseJobFileName / ParseJobTextFile — regex-extract tags
 

@@ -9,10 +9,10 @@ This page documents the on-disk contract that makes manual matching work — the
 
 ## How it works
 
-1. The workflow runs a `<Query type="Manual">` action followed by `<Perform action="ManualMatch" />`. The Manual query parks the job's files into `queue/manual/` and sets the **Held** flag so file deletion is suppressed and workflow execution stops.
+1. The workflow performs a Manual query action. Many configs name that action `ManualMatch`, but it is still just `<Query type="Manual">`. The Manual query parks the job's files into `queue/manual/` and sets the **Held** flag so file deletion is suppressed and workflow execution stops.
 2. The Console (or another tool that follows the same contract) presents the parked job to the operator, runs a worklist or PACS query, and writes a `.match` companion file beside the job's `.dxi`.
 3. The job is moved from `queue/manual/` back to `queue/`.
-4. `DicomPrinter.exe` picks the job up on the next checking interval, reads the `.match` file, applies the tag values to the job's DICOM dataset, and resumes the workflow at the next node after `ManualMatch`.
+4. `DicomPrinter.exe` picks the job up on the next checking interval, reads the `.match` file, applies the tag values to the job's DICOM dataset, and resumes the workflow after the Manual query action.
 
 The Held flag also clears the `.meta` retry counter, so a job that has exhausted its retry budget regains a fresh budget on resume.
 
@@ -116,7 +116,7 @@ A minimal Manual query that does nothing but park the job:
 <Query name="ParkForManualMatch" type="Manual" />
 ```
 
-A typical workflow chains it with `ManualMatch`:
+A typical workflow performs that Manual query action when automatic matching fails:
 
 ```xml
 <Workflow>
@@ -124,14 +124,13 @@ A typical workflow chains it with `ManualMatch`:
   <If field="QUERY_FOUND" value="0">
     <Statements>
       <Perform action="ParkForManualMatch"/>
-      <Perform action="ManualMatch"/>
     </Statements>
   </If>
   <Perform action="SendToPACS"/>
 </Workflow>
 ```
 
-`ManualMatch` waits for the `.match` companion file. When DP2 sees the matched job back in `queue/`, it applies the file's assignments and continues the workflow.
+The Manual query action parks the job. When DP2 sees the matched job back in `queue/`, it applies the file's assignments and continues after that action.
 
 ## Auto-refresh and detection
 

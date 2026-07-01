@@ -1,298 +1,260 @@
-# DICOM Query Attributes Guide
+# Query Attribute Mapping
 
-## Overview
+Query attributes do two jobs:
 
-DICOM Printer 2 supports multiple query types with configurable attributes that control query behavior and matching. 
-This guide covers all available options and their proper configuration.
+1. Build the DICOM C-FIND request or the manual matching context.
+2. Decide which values from a selected result are copied back into the active job dataset.
 
-## Query Architecture
+This page is the mapping reference. For general syntax and workflow examples, see [Query Actions](query.md).
 
-### Supported Query Types
-1. **WorklistQuery** - Interfaces with Modality Worklist SCP for retrieving scheduled procedures
-2. **StudyQuery** - Performs queries at the study root level for study-centric operations
-3. **PatientQuery** - Executes queries at the patient root level for patient-centric workflows
-4. **ManualQuery** (`type="Manual"`) - Parks the job in the `manual/` queue for operator-driven worklist matching via the DICOM Printer Console; does not perform a network C-FIND
+## Query Type Matrix
 
+| Query type | DICOM model | `level` support | Connection parameters | Special behavior |
+| --- | --- | --- | --- | --- |
+| `Worklist` | Modality Worklist | Not used | Required | Builds a Scheduled Procedure Step sequence, accepts root-level SPS aliases, and maps selected worklist values back to normal job tags. |
+| `Study` | Study Root Query/Retrieve | `STUDY`, `SERIES`, `IMAGE` | Required | Sets `QueryRetrieveLevel` from `level`. |
+| `Patient` | Patient Root Query/Retrieve | `PATIENT`, `STUDY`, `SERIES`, `IMAGE` | Required | Sets `QueryRetrieveLevel` from `level`. |
+| `Manual` | Manual worklist matching | Not used | Optional | Builds the same worklist query context, parks the job in the manual queue, and lets the DICOM Printer Console complete the match. |
 
-### Attribute Processing Lifecycle
+Use only the valid `level` values for the selected query type. `PATIENT` is not a valid Study Root level.
 
-Understanding how attributes are handled throughout the lifecycle of a query is crucial for building reliable workflows. The system evaluates tags differently before sending the query and after receiving the results.
+## Request Value Selection
 
-#### 1. Before the Query (Request Building)
+For each configured `<DcmTag>` in a network query, DP2 chooses the outgoing value in this order:
 
-When the query is formulated, the system determines the value for each `<DcmTag>` to send to the remote SCP in the following priority order:
+1. A non-empty value in the config wins. Placeholders are expanded before sending.
+2. If the config tag is empty, DP2 uses the current job dataset value for that tag when one exists.
+3. If neither config nor job has a value, DP2 sends an empty return key.
 
-1. **Explicit values from configuration:** If the `<DcmTag>` contains a static value or a placeholder, it is evaluated and used.
-2. **Active job dataset values:** If the `<DcmTag>` is empty (e.g., `<DcmTag tag="(0010,0020)" />`), the system looks for the tag in the current print job's dataset. If it exists, that value is used as the matching key.
-3. **Empty (Universal Match):** If the tag is empty in the configuration and does not exist in the job dataset, it is sent as an empty tag (Universal Match), requesting the SCP to return its value.
-
-**Example: Before the Query**
 ```xml
-<Query type="Worklist" name="FindPatient">
-    <!-- Uses the explicit Patient ID from the configuration placeholder -->
-    <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag> 
-    
-    <!-- Empty tag: Will use the value from the job dataset if it exists, otherwise requests it -->
-    <DcmTag tag="(0008,0050)" /> 
-    
-    <!-- Explicit static filter: Only request CT modalities -->
-    <DcmTag tag="(0008,0060)">CT</DcmTag> 
+<Query name="FindStudy" type="Study" level="STUDY">
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmTag tag="StudyInstanceUID" />
+  <DcmTag tag="StudyDescription" />
 </Query>
 ```
 
-#### 2. When the Query Returns a Value (Match Found)
+In this example, `PatientID` is a match key. `StudyInstanceUID` and `StudyDescription` are return keys unless the current job already has values for those tags.
 
-If the remote SCP returns a match (and the query is allowed to assign data, see `force-assignment`):
+Tag placeholders such as `#{PatientID}` and `#{0010,0020}` replace the whole configured value. Date placeholders such as `#{Date}` can appear inside larger strings.
 
-- All tags specified in the `<Query>` element (except exclusion filters starting with `!`) are extracted from the SCP's response.
-- The values in the **active job dataset** are updated with the authoritative values returned by the SCP.
-- Any subsequent actions (like `<Store>` or `<PrintText>`) will use these verified dataset values.
+## Date Placeholders
 
-**Example: Successful Return**
-If the query above matches a Worklist entry where `(0008,0050)` Accession Number is `ACC12345`:
-- The job dataset's Accession Number is updated to `ACC12345`.
-- Subsequent `#{0008,0050}` placeholders will resolve to `ACC12345`.
+`#{Date}` expands from the current date.
 
-#### 3. When the Query Doesn't Return a Value (Or Empty Match)
+| Placeholder | Meaning |
+| --- | --- |
+| `#{Date}` | Today as `YYYYMMDD`. |
+| `#{Date,-7}` | Exactly seven days before today. |
+| `#{Date,7}` | Exactly seven days after today. |
+| `#{Date,-7,7}` | A date range from 14 days before today through today. |
+| `#{Date,0,7}` | A date range from seven days before today through seven days after today. |
 
-If the query returns no matches, or if a specific tag was requested but the SCP returned it empty:
+The third argument is a symmetric range around the offset date. It is not an end offset.
 
-- The job dataset is **not** overwritten with empty or null values from the query response.
-- Existing values in the job dataset (from the original print job or earlier actions) are preserved.
-- The `QUERY_FOUND` workflow condition evaluates to false, and the action still completes **successfully**. A query that matches nothing is not an error and does **not** trigger `onError`; branch on `QUERY_FOUND` in the workflow to handle the no-match case.
+## Local Filtering
 
-## Configuration Reference
+DP2 can avoid sending some configured patterns as PACS match keys. For these cases, DP2 sends an empty return key and filters the returned datasets locally:
 
-### Base Configuration Structure
-All query types share this fundamental configuration structure:
+| Pattern | Wire request | Local filter |
+| --- | --- | --- |
+| `match="local"` | Empty return key | Required match. |
+| `!CT` | Empty return key | Rejects returned values matching `CT`. |
+| `MR|CT` | Empty return key | Matches returned values through regular expression alternation. |
+| `^US.*` | Empty return key | Matches returned values through regular expression syntax. |
+| `SR*` | Empty return key | Matches returned values through wildcard syntax. |
+
+Local filters are applied after C-FIND returns and before `order-by` and `select`.
 
 ```xml
-<Query type="[QueryType]" name="[ActionName]"
-       select="first|last" order-by="StudyDate desc">
-    <ConnectionParameters>
-        <MyAeTitle>LOCAL_AE</MyAeTitle>
-        <PeerAeTitle>REMOTE_AE</PeerAeTitle>
-        <Host>remote.host</Host>
-        <Port>104</Port>
-    </ConnectionParameters>
-    <!-- Query-specific tags -->
+<Query name="FindNonNuclearStudy" type="Study" level="STUDY">
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmTag tag="ModalitiesInStudy">!NM</DcmTag>
+  <DcmTag tag="StudyDate">#{Date,-7,7}</DcmTag>
 </Query>
 ```
 
-# Core Attributes
+Scalar matching is case-insensitive. Multi-value DICOM fields are split on backslash and match if any component satisfies the filter.
 
-- `name` — workflow identifier for the action
-- `type` — `Worklist`, `Study`, `Patient`, or `Manual`
-- `level` — for `Patient` and `Study` queries: `PATIENT`, `STUDY`, `SERIES`, or `IMAGE`
-- `select` — `first` or `last` to reduce a multi-result response deterministically
-- `order-by` — comma-separated sort clauses applied before `select`
-- `force-assignment` — compatibility alias for `select="first"`. If both are present, `select` wins
-- `forcePeerAe` — when `1`, inserts the job's Scheduled Station AE Title into Scheduled Station AE Title `(0040,0001)` in the SPS sequence as a match key (Worklist only; default `0`)
-- `ConnectionParameters` — network connection settings (optional on `type="Manual"`)
+`match="local"` is valid on `<DcmTag>` only. It is not valid on `<DcmSequence>`.
 
-See [Query Actions § Optional Attributes](query.md#optional-attributes) for full attribute reference including `select`, `order-by`, and `match="local"`.
+## Sequence Syntax
 
-## Query-Specific Implementations
-
-### Modality Worklist Query
-
-Specialized for workflow management and procedure scheduling:
+Use `<DcmSequence>` with one or more `<DcmItem>` children. Do not wrap a sequence in a `<DcmTag>`.
 
 ```xml
-<Query type="Worklist" name="WorklistQuery">
-    <DcmTag tag="(0008,0050)">#{AccessionNumber}</DcmTag>
-    <DcmSequence tag="(0040,0100)">
-        <DcmItem>
-            <DcmTag tag="(0032,1060)" />
-        </DcmItem>
-    </DcmSequence>
+<Query name="FindWorklistEntry" type="Worklist">
+  <DcmSequence tag="ScheduledProcedureStepSequence">
+    <DcmItem>
+      <DcmTag tag="ScheduledProcedureStepStartDate">#{Date}</DcmTag>
+      <DcmTag tag="ScheduledProcedureStepStartTime" />
+      <DcmTag tag="Modality">US</DcmTag>
+    </DcmItem>
+  </DcmSequence>
 </Query>
-
 ```
 
-Specific attributes:
-
-- `forcePeerAe` — Worklist queries only (default `0`); when `1`, the engine copies the job's Scheduled Station AE Title into Scheduled Station AE Title `(0040,0001)` within the Scheduled Procedure Step Sequence `(0040,0100)` as a matching key; when `0` that tag is sent as an empty return key. No effect on Study, Patient, or Manual queries
-- Supports Scheduled Procedure Step sequences
-- Root `StudyDate` `(0008,0020)` and root `Modality` `(0008,0060)` are accepted
-  as aliases for Scheduled Procedure Step Start Date and SPS Modality inside
-  `(0040,0100)`. Use root `Modality` for literal values, pipe-list filters,
-  regular expressions, wildcards, exclusions, or `match="local"` filters that
-  should be enforced against returned SPS items.
-
-### Study Root Query
-
-Optimized for study-level operations:
+Sequence values are used as query constraints. Returned sequences are copied back into the job only when the configured sequence has `persist="true"`.
 
 ```xml
-<Query type="Study" level="STUDY|SERIES|IMAGE">
-    <DcmTag tag="(0008,0020)">#{StudyDate}</DcmTag>
-    <DcmTag tag="(0008,0050)">#{AccessionNumber}</DcmTag>
-</Query>
-
+<DcmSequence tag="ScheduledProcedureStepSequence" persist="true">
+  <DcmItem>
+    <DcmTag tag="ScheduledProcedureStepDescription" />
+  </DcmItem>
+</DcmSequence>
 ```
 
-Specific attributes:
+## Result Selection and Assignment
 
-- level - Query retrieve level (STUDY, SERIES, IMAGE)
+The result pipeline is:
+
+1. Send the C-FIND request.
+2. Apply local filters.
+3. Apply `order-by`, when configured.
+4. Pick a result, when the filtered result count allows assignment.
+5. Copy values from the selected result into the job dataset.
+
+Assignment rules:
+
+| Filtered result count | Assignment behavior |
+| --- | --- |
+| `0` | No values are copied. `QUERY_FOUND` is false. The action still succeeds. |
+| `1` | Values from the single result are copied. |
+| More than `1` and `select="first"` | Values from the first result after ordering are copied. |
+| More than `1` and `select="last"` | Values from the last result after ordering are copied. |
+| More than `1` and no `select` | No values are copied. `QUERY_FOUND` is true and partial. |
+
+`force-assignment="true"` is an older spelling for `select="first"`. Prefer `select`.
+
+## Copy-Back Rules
+
+When a result is selected:
+
+- `QueryRetrieveLevel` is ignored.
+- Non-sequence result elements are copied into the job dataset using the same tag.
+- Returned empty elements can overwrite an existing job value with an empty value.
+- Tags omitted from the selected result are not copied.
+- Returned sequences are ignored unless the matching configured `<DcmSequence>` has `persist="true"`.
+- If `ModalitiesInStudy` contains exactly one modality and the job has no root `Modality`, DP2 derives root `Modality` from it. If it contains multiple modalities, DP2 leaves root `Modality` unchanged.
+
+## Worklist Request Mapping
+
+Worklist queries always contain a Scheduled Procedure Step Sequence. DP2 accepts common root-level tags as aliases and moves them into the SPS item for the wire query.
+
+| Root-level config tag | Sent in SPS as |
+| --- | --- |
+| `StudyDate` | `ScheduledProcedureStepStartDate` |
+| `Modality` | `Modality` |
+| `ScheduledStationAETitle` | `ScheduledStationAETitle` |
+| `StationName` | `ScheduledStationName` |
+| `PerformingPhysicianName` | `ScheduledPerformingPhysicianName` |
+| `ScheduledProcedureStepStartDate` | `ScheduledProcedureStepStartDate` |
+| `ScheduledProcedureStepStartTime` | `ScheduledProcedureStepStartTime` |
+| `ScheduledProcedureStepDescription` | `ScheduledProcedureStepDescription` |
+
+An explicit tag inside `ScheduledProcedureStepSequence` wins over the root-level alias for the same SPS field.
+
+If no worklist date is configured, DP2 uses the job `StudyDate` as `ScheduledProcedureStepStartDate`. If the job has no `StudyDate`, network Worklist queries use a default `#{Date,-7,7}` date range. Manual queries clear that generated range when the job has no single `StudyDate`, so the operator starts with a broader manual search.
+
+`forcePeerAe="1"` copies the job's Scheduled Station AE Title into SPS `ScheduledStationAETitle` as a match key when the config did not set that SPS value. With the default `forcePeerAe="0"`, DP2 sends SPS `ScheduledStationAETitle` as an empty return key when the config did not set it.
+
+Worklist also ensures root `PatientName`, `PatientID`, and `AccessionNumber` are present when those tags were not already supplied by the config. If the job already has a value, that value is sent as a match key; otherwise DP2 sends an empty return key.
+
+## Worklist Result Mapping
+
+After normal selected-result copy-back, Worklist applies additional mappings from the selected worklist result:
+
+| Source in selected worklist result | Target job tag | Condition |
+| --- | --- | --- |
+| SPS `ScheduledProcedureStepStartDate` | `StudyDate` | Source value is present. |
+| SPS `ScheduledProcedureStepStartTime` | `StudyTime` | Source value is present. |
+| SPS `Modality` | `Modality` | Source value is present. |
+| SPS `ScheduledPerformingPhysicianName` | `PerformingPhysicianName` | Source value is present and the job does not already have `PerformingPhysicianName`. |
+| SPS `ScheduledProcedureStepDescription` | `StudyDescription` | Source value is present and the job does not already have `StudyDescription`. |
+| `RequestedProcedureDescription` | `StudyDescription` | Used when no SPS description was assigned. |
+| `AccessionNumber` | `AccessionNumber` | Used when the job still has no accession number. |
+
+Because normal copy-back runs first, root values returned by the worklist server can already be present before these worklist-specific fallback mappings run.
+
+## Practical Examples
+
+### Worklist With Root Aliases
+
+```xml
+<Query name="FindWorklistEntry" type="Worklist" select="first">
+  <ConnectionParameters>
+    <PeerAeTitle>RIS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
+    <Host>192.168.1.200</Host>
+    <Port>104</Port>
+  </ConnectionParameters>
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmTag tag="AccessionNumber">#{AccessionNumber}</DcmTag>
+  <DcmTag tag="StudyDate">#{Date,-7,7}</DcmTag>
+  <DcmTag tag="Modality">US|SR</DcmTag>
+</Query>
+```
+
+`StudyDate` is sent as SPS Start Date. `Modality` is sent as an empty SPS return key and enforced locally because `US|SR` is a regular expression pattern.
+
+### Worklist With Explicit SPS Sequence
+
+```xml
+<Query name="FindTodayWorklistEntry" type="Worklist" select="first">
+  <ConnectionParameters>
+    <PeerAeTitle>RIS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
+    <Host>192.168.1.200</Host>
+    <Port>104</Port>
+  </ConnectionParameters>
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmSequence tag="ScheduledProcedureStepSequence" persist="true">
+    <DcmItem>
+      <DcmTag tag="ScheduledProcedureStepStartDate">#{Date}</DcmTag>
+      <DcmTag tag="ScheduledProcedureStepStartTime" />
+      <DcmTag tag="ScheduledProcedureStepDescription" />
+    </DcmItem>
+  </DcmSequence>
+</Query>
+```
+
+The explicit sequence date wins over any root `StudyDate` alias. Because the sequence has `persist="true"`, the returned SPS sequence is also copied into the job dataset.
+
+### Deterministic Study Assignment
+
+```xml
+<Query name="FindNewestStudy" type="Study" level="STUDY"
+       select="first" order-by="StudyDate desc, StudyTime desc">
+  <ConnectionParameters>
+    <PeerAeTitle>PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
+    <Host>192.168.1.100</Host>
+    <Port>104</Port>
+  </ConnectionParameters>
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmTag tag="StudyDate">#{Date,-30,30}</DcmTag>
+  <DcmTag tag="StudyTime" />
+  <DcmTag tag="StudyInstanceUID" />
+</Query>
+```
+
+`order-by` runs after local filtering. `select="first"` then copies values from the newest returned study.
 
 ### Patient Root Query
 
-Designed for patient-centric workflows:
-
 ```xml
-<Query type="Patient" level="PATIENT|STUDY|SERIES|IMAGE">
-    <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
-</Query>
-
-```
-
-## Advanced Features
-
-### Tag Value Patterns
-
-The system supports sophisticated matching patterns:
-
-- Direct matching: exact_value
-- Wildcard matching: value*, *value*
-- Range specification: minimum-maximum
-- Pattern exclusion: !pattern
-- Pipe-list exclusion: !CR|!OT
-- Dynamic placeholders: #{TagName}
-- Date ranges: #{Date,-1,1}
-
-### Implementation Guidelines
-
-#### Best Practices
-
-- Always provide complete connection parameters
-- Select appropriate query levels for your use case
-- Include sufficient matching criteria
-- Implement proper error handling
-- Test query patterns thoroughly
-
-#### Common Implementation Pitfalls
-
-- Incomplete tag specifications
-- Incorrect date format usage
-- Query level mismatches
-- Network configuration errors
-- AE title validation issues
-
-#### Troubleshooting Guide
-
-#### Diagnostic Steps
-
-- Verify network connectivity
-- Validate AE title configurations
-- Check tag syntax
-- Review query level settings
-- Monitor DICOM association status
-
-#### Performance Optimization
-- Use specific query criteria
-- Implement appropriate timeout values
-
-## Examples
-
-### Basic Worklist Query
-
-```xml
-<Query type="Worklist">
+<Query name="FindPatientStudies" type="Patient" level="STUDY"
+       select="last" order-by="StudyDate asc">
   <ConnectionParameters>
-    <MyAeTitle>LOCAL_AE</MyAeTitle>
-    <PeerAeTitle>REMOTE_AE</PeerAeTitle>
-    <Host>pacs.hospital.com</Host>
+    <PeerAeTitle>PACS</PeerAeTitle>
+    <MyAeTitle>PRINTER</MyAeTitle>
+    <Host>192.168.1.100</Host>
     <Port>104</Port>
   </ConnectionParameters>
-  <DcmTag tag="(0008,0050)">#{AccessionNumber}</DcmTag>
-  <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
+  <DcmTag tag="PatientID">#{PatientID}</DcmTag>
+  <DcmTag tag="StudyDate">#{Date,-30,30}</DcmTag>
+  <DcmTag tag="StudyInstanceUID" />
 </Query>
 ```
 
-### Study Query With Filters
-
-```xml
-<Query type="Study" level="STUDY">
-    <ConnectionParameters>
-        <MyAeTitle>LOCAL_AE</MyAeTitle>
-        <PeerAeTitle>PACS_AE</PeerAeTitle>
-        <Host>pacs.hospital.com</Host>
-        <Port>104</Port>
-    </ConnectionParameters>
-    <DcmTag tag="(0008,0020)">#{Date,-1,1}</DcmTag>
-    <DcmTag tag="(0008,0061)">!CT</DcmTag>
-</Query>
-```
-
-### Advanced Worklist Query with SPS Sequence
-
-```xml
-<Query type="Worklist" force-assignment="true">
-    <ConnectionParameters>
-        <MyAeTitle>PRINTER_AE</MyAeTitle>
-        <PeerAeTitle>WORKLIST_SCP</PeerAeTitle>
-        <Host>worklist.hospital.net</Host>
-        <Port>104</Port>
-    </ConnectionParameters>
-    <DcmTag tag="(0008,0050)">#{AccessionNumber}</DcmTag>
-    <DcmSequence tag="(0040,0100)">
-        <DcmItem>
-            <DcmTag tag="(0040,0001)">#{ScheduledStationAETitle}</DcmTag>
-            <DcmTag tag="(0040,0002)">#{StartDate}</DcmTag>
-            <DcmTag tag="(0040,0003)">#{StartTime}</DcmTag>
-        </DcmItem>
-    </DcmSequence>
-</Query>
-```
-
-### Patient Query with Multiple Levels
-
-```xml
-<Query type="Patient" level="STUDY">
-    <ConnectionParameters>
-        <MyAeTitle>PRINTER_AE</MyAeTitle>
-        <PeerAeTitle>PACS_AE</PeerAeTitle>
-        <Host>pacs.hospital.net</Host>
-        <Port>104</Port>
-    </ConnectionParameters>
-    <DcmTag tag="(0010,0020)">#{PatientID}</DcmTag>
-    <DcmTag tag="(0010,0010)" />
-    <DcmTag tag="(0008,0020)">#{Date,-7,0}</DcmTag>
-    <DcmTag tag="(0008,0061)">!NM</DcmTag>
-</Query>
-```
-### Study Query with Series Level and Modality Filter
-
-```xml
-<Query type="Study" level="SERIES">
-    <ConnectionParameters>
-        <MyAeTitle>PRINTER_AE</MyAeTitle>
-        <PeerAeTitle>ARCHIVE_AE</PeerAeTitle>
-        <Host>archive.hospital.net</Host>
-        <Port>104</Port>
-    </ConnectionParameters>
-    <DcmTag tag="(0020,000D)">#{StudyInstanceUID}</DcmTag>
-    <DcmTag tag="(0008,0060)">MR|CT</DcmTag>
-    <DcmTag tag="(0020,0011)">1-999</DcmTag>
-</Query>
-
-```
-
-### Best Practices
-
-1. Always specify connection parameters
-2. Use appropriate query levels
-3. Include sufficient matching criteria
-4. Handle multiple matches appropriately
-5. Test exclusion patterns carefully
-
-### Troubleshooting
-
-Common issues:
-
-1. Missing required tags
-2. Invalid date formats
-3. Incorrect query levels
-4. Network connectivity
-5. AE title mismatches
+Patient Root supports `PATIENT`, `STUDY`, `SERIES`, and `IMAGE` levels. Study Root supports `STUDY`, `SERIES`, and `IMAGE`.

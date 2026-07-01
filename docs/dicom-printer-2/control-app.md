@@ -64,7 +64,7 @@ If the API service is not running, start it with `net start DICOMPrinterApiServi
 
 Jobs surface in three tabs:
 
-- **Review** — jobs parked by `<Query type="Manual">` plus `<Perform action="ManualMatch" />` that do not yet have a `.match` companion file. The operator can preview pages, search a worklist or PACS, and apply a match.
+- **Review** — jobs parked by a performed Manual query action (`<Query type="Manual">`, often named `ManualMatch`) that do not yet have a `.match` companion file. The operator can preview pages, search a worklist or PACS, and apply a match.
 - **Queue** — jobs in the active queue, including those with a `.match` companion waiting for `DicomPrinter.exe` to pick them up.
 - **Expired** — jobs moved to `queue_expired/`. Operators can restore them back into the active queue.
 

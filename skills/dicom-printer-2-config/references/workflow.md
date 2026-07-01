@@ -86,9 +86,11 @@ Deletes the job immediately. Ignored for an already-resumed job.
 
 ## `<Update action="…" type="Print">` (advanced, rare)
 
-Mutates a named **Print** action's attributes at runtime for the rest of the job. `type` is
-required and **only `Print` is implemented** (any other value is a load error). Body is a Print
-action body (film/image-box attrs, PrintMode, ConnectionParameters, …) merged into the target.
+Mutates a named **Print** action's attributes in the running service's in-memory config.
+The change persists for later jobs until service restart or config reload; it is not limited
+to the current job and does not edit `config.xml`. `type` is required and **only `Print`
+is implemented** (any other value is a load error). Body is a Print action body
+(film/image-box attrs, PrintMode, ConnectionParameters, …) merged into the target.
 
 ## Canonical workflow: Worklist → store, with manual fallback and retry
 
