@@ -317,18 +317,16 @@ Check log files to see which nodes executed and their results.
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
-    <SetTag name="AddMetadata">
-      <DcmTag tag="0008,0020" value="#{Date}"/>
-      <DcmTag tag="0008,0080" value="Medical Center"/>
-    </SetTag>
+    <SetTag name="SetStudyDate" tag="0008,0020">#{Date}</SetTag>
+    <SetTag name="SetInstitution" tag="0008,0080">Medical Center</SetTag>
 
     <Trim name="RemoveMargins">
       <Top>100</Top>
       <Bottom>100</Bottom>
     </Trim>
 
-    <Store name="SendToPACS"
-           compression="JPEG_Lossless">
+    <Store name="SendToPACS">
+      <Compression type="JPEG_Lossless"/>
       <ConnectionParameters>
         <PeerAeTitle>PACS</PeerAeTitle>
         <MyAeTitle>PRINTER</MyAeTitle>
@@ -338,11 +336,14 @@ Check log files to see which nodes executed and their results.
     </Store>
 
     <Save name="SaveToArchive">
-      <Directory>E:\Archive\#{PatientID}\#{StudyDate}</Directory>
-      <Filename>#{SeriesNumber}-#{InstanceNumber}.dcm</Filename>
+      <Directory>E:\Archive</Directory>
+      <Filename>#{Date}_processed</Filename>
     </Save>
 
-    <Notify name="AlertNoMatch" mandatory="false" onError="Ignore"/>
+    <Notify name="AlertNoMatch">
+      <Message>No worklist match for patient %1.</Message>
+      <Input tag="0010,0020"/>
+    </Notify>
   </ActionsList>
 
   <Workflow>
@@ -363,7 +364,8 @@ Check log files to see which nodes executed and their results.
     <If field="QUERY_FOUND" value="1">
       <Statements>
         <!-- Patient matched - process normally -->
-        <Perform action="AddMetadata"/>
+        <Perform action="SetStudyDate"/>
+        <Perform action="SetInstitution"/>
         <Perform action="RemoveMargins"/>
         <Perform action="SendToPACS"/>
         <Perform action="SaveToArchive"/>
@@ -373,7 +375,7 @@ Check log files to see which nodes executed and their results.
     <If field="QUERY_FOUND" value="0">
       <Statements>
         <!-- No patient match - alert and suspend -->
-        <Perform action="AlertNoMatch"/>
+        <Perform action="AlertNoMatch" onError="Ignore"/>
         <Suspend resumeAction="FindWorklist"/>
       </Statements>
     </If>
