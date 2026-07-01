@@ -63,7 +63,7 @@ DP2 uses size-based log rotation to prevent unbounded log growth. The behavior i
 
 | Setting | Default | Description |
 |---|---|---|
-| `MaximumLogFileSize` | 50 MB | Maximum size of the active log file before rotation occurs. Accepts values with `KB`, `MB`, or `GB` suffixes. Minimum enforced size is 1 MB. |
+| `MaximumLogFileSize` | 50 MB | Maximum size of the active log file before rotation occurs. Accepts an integer optionally followed by a single-letter `K`, `M`, or `G` suffix (a two-letter suffix like `MB` is not accepted and falls back to the default); a bare integer is treated as megabytes. Minimum enforced size is 1 MB. |
 | `MaximumLogFileCount` | `10` | Maximum number of rotated log files to keep. Minimum is 2. Older files beyond this count are deleted. |
 
 Log files are named `dicom_printer_service.log` (active), `dicom_printer_service.1.log` (previous), `dicom_printer_service.2.log`, and so on up to the configured maximum count. When rotation occurs, the active file is copied to `.1.log`, existing numbered files are shifted up by one, and files exceeding the maximum count are deleted. The active log file is then truncated and reused.

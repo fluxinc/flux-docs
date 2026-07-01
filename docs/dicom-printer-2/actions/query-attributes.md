@@ -60,7 +60,7 @@ DP2 can avoid sending some configured patterns as PACS match keys. For these cas
 | --- | --- | --- |
 | `match="local"` | Empty return key | Required match. |
 | `!CT` | Empty return key | Rejects returned values matching `CT`. |
-| `MR|CT` | Empty return key | Matches returned values through regular expression alternation. |
+| `MR\|CT` | Empty return key | Matches a returned value that is `MR` **or** `CT` (regular-expression alternation). |
 | `^US.*` | Empty return key | Matches returned values through regular expression syntax. |
 | `SR*` | Empty return key | Matches returned values through wildcard syntax. |
 
