@@ -133,8 +133,9 @@ Required: `PeerAeTitle`, `Host`, `Port`.
 A `tag` attribute accepts a number **or** a DCMTK keyword. Numbers are hex with
 optional parens/zero-padding — `(0008,0050)` = `0008,0050` = `(8,50)` = `AccessionNumber`.
 
-Three placeholder forms expand inside tag values (SetTag bodies, Query DcmTag
-values, Save `<Filename>`, PrintText). **`#{...}` is the only placeholder syntax.**
+Three placeholder forms expand inside tag values for SetTag/SetSequence bodies,
+Query DcmTag values, and Save `<Filename>`. **`#{...}` is the only placeholder
+syntax.**
 
 | Placeholder | Expands to |
 |---|---|
@@ -148,6 +149,11 @@ string has to match. `Patient: #{PatientID}` does **not** expand, and you cannot
 concatenate two tag placeholders. Only `#{Date…}` works as a substring. A missing
 source tag leaves the literal `#{...}` text in place (silent). There is **no** UID
 placeholder — the engine generates Study/Series/SOP UIDs automatically.
+
+`PrintText` is special: it can embed numeric `#{GGGG,EEEE}` tag placeholders in
+the text, and only the date form `#{Date,N}` where `N` is zero or positive. It
+does not expand named tag placeholders, bare `#{Date}`, negative offsets, or date
+ranges.
 
 ## Action catalog
 

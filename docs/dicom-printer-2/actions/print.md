@@ -1,6 +1,8 @@
 # Print Actions
 
-Print actions send images to DICOM film printers using the DICOM Basic Grayscale Print Management service.
+Print actions send images to DICOM film printers using DICOM Basic Print
+Management. DP2 uses the grayscale or color print management service depending
+on `<PrintMode>`.
 
 ## Basic Syntax
 
@@ -36,13 +38,16 @@ Unique identifier for this action.
 ## Required Elements
 
 ### `ConnectionParameters`
-Network connection settings for the remote DICOM printer. Must contain the following nested elements:
+Network connection settings for the remote DICOM printer. `PeerAeTitle`, `Host`,
+and `Port` are required. `MyAeTitle` is optional and defaults to
+`DICOM_PRINTER`.
 
 #### `PeerAeTitle`
 The AE Title of the DICOM film printer.
 
 #### `MyAeTitle`
-The AE Title of DICOM Printer 2 (this application).
+The AE Title of DICOM Printer 2 (this application). If omitted, DP2 uses
+`DICOM_PRINTER`.
 
 #### `Host`
 The hostname or IP address of the DICOM film printer.
@@ -87,7 +92,8 @@ If the Resolution element is not specified or set to `0x0`, images are sent to t
 - `300x300` - Standard resolution (typical for medical imaging)
 - `600x600` - High resolution (detailed imaging)
 
-**Note:** The resolution values must be positive integers. The format is parsed using the pattern `WIDTHxHEIGHT` where both values represent DPI.
+**Note:** The resolution values are parsed as non-negative integers. Use `0x0`
+or omit `<Resolution>` to avoid automatic resizing.
 
 ## Film Session Attributes
 
@@ -109,7 +115,8 @@ Film session attributes control the overall print job settings.
 ### `PrintPriority`
 **Valid Values:** `HIGH`, `MED`, `LOW`
 
-Sets the priority of the print job in the printer's queue. If omitted, `PrintPriority` is not sent and the printer applies its own default (commonly `MED`). More generally, unset film/session attributes are omitted from the print request rather than given DICOM-standard defaults, so the printer SCP's own defaults apply.
+Sets the priority of the print job in the printer's queue. If omitted,
+`PrintPriority` is not sent and the printer applies its own default.
 
 ### `MediumType`
 **Examples:** `PAPER`, `BLUE FILM`, `CLEAR FILM`
@@ -211,9 +218,11 @@ Density for empty image boxes when using multi-image layouts. May also be set to
 Minimum and maximum optical density for the film box, expressed in hundredths of OD (e.g. `20` = 0.20 OD). Omitted unless set.
 
 ### `SmoothingType`
-**Type:** Integer (printer-defined)
+**Type:** String or integer (printer-defined)
 
-Smoothing algorithm identifier. Only sent when `MagnificationType` is `CUBIC`; otherwise omitted.
+Smoothing algorithm identifier. DP2 does not validate this against
+`MagnificationType`; if configured, it is sent as configured. Use only values
+supported by the target printer.
 
 ### `RequestedResolutionId`
 **Valid Values:** `STANDARD`, `HIGH`
@@ -254,7 +263,9 @@ Controls whether the image is printed normally or inverted.
 Specifies the image interpolation method when scaling individual images. Leave empty for the printer default.
 
 ### `SmoothingType`
-Image smoothing algorithm. Only sent when `MagnificationType` is `CUBIC`; otherwise omitted.
+Image smoothing algorithm. DP2 does not validate this against
+`MagnificationType`; if configured, it is sent as configured. Use only values
+supported by the target printer.
 
 ### `RequestedImageSize`
 **Type:** Decimal (millimetres)
@@ -274,7 +285,10 @@ Free-form configuration string interpreted by the printer. Omitted unless set. I
 ### `MinDensity` / `MaxDensity`
 **Type:** Integer (hundredths of OD)
 
-Minimum and maximum optical density for individual image boxes, expressed in hundredths of OD (e.g. `20` = 0.20 OD). Omitted unless set, and ignored in `Color` print mode.
+Maximum optical density for individual image boxes, expressed in hundredths of
+OD (e.g. `20` = 0.20 OD). Omitted unless set, and ignored in `Color` print mode.
+DP2 does not transmit image-box `MinDensity` correctly; prefer the film-box
+density settings unless you have tested a printer-specific need.
 
 ## Basic Print Example
 
@@ -302,34 +316,6 @@ Print a single image to a film printer:
   <ConnectionParameters>
     <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
     <MyAeTitle>DICOM_PRINTER</MyAeTitle>
-    <Host>192.168.1.50</Host>
-    <Port>104</Port>
-  </ConnectionParameters>
-  <Resolution>300x300</Resolution>
-</Print>
-```
-
-## True-Size Printing
-
-For accurate physical sizing (e.g., printing radiographs at 1:1 scale), configure the printer resolution and use appropriate film sizes:
-
-```xml
-<Print name="PrintTrueSize">
-  <BasicFilmSessionAttributes>
-    <PrintPriority>HIGH</PrintPriority>
-    <MediumType>BLUE FILM</MediumType>
-    <FilmDestination>PROCESSOR</FilmDestination>
-  </BasicFilmSessionAttributes>
-  <BasicFilmBoxAttributes>
-    <ImageDisplayFormat>STANDARD\1,1</ImageDisplayFormat>
-    <FilmOrientation>PORTRAIT</FilmOrientation>
-    <FilmSizeId>14INX17IN</FilmSizeId>
-    <MagnificationType>CUBIC</MagnificationType>
-  </BasicFilmBoxAttributes>
-  <PrintMode>Grayscale12</PrintMode>
-  <ConnectionParameters>
-    <PeerAeTitle>FILM_PRINTER</PeerAeTitle>
-    <MyAeTitle>PRINTER</MyAeTitle>
     <Host>192.168.1.50</Host>
     <Port>104</Port>
   </ConnectionParameters>

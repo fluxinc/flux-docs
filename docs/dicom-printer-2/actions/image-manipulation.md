@@ -84,7 +84,9 @@ The Trim action supports automatic trim detection. When you specify `auto` inste
 </Trim>
 ```
 
-This feature automatically detects and removes white space or uniform borders from image edges.
+Auto-trim compares pixels against the top-left pixel and trims each selected edge
+until it finds a different pixel. It works best when the border color is uniform
+and matches the top-left corner.
 
 ### Trim Examples
 
@@ -135,8 +137,10 @@ The Rotate action rotates an image by a specified angle.
 
 ### Elements
 
-#### `<Angle>` (Required)
+#### `<Angle>` (Optional)
 The rotation angle in degrees. Positive values rotate clockwise, negative values rotate counter-clockwise.
+
+**Default:** `0` (no-op)
 
 **The angle must be an integer multiple of 90.** Any other value (e.g. `45`, `30`) is rejected at parse time and the configuration fails to load. Negative angles and angles greater than 360 are normalized (e.g. `-90` becomes `270` clockwise, `450` becomes `90`). For content-aware or non-90° orientation needs, use [AutoRotateText](#autorotatetext-action) instead.
 
@@ -332,7 +336,7 @@ Or for a blank canvas:
 | `ImagePath` | Conditional | Path to source image file. Required if Width/Height not specified. |
 | `Width` | Conditional | Canvas width in pixels. Required with Height if ImagePath not specified. |
 | `Height` | Conditional | Canvas height in pixels. Required with Width if ImagePath not specified. |
-| `CanvasColor` | No | Background color in hex RGBA format (e.g., `0xFF000000` for opaque black, `0xFFFFFFFF` for opaque white). Default: transparent. |
+| `CanvasColor` | No | Background color in hex ARGB format (e.g., `0xFF000000` for opaque black, `0xFFFFFFFF` for opaque white). Default: opaque black. |
 | `InsertionIndex` | No | Position to insert the instance. `-1` for end (default), `0` for beginning, or a specific index. |
 
 Either `ImagePath` OR both `Width` and `Height` must be specified.
@@ -723,13 +727,13 @@ For high-volume workflows, consider:
 
     <!-- Save original -->
     <Save name="SaveOriginal">
-      <Directory>E:\Archive\Original\#{PatientID}</Directory>
+      <Directory>E:\Archive\Original</Directory>
       <Filename>#{Date}_original.dcm</Filename>
     </Save>
 
     <!-- Save processed -->
     <Save name="SaveProcessed">
-      <Directory>E:\Archive\Processed\#{PatientID}</Directory>
+      <Directory>E:\Archive\Processed</Directory>
       <Filename>#{Date}_processed.dcm</Filename>
     </Save>
 

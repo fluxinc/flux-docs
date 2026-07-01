@@ -6,7 +6,12 @@ DICOM Printer 2 supports placeholder syntax that allows you to dynamically subst
 
 Placeholders use the format `#{...}`.
 
-> **Important:** Tag placeholders (`#{TagName}`, `#{GGGG,EEEE}`) are substituted only when the placeholder is the **entire** config value — they do not work when surrounded by static text. Date placeholders (`#{Date}`) are the exception: they work anywhere within a string, including when mixed with other text.
+> **Important:** In most contexts, tag placeholders (`#{TagName}`, `#{GGGG,EEEE}`)
+> are substituted only when the placeholder is the **entire** config value — they
+> do not work when surrounded by static text. Date placeholders (`#{Date}`) are
+> the exception: they work anywhere within a string, including when mixed with
+> other text. `PrintText` is a special case with narrower support; see the table
+> below.
 
 ## Tag Value Placeholders
 
@@ -98,7 +103,7 @@ Useful for DICOM date range queries. Only applies when a non-zero `range` is giv
 | `<SetSequence>` `<DcmTag>` value | Yes (entire value only) | Yes (anywhere) |
 | `<Query>` `<DcmTag>` value | Yes (entire value only) | Yes (anywhere) |
 | `<Save>` directory / filename | Yes (entire value only) | Yes (anywhere) |
-| `<PrintText>` text content | Yes (anywhere) | Yes (anywhere) |
+| `<PrintText>` text content | Numeric `#{GGGG,EEEE}` only, anywhere | Limited: `#{Date,N}` only, with `N` zero or positive |
 | `<If>` / `<Switch>` condition values | No | No |
 
 **"Entire value only"** means the config value must be nothing but the placeholder. For example:
@@ -128,21 +133,24 @@ Useful for DICOM date range queries. Only applies when a non-zero `range` is giv
 <SetTag name="SetStudyDate" tag="(0008,0020)">#{Date}</SetTag>
 ```
 
-### Save with patient-based directory
-
-```xml
-<Save name="ArchiveByPatient">
-  <Directory>E:\DICOM\#{PatientID}</Directory>
-  <Filename>#{Date}</Filename>
-</Save>
-```
-
-Each path segment must be a pure placeholder or static text. The directory `E:\DICOM\#{PatientID}` will not expand — instead, use `#{PatientID}` as the full `<Directory>` value and configure the base path elsewhere, or use date-based organization:
+### Save with a stable archive directory
 
 ```xml
 <Save name="ArchiveByDate">
-  <Directory>E:\DICOM\#{PatientID}</Directory>
-  <Filename>#{Date}</Filename>
+  <Directory>E:\DICOM\Archive</Directory>
+  <Filename>#{Date}_study</Filename>
+</Save>
+```
+
+Do not use tag placeholders to build dynamic directory trees. A directory such
+as `E:\DICOM\#{PatientID}` will not expand. Keep `<Directory>` static and use a
+static filename, an embedded date placeholder, or a single whole-value tag
+placeholder:
+
+```xml
+<Save name="ArchiveByPatient">
+  <Directory>E:\DICOM\Archive</Directory>
+  <Filename>#{PatientID}</Filename>
 </Save>
 ```
 

@@ -26,7 +26,7 @@ The `PrintImage` action overlays an image — a logo, stamp, or watermark — on
 | `<Y>` | Yes | 0–100 | Top edge of the overlay rectangle, as a percentage of page height. Origin is top-left. |
 | `<Width>` | Yes | 0–100 | Width of the overlay rectangle, as a percentage of page width. |
 | `<Height>` | Yes | 0–100 | Height of the overlay rectangle, as a percentage of page height. |
-| `<Aspect>` | No | `keep` \| `ignore` | Aspect-ratio handling. Default `keep`. |
+| `<Aspect>` | Yes | `keep` \| `ignore` | Aspect-ratio handling. Always specify this element. |
 
 ### Percentage-based placement
 
@@ -39,12 +39,15 @@ The rectangle must stay within the page: **`X + Width` must be ≤ 100 and `Y + 
 Controls how the image fills the rectangle.
 
 ```xml
-<Aspect>keep</Aspect>   <!-- Preserve the image's aspect ratio (default) -->
+<Aspect>keep</Aspect>   <!-- Preserve the image's aspect ratio -->
 <Aspect>ignore</Aspect> <!-- Stretch to fill the rectangle exactly -->
 ```
 
-- `keep` (default) — the image is scaled to fit inside the rectangle while preserving its original proportions.
+- `keep` — the image is scaled to fit inside the rectangle while preserving its original proportions.
 - `ignore` — the image is stretched to fill the rectangle exactly, which may distort it.
+
+Do not omit `<Aspect>`. DP2 does not initialize the value unless the element is
+present.
 
 ## Scope
 

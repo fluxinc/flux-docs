@@ -22,8 +22,17 @@ The `<PrintText>` action burns a line of text onto **every page** of a job withi
 
 Child element names are matched case-insensitively.
 
-### `<Text>` (Required)
-The text to burn onto each page. Supports `#{gggg,eeee}` DICOM tag placeholders (and named [placeholders](../placeholders.md)), so the rendered text can include patient, study, or job values.
+### `<Text>` (Optional)
+The text to burn onto each page. Empty text is allowed, but the action logs a
+warning and usually has no visible effect unless a background color is also set.
+
+`PrintText` has narrower placeholder support than most other actions:
+
+- Numeric DICOM tag placeholders in `#{GGGG,EEEE}` form may be embedded anywhere
+  in the text.
+- Named tag placeholders such as `#{PatientID}` are not expanded.
+- The only supported date form is `#{Date,N}` where `N` is zero or a positive
+  day offset. Bare `#{Date}`, negative offsets, and date ranges are not expanded.
 
 ```xml
 <Text>NOT FOR DIAGNOSTIC USE - #{0010,0010}</Text>

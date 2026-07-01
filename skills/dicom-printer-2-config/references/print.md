@@ -20,9 +20,10 @@ actions and `Perform` them before Print).
 > (`<BasicFilmBoxAttributes>`, `<FilmSizeId>`). A lowercase/misspelled child is silently dropped;
 > a misspelled block name **fails the parse**. (`<NumberOfCopies>` is the one case-insensitive child.)
 
-> **Defaults myth:** the PDF manual lists DICOM "defaults" (PORTRAIT, 8INX10IN, MED, PAPER, …).
-> The engine does **not** send those — unset attributes are **omitted** and the printer SCP
-> applies its own defaults. Only set what you actually need to override.
+> **Defaults:** DP2 sends the non-empty engine defaults listed below
+> (`NumberOfCopies`, `FilmSessionLabel`, `ImageDisplayFormat`, `FilmOrientation`,
+> and `Polarity`). Attributes whose engine default is empty are omitted unless you
+> configure them, so the printer SCP applies its own default for those fields.
 
 ### BasicFilmSessionAttributes
 
@@ -43,7 +44,7 @@ actions and `Perform` them before Print).
 | `FilmOrientation` | PORTRAIT, LANDSCAPE, AUTO | AUTO (picks per page by aspect) |
 | `FilmSizeId` | 8INX10IN, 8_5INX11IN, 10INX12IN, 10INX14IN, 11INX14IN, 11INX17IN, 14INX14IN, 14INX17IN, 24CMX24CM, 24CMX30CM, A4, A3 | "" (= job paper size) |
 | `MagnificationType` | REPLICATE, BILINEAR, CUBIC, NONE | (omitted) |
-| `SmoothingType` | SCP-defined int | (omitted; only with CUBIC) |
+| `SmoothingType` | SCP-defined | (omitted; sent as configured) |
 | `BorderDensity` / `EmptyImageDensity` | BLACK, WHITE, or int (hundredths OD) | (omitted) |
 | `MinDensity` / `MaxDensity` | int (hundredths OD) | (omitted) |
 | `Trim` | YES, NO | (omitted) — *this* `<Trim>` is the film-box boolean, not the Trim action |
@@ -57,8 +58,9 @@ actions and `Perform` them before Print).
 |---|---|---|
 | `Polarity` | NORMAL, REVERSE | NORMAL |
 | `MagnificationType` | REPLICATE, BILINEAR, CUBIC, NONE | (omitted) |
-| `SmoothingType` | SCP-defined | (omitted; only with CUBIC) |
-| `MinDensity` / `MaxDensity` / `ConfigurationInformation` | int / SCP | (omitted; ignored in Color mode) |
+| `SmoothingType` | SCP-defined | (omitted; sent as configured) |
+| `MaxDensity` / `ConfigurationInformation` | int / SCP | (omitted; ignored in Color mode) |
+| `MinDensity` | int | DP2 does not transmit image-box MinDensity correctly |
 | `RequestedImageSize` | width mm (decimal) | (omitted) |
 | `RequestedDecimateCropBehavior` | DECIMATE, CROP, FAIL | (omitted) |
 | `ImageBoxPosition` | — | auto 1..N — **not XML-configurable** |
@@ -87,12 +89,14 @@ actions and `Perform` them before Print).
 
 ## `<PrintText>` — burn text onto every page
 
-Child tags case-insensitive. `Text` supports `#{gggg,eeee}` placeholders. **X/Y/Width/Height
-are percentages (0–100) of image size**, origin top-left, all four required.
+Child tags case-insensitive. `Text` supports embedded numeric `#{GGGG,EEEE}`
+placeholders and `#{Date,N}` with zero or positive `N`; named tags, bare dates,
+negative offsets, and date ranges are not expanded. **X/Y/Width/Height are
+percentages (0–100) of image size**, origin top-left, all four required.
 
 | tag | values | default |
 |---|---|---|
-| `Text` | text + `#{gggg,eeee}` | "" |
+| `Text` | text + limited placeholders | "" |
 | `X` / `Y` / `Width` / `Height` | 0–100 (% of image) | required |
 | `Color` | hex `RRGGBB` or `AARRGGBB` | 0000FF (opaque blue) |
 | `BackgroundColor` | hex (8-digit for alpha) | transparent |
@@ -116,7 +120,7 @@ Color is hex only (`FF0000`, not `red`). 6 digits → opaque; 8 digits → `AARR
 |---|---|---|
 | `ImagePath` | file path | required; PNG alpha is honored (watermark) |
 | `X` / `Y` / `Width` / `Height` | 0–100 (% of image) | required; **X+Width ≤ 100 and Y+Height ≤ 100** |
-| `Aspect` | keep \| ignore | default keep |
+| `Aspect` | keep \| ignore | required; always specify |
 
 ```xml
 <PrintImage name="Logo">
