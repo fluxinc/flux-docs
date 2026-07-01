@@ -24,22 +24,22 @@ Store actions send DICOM objects to remote PACS systems or storage nodes using t
 ### `name`
 Unique identifier for this action.
 
-## Required Elements
+## Connection Parameters
 
 ### `ConnectionParameters`
-Network connection settings for the remote DICOM server. Must contain the following nested elements:
+Network connection settings for the remote DICOM server. `PeerAeTitle`, `Host`, and `Port` are required; `MyAeTitle` is optional.
 
-#### `PeerAeTitle`
+#### `PeerAeTitle` (required)
 The AE Title of the remote DICOM storage server (PACS).
 
-#### `MyAeTitle`
-The AE Title of DICOM Printer 2 (this application).
-
-#### `Host`
+#### `Host` (required)
 The hostname or IP address of the remote DICOM storage server.
 
-#### `Port`
+#### `Port` (required)
 The TCP port number of the remote DICOM storage server (typically 104 or 11112).
+
+#### `MyAeTitle` (optional)
+The AE Title DICOM Printer 2 presents as the calling AE. Defaults to `DICOM_PRINTER` when omitted.
 
 ## Optional Elements
 
@@ -158,7 +158,7 @@ When a job produces both image and PDF instances, the Store action separates the
 
 - **Images** and **PDFs** are stored as separate series, each with its own Series Instance UID.
 - Each instance is assigned a unique instance number within its series.
-- Series numbers are assigned sequentially starting from `1`, unless a series number is already set in the dataset (for example, by an earlier `SetTag` action or a query result), in which case the existing value is preserved.
+- The **image** series keeps whatever Series Number the dataset already has (from an earlier `SetTag` or a query result); if none is set, it is left blank. The **Encapsulated PDF** series is assigned the next number after the image series' number — or `1` when the image series has no numeric Series Number.
 
 ## Association Lifetime
 
@@ -408,11 +408,9 @@ Complete configuration with query, tag setting, and multiple store destinations:
       <DcmTag tag="0010,0020">#{PatientID}</DcmTag>
     </Query>
 
-    <!-- Set metadata -->
-    <SetTag name="SetMetadata">
-      <DcmTag tag="0008,0020">#{Date}</DcmTag>
-      <DcmTag tag="0008,0080" value="Medical Center"/>
-    </SetTag>
+    <!-- Set metadata (one tag per SetTag) -->
+    <SetTag name="SetStudyDate" tag="0008,0020">#{Date}</SetTag>
+    <SetTag name="SetInstitution" tag="0008,0080">Medical Center</SetTag>
 
     <!-- Primary PACS with compression -->
     <Store name="SendToPrimaryPACS">
@@ -442,7 +440,8 @@ Complete configuration with query, tag setting, and multiple store destinations:
 
     <If field="QUERY_FOUND" value="1">
       <Statements>
-        <Perform action="SetMetadata"/>
+        <Perform action="SetStudyDate"/>
+        <Perform action="SetInstitution"/>
 
         <!-- Primary PACS - critical, retry on failure -->
         <Perform action="SendToPrimaryPACS" onError="Hold"/>

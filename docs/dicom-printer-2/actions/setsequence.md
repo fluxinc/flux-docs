@@ -19,9 +19,9 @@ The `SetSequence` action writes a DICOM sequence structure — with nested items
 |---|---|---|
 | `name` | Yes | Unique identifier for this action. |
 | `tag` | Yes | The DICOM tag for the sequence, in `(GGGG,EEEE)` format. |
-| `vr` | No | Value Representation. Usually inferred from the DICOM dictionary. Required for private tags. |
+| `vr` | No | Value Representation. Optional; if specified it must be `SQ` (any other value fails validation at load). Private sequence tags are auto-registered with VR `SQ`. |
 | `tagName` | No | Name for private sequence tags (odd group number). |
-| `replace` | No | `"true"` to replace an existing sequence with the same tag; `"false"` to append (default: `"false"`). |
+| `replace` | No | `"true"` overwrites an existing sequence with the same tag. `"false"` (default) inserts the sequence only if no sequence with that tag is already present; if one already exists, the insert fails and the action errors. It does **not** append a second sequence. |
 | `unique` | No | `"true"` to write a separate sequence per image instance; `"false"` for a single sequence applied to all instances in the job (default: `"false"`). |
 
 ## Child Elements
@@ -114,7 +114,7 @@ For complex structures that require sequences within sequences:
 
 A SetSequence-populated sequence is injected into a C-FIND request only when the corresponding `<Query>` contains a matching `<DcmSequence>` element with the same tag. If the Query has no such element, the sequence still exists in the job dataset but is not sent as part of the query payload.
 
-See [Query Attributes](/dicom-printer-2/actions/query-attributes#setsequence-integration) for details on how SetSequence interacts with Query actions.
+See [Query Attributes](/dicom-printer-2/actions/query-attributes#sequence-syntax) for details on how sequences interact with Query actions.
 
 ## Related Topics
 

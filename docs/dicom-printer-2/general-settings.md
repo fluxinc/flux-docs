@@ -24,10 +24,12 @@ Three elements are **required**. If any one of them is missing, the engine
 - `SuspensionTime`
 - `Verbosity`
 
-Element names are **case-sensitive** and the required-element check matches the
-exact names shown here. A mis-cased required tag (for example
-`<checkinginterval>`) is treated as missing, and the engine will quit. The
-remaining elements are optional and fall back to their defaults.
+The engine reads `<General>` element names **case-insensitively**, so
+`<Verbosity>` and `<verbosity>` are treated the same. The one exception is the
+**presence check for the three required elements**, which matches the exact
+PascalCase names shown here: a mis-cased required tag (for example
+`<checkinginterval>`) is counted as missing and the engine quits. Mis-casing an
+*optional* element does **not** disable it — its value is still applied.
 
 ## Elements
 
@@ -80,13 +82,14 @@ be left `true` in production.
 
 ### `MaximumLogFileSize`
 
-Maximum size of the active log file before it is rotated. Accepts a value with a
-`K`/`M`/`G` or `KB`/`MB`/`GB` suffix (case-insensitive) — so `50M` is valid. A
-**bare integer with no suffix is treated as megabytes** — for example, `50` means
-50 MB. The minimum enforced size is 1 MB.
+Maximum size of the active log file before it is rotated. Accepts an integer
+optionally followed by a **single-letter** `K`/`M`/`G` suffix (case-insensitive)
+— so `50M` is valid, but a two-letter suffix like `50MB` is **not** accepted and
+falls back to the default. A **bare integer with no suffix is treated as
+megabytes** — for example, `50` means 50 MB. The minimum enforced size is 1 MB.
 
-- **Content:** size value (`<int>` optionally followed by `K`/`M`/`G` or `KB`/`MB`/`GB`)
-- **Default:** `50MB`
+- **Content:** size value (`<int>` optionally followed by `K`, `M`, or `G`)
+- **Default:** 50 MB
 
 ### `MaximumLogFileCount`
 
@@ -98,16 +101,17 @@ deleted. The minimum is 2.
 
 ## Ignored Elements
 
-The following elements are accepted by the DTD but **ignored by the engine** —
-do not use them:
+The following elements are **ignored by the engine** — do not use them:
 
-- **`<SpoolDirectory>`** — the spool path is fixed; this element has no effect.
-- **`<RegistrationKey>`** — ignored and not read. Licensing is handled by the
-  machine activation system, not by `config.xml`. After the activation flow
-  completes, the resulting activation code is written to a **`.activation` file
-  in the same directory as `config.xml`** — it is not stored in `config.xml` or
-  in the Windows registry. The application starts normally whether or not
-  `<RegistrationKey>` is present, and any value is ignored.
+- **`<RegistrationKey>`** — part of the `<General>` DTD content model, but ignored
+  and not read. Licensing is handled by the machine activation system, not by
+  `config.xml`. After the activation flow completes, the resulting activation code
+  is written to a **`.activation` file in the same directory as `config.xml`** —
+  it is not stored in `config.xml` or in the Windows registry. The application
+  starts normally whether or not `<RegistrationKey>` is present, and any value is
+  ignored.
+- **`<SpoolDirectory>`** — not part of the `<General>` DTD content model and has
+  no effect; the spool path is fixed.
 
 ## Example
 

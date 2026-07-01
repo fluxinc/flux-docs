@@ -29,8 +29,8 @@ DICOM Printer 2 supports the following action types:
 
 - **[ParseJobFileName](parse.md)** - Extract data from the spooler job name via regular expressions
 - **[ParseJobTextFile](parse.md)** - Extract data from the job's text/contents file (per line) via regular expressions
-- **[SetTag](settag.md)** - Add, modify, or delete DICOM tags and attributes
-- **[SetSequence](settag.md)** - Build a DICOM sequence (SQ) attribute from nested DcmItem/DcmTag/DcmSequence elements; supports per-image (unique) and replace semantics
+- **[SetTag](settag.md)** - Add or modify a single DICOM tag value
+- **[SetSequence](setsequence.md)** - Build a DICOM sequence (SQ) attribute from nested DcmItem/DcmTag/DcmSequence elements; supports per-image (unique) and replace semantics
 - **[Save](save.md)** - Save DICOM files to local directories with custom naming
 
 ### Image Processing Actions
@@ -50,9 +50,9 @@ DICOM Printer 2 supports the following action types:
 - **[Run (Plugins)](run.md)** - Execute external console or GUI applications as part of the workflow
 - **[Notify](notify.md)** - Send notifications to external systems
 
-### Other Actions
+### Internal Actions
 
-- **PrefixDemo** - Prefixes "[DEMO] " to Series Description and Study Description tags. Used for evaluation/demo licensing mode. No configuration required.
+- **PrefixDemo** - An internal action that prefixes "[DEMO] " to the Series Description and Study Description tags. It is injected automatically when the product runs in demo/evaluation licensing mode — it is **not** declared in `<ActionsList>` and cannot be referenced from a workflow.
 
 ## Common Action Attributes
 

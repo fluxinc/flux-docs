@@ -16,11 +16,11 @@ SetTag actions set DICOM tag values in the current DICOM object. Each SetTag act
 |---|---|---|
 | `name` | Yes | Unique identifier for this action. |
 | `tag` | Yes | The DICOM tag in `(GGGG,EEEE)` format. |
-| `vr` | No | Value Representation (e.g., `LO`, `PN`, `DT`). Usually inferred from the DICOM dictionary. Required for private tags. |
+| `vr` | No | Value Representation (e.g., `LO`, `PN`, `DT`). Usually inferred from the DICOM dictionary. Optional even for private tags — if omitted for a private (odd-group) tag, the VR defaults to `LO` and a warning is logged. |
 | `tagName` | No | Name for private tags (odd group number). |
 
 ::: warning SetTag is always job-level
-SetTag always applies its value to the whole job (the job-level dataset). There is no per-instance mode — the `type`/`unique` attribute is not honored by SetTag. SetTag also does not generate UIDs (Study/Series/SOP Instance UIDs are produced automatically by the engine). For per-image sequence values use [SetSequence](index.md) with `unique="true"`.
+SetTag always applies its value to the whole job (the job-level dataset). There is no per-instance mode — the `type`/`unique` attribute is not honored by SetTag. SetTag also does not generate UIDs (Study/Series/SOP Instance UIDs are produced automatically by the engine). For per-image sequence values use [SetSequence](setsequence.md) with `unique="true"`.
 :::
 
 ## Optional Attributes
