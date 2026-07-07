@@ -75,6 +75,7 @@
                 type (Study|Worklist|Patient|Manual) #IMPLIED
                 select (first|last) #IMPLIED
                 order-by CDATA #IMPLIED
+                show (true|false) #IMPLIED
                 force-assignment (true|false) #IMPLIED
                 forcePeerAe (true|false) #IMPLIED>
 

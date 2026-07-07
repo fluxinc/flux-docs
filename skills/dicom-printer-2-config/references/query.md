@@ -12,6 +12,7 @@ dataset for later Store/Print. One `name` per query; invoked by `<Perform>`.
 | `level` | `PATIENT`\|`STUDY`\|`SERIES`\|`IMAGE` | Study→STUDY, Patient→PATIENT | Study/Patient only; Worklist/Manual ignore it |
 | `select` | `first` \| `last` | none | which result to assign when >1 survives filtering+ordering |
 | `order-by` | `Tag [asc\|desc], …` | — | tag = DICOM name or `(gggg,eeee)`; asc default; e.g. `StudyDate desc, StudyTime desc` |
+| `show` | bool | true | Console-only: `false` hides this query from the manual-match target list. The capture engine ignores it, so query behaviour is unchanged — use it for internal presence-check queries that operators should not run by hand |
 | `forcePeerAe` | bool | false | **Worklist only**: copy job value into Scheduled Station AE `(0040,0001)` |
 | `force-assignment` | bool | false | compatibility alias for `select="first"`; prefer `select` |
 
