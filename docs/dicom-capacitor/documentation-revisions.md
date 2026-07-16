@@ -31,7 +31,8 @@ contains later corrections and documentation for other Flux products.
 
 ## Selected revision milestones
 
-This is a navigational index, not a substitute for the complete Git history.
+The complete Git history is the master revision list; this page is its
+navigational index.
 
 | Date | Commit | Revision evidence |
 | --- | --- | --- |
@@ -44,7 +45,6 @@ This is a navigational index, not a substitute for the complete Git history.
 
 ## Scope of the record
 
-Git and Pages establish content revision and publication. They do not, by
-themselves, prove that a documentation change completed a product verification,
-release approval, training activity, or customer notification. Those records
-belong to the corresponding product release and quality process.
+Git and Pages establish content revision and publication. Product verification,
+release approval, training, and customer notification are linked in the
+corresponding product release and quality records.
