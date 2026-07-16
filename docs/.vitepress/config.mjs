@@ -159,6 +159,7 @@ export default defineConfig({
                 link: "/dicom-capacitor/uninstallation",
               },
               { text: "Upgrading", link: "/dicom-capacitor/upgrading" },
+              { text: "Documentation revisions", link: "/dicom-capacitor/documentation-revisions" },
               { text: "Support", link: "/dicom-capacitor/support" },
               { text: "License", link: "/dicom-capacitor/license" },
             ],
